@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VALETEC PHARMA - Sistema Integral de Gestión & Dispensación v2</title>
+
+  <!-- Tipografía Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Iconografía Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+  <!-- Estilos Maestros Responsive Modernos -->
+  <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body class="valetec-app-body" id="appBody">
+
+  <!-- =============================================================
+       0. PANTALLA DE LOGIN / INICIO DE SESIÓN DE COLABORADORES
+  ============================================================= -->
+  <div class="login-fullscreen-wrapper" id="loginScreen">
+    <div class="login-split-card">
+      
+      <!-- Lado Izquierdo: Branding y Ecosistema VALETEC -->
+      <div class="login-brand-side">
+        <div class="brand-logo-large">
+          <i class="bi bi-prescription2"></i>
+        </div>
+        <h1 class="brand-heading">VALETEC <span class="teal-text">PHARMA</span></h1>
+        <p class="brand-subheading">Sistema Integral de Botica, Dispensación & Regencia v2</p>
+
+        <div class="login-feature-list">
+          <div class="feature-bullet">
+            <span class="feat-emoji">🛡️</span>
+            <div>
+              <strong>Control Sanitario DIGEMID</strong>
+              <small style="display:block; color:#94a3b8;">Recetas retenidas y psicotrópicos al día</small>
+            </div>
+          </div>
+          <div class="feature-bullet">
+            <span class="feat-emoji">⚡</span>
+            <div>
+              <strong>Ventas Ultra-Rápidas</strong>
+              <small style="display:block; color:#94a3b8;">Cobro ágil con teclado y vuelto automático</small>
+            </div>
+          </div>
+          <div class="feature-bullet">
+            <span class="feat-emoji">📱</span>
+            <div>
+              <strong>Control para el Dueño</strong>
+              <small style="display:block; color:#94a3b8;">Supervisa ventas y ganancias desde tu celular</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="login-brand-footer">
+          <span>© 2026 VALETEC • Red de Boticas & Farmacias</span>
+        </div>
+      </div>
+
+      <!-- Lado Derecho: Formulario de Acceso y Perfiles Rápidos -->
+      <div class="login-form-side">
+        <div class="login-form-header">
+          <h2>👋 ¡Hola! Bienvenido a tu Botica</h2>
+          <p>Toca tu perfil de trabajo para entrar rápido o escribe tu clave:</p>
+        </div>
+
+        <!-- Perfiles de Acceso Rápido (1 Clic) con Emojis y Textos Claros -->
+        <div class="quick-profiles-grid">
+          <div class="profile-card-btn active" data-role="admin" onclick="authManager.selectQuickProfile('admin')" title="Ver todo el negocio">
+            <div class="prof-avatar">👑</div>
+            <div class="prof-text">
+              <strong>Dueño / Gerente</strong>
+              <small>Ing. Juan Pérez • Todo el negocio</small>
+            </div>
+            <i class="bi bi-check-circle-fill prof-check"></i>
+          </div>
+
+          <div class="profile-card-btn" data-role="qf" onclick="authManager.selectQuickProfile('qf')" title="Recetas y Almacén">
+            <div class="prof-avatar">🔬</div>
+            <div class="prof-text">
+              <strong>Químico (Q.F.)</strong>
+              <small>Dra. Elena Vega • DIGEMID & Lotes</small>
+            </div>
+            <i class="bi bi-check-circle-fill prof-check"></i>
+          </div>
+
+          <div class="profile-card-btn" data-role="tech" onclick="authManager.selectQuickProfile('tech')" title="Atención a Clientes">
+            <div class="prof-avatar">🩺</div>
+            <div class="prof-text">
+              <strong>Técnico Mostrador</strong>
+              <small>Carlos Mendoza • Ventas rápidas</small>
+            </div>
+            <i class="bi bi-check-circle-fill prof-check"></i>
+          </div>
+
+          <div class="profile-card-btn" data-role="cashier" onclick="authManager.selectQuickProfile('cashier')" title="Cobros y Caja">
+            <div class="prof-avatar">💵</div>
+            <div class="prof-text">
+              <strong>Cajero de Turno</strong>
+              <small>Rodrigo Soto • Cobro & Arqueo</small>
+            </div>
+            <i class="bi bi-check-circle-fill prof-check"></i>
+          </div>
+        </div>
+
+        <!-- Formulario Manual de Autenticación -->
+        <form class="login-form-fields" onsubmit="authManager.login(event)">
+          <div class="login-input-group">
+            <label><i class="bi bi-person-fill"></i> Correo o Usuario:</label>
+            <input type="text" id="loginUsername" class="login-field" value="gerencia@valetec.pe" required>
+          </div>
+          <div class="login-input-group mt-2">
+            <label><i class="bi bi-key-fill"></i> Clave / PIN de Turno:</label>
+            <input type="password" id="loginPassword" class="login-field" value="••••••••" required>
+          </div>
+
+          <div class="login-options-row mt-2">
+            <label class="remember-check"><input type="checkbox" checked> Recordar en esta computadora</label>
+            <a href="#" class="forgot-link" onclick="alert('Pide ayuda al Administrador para cambiar tu clave.')">¿Olvidaste tu clave?</a>
+          </div>
+
+          <button type="submit" class="btn-login-submit">
+            <i class="bi bi-box-arrow-in-right"></i> 🚀 Ingresar al Sistema
+          </button>
+        </form>
+
+        <div class="login-security-notice">
+          <i class="bi bi-shield-lock-fill text-teal"></i> Sistema protegido y seguro para farmacias
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- =============================================================
+       SISTEMA PRINCIPAL (VISIBLE TRAS INICIAR SESIÓN)
+  ============================================================= -->
+  <div class="app-main-wrapper d-none" id="appScreen">
+
+    <!-- =============================================================
+         1. HEADER PRINCIPAL CON SELECTOR DE ROL Y ESTADO OPERATIVO
+    ============================================================= -->
+    <header class="app-top-header">
+      <div class="header-left">
+        <!-- Botón Menú Móvil -->
+        <button type="button" class="btn-mobile-menu" id="btnMobileMenuToggle" aria-label="Abrir menú">
+          <i class="bi bi-list"></i>
+        </button>
+
+        <!-- Logotipo e Identidad VALETEC -->
+        <div class="valetec-brand-wrap">
+          <div class="brand-icon-box">
+            <i class="bi bi-prescription2"></i>
+          </div>
+          <div class="brand-text-box">
+            <div class="brand-title">VALETEC <span class="brand-teal">PHARMA</span></div>
+            <div class="brand-slogan">SISTEMA INTEGRAL DE GESTIÓN & DISPENSACIÓN</div>
+          </div>
+        </div>
+
+        <!-- Selector de Rol Dinámico (Simulador de Perfiles) -->
+        <div class="role-selector-pill" title="Toca aquí para cambiar de perfil y ver cómo trabaja cada colaborador">
+          <i class="bi bi-person-badge-fill text-teal"></i>
+          <div class="role-selector-info">
+            <small>Estás viendo como:</small>
+            <select id="appRoleSelector" class="role-select">
+              <option value="admin" selected>👑 Dueño / Gerente (Acceso Total)</option>
+              <option value="qf">🔬 Químico (Q.F.) (Regente)</option>
+              <option value="tech">🩺 Técnico Mostrador (Ventas)</option>
+              <option value="cashier">💵 Cajero de Turno (Caja)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <!-- Indicador de Comunicación en Vivo (Frontend ↔ Backend ↔ PostgreSQL) -->
+        <div id="liveApiStatusBadge" class="valetec-live-badge online">
+          <span class="dot"></span>
+          <span><strong>Conectando...</strong></span>
+        </div>
+
+        <!-- Indicador de Terminal y Sede -->
+        <div class="terminal-badge d-none d-lg-flex">
+          <i class="bi bi-shop text-blue"></i>
+          <span><strong>Botica Central</strong> • Caja 01</span>
+          <span class="pulse-indicator"><i class="bi bi-circle-fill"></i> 🟢 Turno Abierto</span>
+        </div>
+
+        <!-- Perfil del Colaborador Activo -->
+        <div class="user-profile-badge">
+          <div class="user-avatar" id="activeUserAvatar">👑</div>
+          <div class="user-details">
+            <strong id="activeUserName">Ing. Juan Pérez</strong>
+            <small id="activeUserRole">Dueño / Gerente General</small>
+          </div>
+        </div>
+
+        <!-- Reloj en Vivo -->
+        <div class="live-clock-badge d-none d-md-flex">
+          <i class="bi bi-clock"></i>
+          <span id="liveAppClock">18/09/2026 • 17:05:00</span>
+        </div>
+
+        <!-- Botón de Atajos -->
+        <button type="button" class="btn-shortcuts-modal" id="btnOpenShortcuts" title="Ver atajos de teclado [F1]">
+          <span>⌨️ Atajos <kbd>F1</kbd></span>
+        </button>
+
+        <!-- Botón Cerrar Sesión -->
+        <button type="button" class="btn-logout-header" onclick="authManager.logout()" title="Cerrar Sesión del Turno">
+          <span>🚪 Salir</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- =============================================================
+         2. BARRA DE NAVEGACIÓN ADAPTATIVA (TABS / VISTAS POR ROL)
+    ============================================================= -->
+    <nav class="app-nav-bar" id="appNavBar">
+      <div class="nav-container">
+        
+        <!-- Tab 1: Mostrador (Visible para Técnico, Q.F., Gerente) -->
+        <button type="button" class="nav-tab-btn" data-view="viewCounter" data-roles="all">
+          <span class="tab-icon">⚡</span>
+          <span>1. Mostrador & Venta</span>
+          <span class="tab-kbd-hint">F2</span>
+        </button>
+
+        <!-- Tab 2: Control de Caja & Arqueo (Visible para Cajero, Gerente) -->
+        <button type="button" class="nav-tab-btn" data-view="viewCash" data-roles="cashier,admin">
+          <span class="tab-icon">💵</span>
+          <span>2. Caja & Cuadre</span>
+          <span class="tab-kbd-hint">F9</span>
+        </button>
+
+        <!-- Tab 3: Almacén & Lotes FEFO (Visible para Q.F., Gerente) -->
+        <button type="button" class="nav-tab-btn" data-view="viewWarehouse" data-roles="qf,admin">
+          <span class="tab-icon">📦</span>
+          <span>3. Almacén & Lotes</span>
+          <span class="badge-tab-notify warn">⚠️ 1 Canje</span>
+        </button>
+
+        <!-- Tab 4: Regencia DIGEMID & Controlados (Visible para Q.F., Gerente) -->
+        <button type="button" class="nav-tab-btn" data-view="viewDigemid" data-roles="qf,admin">
+          <span class="tab-icon">📋</span>
+          <span>4. Recetas DIGEMID</span>
+          <span class="badge-tab-notify info">3 Recetas</span>
+        </button>
+
+        <!-- Tab 5: Gestión de Colaboradores & Turnos (Visible para Gerente) -->
+        <button type="button" class="nav-tab-btn" data-view="viewStaff" data-roles="admin">
+          <span class="tab-icon">👥</span>
+          <span>5. Personal & Turnos</span>
+        </button>
+
+        <!-- Tab 6: Torre de Control Gerencial (Visible para Gerente) -->
+        <button type="button" class="nav-tab-btn active" data-view="viewManagement" data-roles="admin">
+          <span class="tab-icon">📊</span>
+          <span>6. Torre de Control</span>
+          <span class="badge-tab-notify live">🔴 En Vivo</span>
+        </button>
+
+      </div>
+    </nav>
+
+    <!-- =============================================================
+         3. CONTENEDOR DE ESPACIO DE TRABAJO (WORKSPACE)
+    ============================================================= -->
+    <main class="app-workspace-main">
+
+      <!-- *************************************************************
+           VISTA 1: MOSTRADOR & DISPENSACIÓN RÁPIDA (VENTA AL PACIENTE)
+      ************************************************************* -->
+      <section id="viewCounter" class="app-view-panel">
+        <div class="counter-responsive-grid">
+          
+          <div class="counter-catalog-pane">
+            
+            <!-- Buscador Clínico Rápido con Instrucción Sencilla -->
+            <div class="search-bar-card">
+              <div class="search-input-box">
+                <i class="bi bi-search"></i>
+                <input 
+                  type="text" 
+                  id="fastProductSearch" 
+                  placeholder="🔍 Escribe medicina, genérico o pasa el lector de código de barras... [F2]" 
+                  autocomplete="off"
+                >
+                <span class="search-enter-tag">⚡ <kbd>Enter</kbd> Agregar</span>
+              </div>
+              <div class="search-autocomplete-dropdown" id="searchAutocompleteDropdown"></div>
+            </div>
+
+            <!-- Filtro de Categorías Rápidas con Emojis Vistosos -->
+            <div class="category-chips-scroll">
+              <button type="button" class="cat-chip active" data-cat="all">✨ Todas las Medicinas</button>
+              <button type="button" class="cat-chip" data-cat="dolor">💊 Dolor & Fiebre</button>
+              <button type="button" class="cat-chip" data-cat="respiratorio">🫁 Gripe & Tos</button>
+              <button type="button" class="cat-chip" data-cat="antibioticos">🛡️ Antibióticos (Receta)</button>
+              <button type="button" class="cat-chip" data-cat="digestivos">🍵 Estómago & Digestión</button>
+              <button type="button" class="cat-chip" data-cat="controlados">🔒 Controlados (Lista IV)</button>
+              <button type="button" class="cat-chip" data-cat="vitaminas">🍊 Vitaminas & Defensas</button>
+            </div>
+
+            <!-- Banner de Asesoría de Genéricos DCI (Texto directo y al grano) -->
+            <div class="dci-advisor-card">
+              <span class="feat-emoji" style="font-size:22px;">💡</span>
+              <div>
+                <strong>Ahorro para el Cliente:</strong>
+                <span>Ofrece la alternativa genérica DCI para fidelizar al paciente con precios bajos y cumplir la ley.</span>
+              </div>
+            </div>
+
+            <!-- Grilla de Tarjetas de Medicamentos -->
+            <div class="products-cards-grid" id="counterProductsContainer">
+              <!-- Inyección dinámica desde app.js -->
+            </div>
+
+          </div>
+
+          <!-- Área Derecha: Carrito de Cobro en Mostrador -->
+          <div class="counter-ticket-pane">
+            
+            <div class="ticket-header-card">
+              <div class="ticket-title-row">
+                <span class="ticket-title"><i class="bi bi-cart3"></i> 🛒 Carrito de Venta</span>
+                <span class="ticket-id-tag" id="ticketLiveNumber">VAL-2026-0042</span>
+              </div>
+
+              <div class="patient-lookup-box">
+                <div class="input-doc-wrap">
+                  <i class="bi bi-person-vcard text-blue"></i>
+                  <input type="text" id="patientDocInput" placeholder="DNI o RUC del cliente..." maxlength="11">
+                  <button type="button" id="btnQueryPatient" title="Buscar cliente en el sistema">
+                    <span>🔍 Buscar</span>
+                  </button>
+                </div>
+                <div class="patient-status-line" id="patientStatusLine">
+                  <span class="p-name">👤 Cliente General</span>
+                  <span class="p-points"><i class="bi bi-star-fill text-warning"></i> 0 Puntos</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Lista de Medicamentos Agregados -->
+            <div class="ticket-items-scroll" id="ticketItemsScroll">
+              <div class="empty-ticket-view">
+                <span style="font-size: 36px; display:block; margin-bottom:8px;">🛒</span>
+                <p><strong>El carrito está vacío.</strong></p>
+                <small>Busca medicamentos o presiona [F2] para agregar.</small>
+              </div>
+            </div>
+
+            <!-- Alerta de Receta Obligatoria CMP -->
+            <div class="prescription-alert-box d-none" id="prescriptionAlertBox">
+              <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+              <div>
+                <strong class="text-danger">⚠️ Requiere Receta Médica DIGEMID:</strong>
+                <p>Escribe el CMP del médico tratante para autorizar la salida:</p>
+                <div class="cmp-row">
+                  <input type="text" id="orderDoctorCmp" placeholder="Ej. CMP-48291 (Doctor)">
+                  <button type="button" class="btn-check-cmp" onclick="alert('✅ CMP verificado correctamente en el Colegio Médico.')">Validar</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Resumen Fiscal de la Venta -->
+            <div class="ticket-totals-card">
+              <div class="tot-row">
+                <span>Subtotal sin IGV:</span>
+                <span id="ticketBaseAmount">S/ 0.00</span>
+              </div>
+              <div class="tot-row">
+                <span>IGV (18%):</span>
+                <span id="ticketIgvAmount">S/ 0.00</span>
+              </div>
+              <div class="tot-row final-total">
+                <span>💰 TOTAL A COBRAR:</span>
+                <span class="total-val" id="ticketTotalAmount">S/ 0.00</span>
+              </div>
+            </div>
+
+            <!-- Panel de Cobro Rápido -->
+            <div class="payment-controls-card">
+              <div class="voucher-switch-grid">
+                <label class="v-opt"><input type="radio" name="orderVoucherType" value="ticket" checked> 🧾 Ticket</label>
+                <label class="v-opt"><input type="radio" name="orderVoucherType" value="boleta"> 📄 Boleta</label>
+                <label class="v-opt"><input type="radio" name="orderVoucherType" value="factura"> 🏢 Factura</label>
+              </div>
+
+              <!-- Billetes para cálculo inmediato de vuelto -->
+              <div class="cash-calc-wrapper">
+                <span class="calc-label-tag">💵 Toca el billete recibido para calcular vuelto:</span>
+                <div class="bills-fast-grid">
+                  <button type="button" class="btn-cash-bill" data-amount="10">💵 S/ 10</button>
+                  <button type="button" class="btn-cash-bill" data-amount="20">💵 S/ 20</button>
+                  <button type="button" class="btn-cash-bill" data-amount="50">💵 S/ 50</button>
+                  <button type="button" class="btn-cash-bill" data-amount="100">💵 S/ 100</button>
+                  <button type="button" class="btn-cash-bill" data-amount="200">💵 S/ 200</button>
+                  <button type="button" class="btn-cash-bill exact" id="btnCashExact">🪙 Pago Exacto</button>
+                </div>
+                <div class="change-display-grid">
+                  <div class="c-field">
+                    <small>💵 Dinero Recibido:</small>
+                    <input type="number" id="cashReceivedInput" placeholder="0.00" step="0.50">
+                  </div>
+                  <div class="c-field highlight">
+                    <small>🟢 SU VUELTO:</small>
+                    <strong id="cashChangeDisplay">S/ 0.00</strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Acciones de Mostrador: Botones Grandes y Claros -->
+              <div class="ticket-action-btns">
+                <button type="button" class="btn-order-cancel" id="btnCancelOrder" title="Borrar y vaciar el carrito [F8]">
+                  <i class="bi bi-trash3"></i> <span>🗑️ [F8] Borrar Venta</span>
+                </button>
+                <button type="button" class="btn-order-checkout" id="btnCheckoutOrder" title="Cobrar e imprimir comprobante [F4]">
+                  <i class="bi bi-printer-fill"></i> <span>💳 [F4] COBRAR Y ENTREGAR</span>
+                </button>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      <!-- *************************************************************
+           VISTA 2: CONTROL DE CAJA, EGRESOS & ARQUEO DE TURNO
+      ************************************************************* -->
+      <section id="viewCash" class="app-view-panel">
+        <div class="valetec-card-box">
+          
+          <div class="card-header-flex">
+            <div>
+              <h2 class="view-heading"><i class="bi bi-cash-stack text-blue"></i> 💵 Caja 01 • Cuadre y Arqueo del Turno</h2>
+              <p class="view-subheading">Controla el dinero en efectivo, cobros por tarjeta/Yape y verifica que no falte ni un sol.</p>
+            </div>
+            <div class="header-actions-group">
+              <button type="button" class="btn-action-outline" id="btnOpenExpenseModal">
+                <span>💸 + Registrar Gasto</span>
+              </button>
+              <button type="button" class="btn-action-solid" id="btnTriggerZClose">
+                <span>🔒 Cierre Z (Finalizar Día)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 4 Tarjetas de Balance de Caja -->
+          <div class="cash-kpi-grid">
+            <div class="cash-stat-card">
+              <span class="stat-label">🪙 Sencillo de Inicio (Fondo)</span>
+              <div class="stat-value">S/ 250.00</div>
+              <small class="stat-meta"><i class="bi bi-clock"></i> Abierto: 08:00 AM</small>
+            </div>
+            <div class="cash-stat-card">
+              <span class="stat-label">💵 Ventas en Efectivo (Hoy)</span>
+              <div class="stat-value text-teal">S/ 1,840.50</div>
+              <small class="stat-meta"><i class="bi bi-receipt"></i> 64 clientes cobrados</small>
+            </div>
+            <div class="cash-stat-card">
+              <span class="stat-label">💳 Tarjeta / Yape / Plin</span>
+              <div class="stat-value text-blue">S/ 3,052.00</div>
+              <small class="stat-meta">POS: S/ 2,120 | Yape: S/ 932</small>
+            </div>
+            <div class="cash-stat-card expected-highlight">
+              <span class="stat-label">🎯 Dinero que DEBE haber en gaveta:</span>
+              <div class="stat-value" id="cashExpectedDrawer">S/ 2,005.50</div>
+              <small class="stat-meta">Fondo (S/ 250) + Ventas - Gastos (S/ 85)</small>
+            </div>
+          </div>
+
+          <!-- Matriz de Arqueo Físico -->
+          <div class="cash-audit-split">
+            
+            <div class="audit-matrix-box">
+              <div class="box-title-row">
+                <h3><i class="bi bi-calculator"></i> 🧮 Conteo de Dinero en Gaveta</h3>
+                <span class="badge-sub">Escribe cuántos billetes y monedas tienes en las manos</span>
+              </div>
+
+              <div class="tables-dual-col">
+                <table class="audit-table">
+                  <thead><tr><th>Billete</th><th>Cantidad</th><th>Total</th></tr></thead>
+                  <tbody>
+                    <tr><td><strong>💵 S/ 200</strong></td><td><input type="number" class="denom-field" data-val="200" value="3" min="0"></td><td class="denom-cell">S/ 600.00</td></tr>
+                    <tr><td><strong>💵 S/ 100</strong></td><td><input type="number" class="denom-field" data-val="100" value="9" min="0"></td><td class="denom-cell">S/ 900.00</td></tr>
+                    <tr><td><strong>💵 S/ 50</strong></td><td><input type="number" class="denom-field" data-val="50" value="6" min="0"></td><td class="denom-cell">S/ 300.00</td></tr>
+                    <tr><td><strong>💵 S/ 20</strong></td><td><input type="number" class="denom-field" data-val="20" value="7" min="0"></td><td class="denom-cell">S/ 140.00</td></tr>
+                    <tr><td><strong>💵 S/ 10</strong></td><td><input type="number" class="denom-field" data-val="10" value="5" min="0"></td><td class="denom-cell">S/ 50.00</td></tr>
+                  </tbody>
+                </table>
+
+                <table class="audit-table">
+                  <thead><tr><th>Moneda</th><th>Cantidad</th><th>Total</th></tr></thead>
+                  <tbody>
+                    <tr><td><strong>🪙 S/ 5.00</strong></td><td><input type="number" class="denom-field" data-val="5" value="2" min="0"></td><td class="denom-cell">S/ 10.00</td></tr>
+                    <tr><td><strong>🪙 S/ 2.00</strong></td><td><input type="number" class="denom-field" data-val="2" value="2" min="0"></td><td class="denom-cell">S/ 4.00</td></tr>
+                    <tr><td><strong>🪙 S/ 1.00</strong></td><td><input type="number" class="denom-field" data-val="1" value="1" min="0"></td><td class="denom-cell">S/ 1.00</td></tr>
+                    <tr><td><strong>🪙 S/ 0.50</strong></td><td><input type="number" class="denom-field" data-val="0.5" value="1" min="0"></td><td class="denom-cell">S/ 0.50</td></tr>
+                    <tr><td><strong>🪙 S/ 0.20/0.10</strong></td><td><input type="number" class="denom-field" data-val="0" value="0" min="0"></td><td class="denom-cell">S/ 0.00</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="audit-verdict-box">
+              <h3>📋 Resultado del Cuadre</h3>
+              
+              <div class="verdict-row">
+                <span>Dinero que contaste en mano:</span>
+                <strong id="countedCashDisplay">S/ 2,005.50</strong>
+              </div>
+              <div class="verdict-row">
+                <span>Dinero que pide el sistema:</span>
+                <strong id="expectedAuditDisplay">S/ 2,005.50</strong>
+              </div>
+
+              <div class="cuadre-status-banner perfect" id="cuadreStatusBanner">
+                <i class="bi bi-check-circle-fill"></i>
+                <div>
+                  <strong>✅ ¡CUADRE PERFECTO!</strong>
+                  <p>Diferencia: S/ 0.00. El dinero en mano coincide exactamente con las ventas.</p>
+                </div>
+              </div>
+
+              <div class="auditor-meta-card">
+                <p><strong>Cajero:</strong> Rodrigo Soto</p>
+                <p><strong>Supervisor Q.F.:</strong> Dra. Elena Vega</p>
+                <p><strong>Ventas emitidas:</strong> 142 comprobantes</p>
+              </div>
+
+              <button type="button" class="btn-print-ticket-audit" onclick="alert('Imprimiendo Ticket Térmico de Arqueo de Caja...')">
+                <span>🖨️ Imprimir Ticket de Cuadre</span>
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      <!-- *************************************************************
+           VISTA 3: ALMACÉN, KARDEX & TRAZABILIDAD FEFO
+      ************************************************************* -->
+      <section id="viewWarehouse" class="app-view-panel">
+        <div class="valetec-card-box">
+          
+          <div class="card-header-flex">
+            <div>
+              <h2 class="view-heading"><i class="bi bi-boxes text-blue"></i> 📦 Almacén, Lotes & Vencimientos (FEFO)</h2>
+              <p class="view-subheading">Controla anaqueles, stock en pastillas y canjea medicinas antes de que venzan.</p>
+            </div>
+            <div class="header-actions-group">
+              <button type="button" class="btn-action-outline" onclick="alert('Exportando reporte sanitario BPA para auditoría...')">
+                <span>📄 Descargar Inventario</span>
+              </button>
+              <button type="button" class="btn-action-solid" id="btnOpenReceiveModal">
+                <span>📥 + Recibir de Droguería</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="exchange-alert-banner">
+            <span class="feat-emoji" style="font-size: 24px;">⏰</span>
+            <div class="exchange-text">
+              <strong>¡Medicina por Vencer en menos de 90 días!</strong>
+              <p>Lote L-24115 de <strong>Bio-Amoxil 500mg</strong> vence pronto. Tramita el canje con el proveedor para no perder dinero.</p>
+            </div>
+            <button type="button" class="btn-exchange-action" onclick="alert('Generando solicitud de canje formal con el proveedor de droguería.')">
+              <span>🔄 Tramitar Canje</span>
+            </button>
+          </div>
+
+          <div class="warehouse-filter-bar">
+            <div class="wh-search-input">
+              <i class="bi bi-search"></i>
+              <input type="text" id="whSearchField" placeholder="🔍 Buscar por medicina, lote o código de barras...">
+            </div>
+            <div class="wh-selects">
+              <select id="whLocationFilter" class="form-select-valetec">
+                <option value="all">📍 Todos los Anaqueles</option>
+                <option value="Pasillo 1">Pasillo 1 (Dolor & Gripe)</option>
+                <option value="Pasillo 2">Pasillo 2 (Digestivos)</option>
+                <option value="Zona Refrigerada">Zona Refrigerada (Antibióticos)</option>
+                <option value="Caja Fuerte">Caja Fuerte (Controlados)</option>
+              </select>
+              <select id="whFefoFilter" class="form-select-valetec">
+                <option value="all">📅 Todos los Vencimientos</option>
+                <option value="good">🟢 Vigente (> 6 meses)</option>
+                <option value="warning">🟡 Vence Pronto (< 90 días)</option>
+                <option value="expired">🔴 Crítico / Vencido</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-responsive-container">
+            <table class="valetec-table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Medicamento & DCI</th>
+                  <th>Laboratorio</th>
+                  <th>Ubicación</th>
+                  <th>Stock en Tienda</th>
+                  <th>N° Lote</th>
+                  <th>Vencimiento</th>
+                  <th>Estado</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="whTableBody">
+                <!-- Renderizado desde app.js -->
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- *************************************************************
+           VISTA 4: LIBRO OFICIAL DIGEMID (RECETAS & CONTROLADOS)
+      ************************************************************* -->
+      <section id="viewDigemid" class="app-view-panel">
+        <div class="valetec-card-box">
+          
+          <div class="card-header-flex">
+            <div>
+              <h2 class="view-heading"><i class="bi bi-journal-medical text-blue"></i> 📋 Libro Oficial de Psicotrópicos DIGEMID</h2>
+              <p class="view-subheading">Registro sanitario legal de recetas retenidas (Lista IV) y antibióticos con CMP.</p>
+            </div>
+            <div class="header-actions-group">
+              <button type="button" class="btn-action-solid" id="btnNewPrescriptionEntry">
+                <span>📝 + Foliar Nueva Receta</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="sanitary-metrics-grid">
+            <div class="san-card">
+              <span class="feat-emoji" style="font-size: 26px;">🔒</span>
+              <div>
+                <div class="san-num">25 Pastillas en Caja Fuerte</div>
+                <div class="san-label">Sedafarma 2mg (Custodia de Regencia)</div>
+              </div>
+            </div>
+            <div class="san-card">
+              <span class="feat-emoji" style="font-size: 26px;">✅</span>
+              <div>
+                <div class="san-num">100% Foliado al Día</div>
+                <div class="san-label">Libro Oficial de Psicotrópicos</div>
+              </div>
+            </div>
+            <div class="san-card">
+              <span class="feat-emoji" style="font-size: 26px;">👩‍⚕️</span>
+              <div>
+                <div class="san-num">Dra. Elena Vega (Q.F.)</div>
+                <div class="san-label">Directora Técnica / Regente Responsable</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-responsive-container">
+            <table class="valetec-table">
+              <thead>
+                <tr>
+                  <th>N° Folio</th>
+                  <th>Paciente</th>
+                  <th>DNI</th>
+                  <th>Médico</th>
+                  <th>Colegiatura CMP</th>
+                  <th>Fármaco Controlado</th>
+                  <th>Fecha</th>
+                  <th>Estado</th>
+                  <th>Receta</th>
+                </tr>
+              </thead>
+              <tbody id="digemidTableBody">
+                <!-- Renderizado desde app.js -->
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- *************************************************************
+           VISTA 5: EQUIPO & ROLES DE PERSONAL (VISTA GERENCIAL)
+      ************************************************************* -->
+      <section id="viewStaff" class="app-view-panel">
+        <div class="valetec-card-box">
+          
+          <div class="card-header-flex">
+            <div>
+              <h2 class="view-heading"><i class="bi bi-people-fill text-blue"></i> 👥 Personal de Botica & Turnos</h2>
+              <p class="view-subheading">Horarios de turno, permisos en el sistema y metas comerciales de cada trabajador.</p>
+            </div>
+            <div class="header-actions-group">
+              <button type="button" class="btn-action-solid" onclick="alert('Formulario de registro de nuevo trabajador en el sistema.')">
+                <span>👤 + Registrar Trabajador</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive-container">
+            <table class="valetec-table">
+              <thead>
+                <tr>
+                  <th>Colaborador</th>
+                  <th>Puesto / Rol</th>
+                  <th>Caja / Terminal</th>
+                  <th>Horario de Turno</th>
+                  <th>Permisos</th>
+                  <th>Estado</th>
+                  <th>Meta del Día</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="staffTableBody">
+                <!-- Renderizado dinámico desde app.js -->
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- *************************************************************
+           VISTA 6: TORRE DE CONTROL GERENCIAL (SUPERVISIÓN REMOTA)
+      ************************************************************* -->
+      <section id="viewManagement" class="app-view-panel active">
+        <div class="valetec-card-box">
+          
+          <div class="card-header-flex">
+            <div>
+              <div class="cloud-status-tag"><i class="bi bi-cloud-check-fill"></i> ☁️ Conexión en Vivo (Modo Dueño)</div>
+              <h2 class="view-heading mt-1">📊 Torre de Control Gerencial</h2>
+              <p class="view-subheading">Supervisa ventas, ganancias y stock en tiempo real desde tu celular o laptop.</p>
+            </div>
+            <div class="header-actions-group">
+              <span class="live-stream-badge"><i class="bi bi-circle-fill"></i> 🟢 Nube Activa</span>
+            </div>
+          </div>
+
+          <!-- Cockpit Gerencial Rápido -->
+          <div class="management-kpi-grid">
+            <div class="mgmt-metric-card">
+              <div class="m-card-head">
+                <span>💰 Venta Total de Hoy</span>
+                <i class="bi bi-cash-coin text-teal"></i>
+              </div>
+              <div class="m-card-val">S/ 4,892.50</div>
+              <div class="m-card-sub text-teal"><i class="bi bi-arrow-up-right"></i> +14.2% sobre la meta del día</div>
+            </div>
+
+            <div class="mgmt-metric-card">
+              <div class="m-card-head">
+                <span>📈 Ganancia Estimada</span>
+                <i class="bi bi-graph-up-arrow text-blue"></i>
+              </div>
+              <div class="m-card-val">S/ 1,642.10</div>
+              <div class="m-card-sub">Margen comercial: <strong>33.5%</strong></div>
+            </div>
+
+            <div class="mgmt-metric-card">
+              <div class="m-card-head">
+                <span>👥 Clientes Atendidos</span>
+                <i class="bi bi-person-check-fill text-warning"></i>
+              </div>
+              <div class="m-card-val">142 Pacientes</div>
+              <div class="m-card-sub">Ticket promedio: <strong>S/ 34.45</strong></div>
+            </div>
+
+            <div class="mgmt-metric-card">
+              <div class="m-card-head">
+                <span>⚠️ Por Agotarse</span>
+                <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+              </div>
+              <div class="m-card-val text-danger">2 Medicinas</div>
+              <div class="m-card-sub">Pedir hoy a droguería</div>
+            </div>
+          </div>
+
+          <!-- Sugerido Inteligente de Reposición a Droguerías -->
+          <div class="procurement-section-box">
+            <div class="box-title-row">
+              <div>
+                <h3><i class="bi bi-cart-check-fill text-blue"></i> 🛒 Reposición Urgente a Droguerías (Próximas 48h)</h3>
+                <span class="badge-sub">El sistema calculó qué medicinas se van a acabar para que nunca pierdas ventas</span>
+              </div>
+              <button type="button" class="btn-action-solid" onclick="alert('Generando orden de compra para enviar por WhatsApp a Droguería Andina y BioFarma Perú.')">
+                <span>📲 Enviar Pedido por WhatsApp</span>
+              </button>
+            </div>
+
+            <div class="table-responsive-container">
+              <table class="valetec-table">
+                <thead>
+                  <tr>
+                    <th>Medicina Requerida</th>
+                    <th>Droguería Proveedora</th>
+                    <th>Stock Actual</th>
+                    <th>Venta Diaria</th>
+                    <th>Se agota en:</th>
+                    <th>Pedido Sugerido</th>
+                    <th>Costo Estimado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Bio-Amoxil 500mg Cápsulas</strong></td>
+                    <td>MedPharma Labs</td>
+                    <td><span class="stock-danger-chip">2 cajas (80 past.)</span></td>
+                    <td>1.5 cajas / día</td>
+                    <td><strong class="text-danger">⏳ 32 horas</strong></td>
+                    <td><strong>15 Cajas</strong></td>
+                    <td>S/ 315.00</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Valetec-Dol Forte 500mg</strong></td>
+                    <td>Laboratorios Farmatec S.A.</td>
+                    <td>4 cajas</td>
+                    <td>2.0 cajas / día</td>
+                    <td><strong class="text-warning">⏳ 48 horas</strong></td>
+                    <td><strong>20 Cajas</strong></td>
+                    <td>S/ 480.00</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Farma-Naprox 550mg Tabletas</strong></td>
+                    <td>BioFarma Perú</td>
+                    <td>5 cajas</td>
+                    <td>1.2 cajas / día</td>
+                    <td>⏳ 96 horas</td>
+                    <td><strong>10 Cajas</strong></td>
+                    <td>S/ 345.00</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Auditoría Antifraude en Tiempo Real -->
+          <div class="audit-stream-box">
+            <div class="box-title-row">
+              <div>
+                <h3><i class="bi bi-shield-check text-teal"></i> 🛡️ Auditoría Anti-Fraude en Vivo</h3>
+                <span class="badge-sub">Registro en tiempo real de cobros, egresos de caja y aperturas de turno</span>
+              </div>
+              <span class="badge-audit-ok"><span>🟢 Todo en Orden (Sin anomalías)</span></span>
+            </div>
+
+            <div class="audit-feed-list">
+              <div class="feed-item">
+                <span class="f-time">16:44:12</span>
+                <span class="f-badge blue">VENTA COBRADA</span>
+                <span class="f-desc">Boleta B001-0004289 por S/ 46.00 (Carlos Mendoza)</span>
+                <span class="f-status ok"><i class="bi bi-check-circle"></i> Conforme</span>
+              </div>
+              <div class="feed-item">
+                <span class="f-time">15:30:00</span>
+                <span class="f-badge yellow">SALIDA CAJA CHICA</span>
+                <span class="f-desc">Salida de S/ 45.00 por útiles de limpieza autorizada por Regencia</span>
+                <span class="f-status ok"><i class="bi bi-check-circle"></i> Aprobado</span>
+              </div>
+              <div class="feed-item">
+                <span class="f-time">08:00:00</span>
+                <span class="f-badge teal">APERTURA DE CAJA</span>
+                <span class="f-desc">Apertura de Caja 01 con fondo inicial de S/ 250.00 (Rodrigo Soto)</span>
+                <span class="f-status ok"><i class="bi bi-check-circle"></i> Conforme</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- =============================================================
+       MODALES OPERATIVOS (EGRESO, ENTRADA DROGUERÍA, VISOR RECETA)
+  ============================================================= -->
+
+  <!-- Modal 1: Salida de Caja Chica -->
+  <div class="modal-backdrop-valetec" id="expenseModal">
+    <div class="modal-dialog-valetec">
+      <div class="modal-header-valetec">
+        <h3>💸 Registrar Salida de Dinero (Gasto Menor)</h3>
+        <button type="button" class="btn-close-modal" id="btnCloseExpenseModal"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body-valetec">
+        <div class="form-group-valetec">
+          <label>💵 Monto del Gasto (S/.):</label>
+          <input type="number" id="expenseAmountInput" placeholder="0.00" step="0.50">
+        </div>
+        <div class="form-group-valetec mt-2">
+          <label>Motivo del Gasto:</label>
+          <select id="expenseConceptSelect">
+            <option value="limpieza">🧹 Útiles de Limpieza / Aseo</option>
+            <option value="delivery">🛵 Pago de Delivery / Movilidad</option>
+            <option value="refrigerio">🥪 Refrigerio del Personal</option>
+            <option value="cambio">🪙 Canje de Monedas / Sencillo</option>
+            <option value="otro">📦 Otro Gasto Operativo Menor</option>
+          </select>
+        </div>
+        <div class="form-group-valetec mt-2">
+          <label>Detalle o N° de Recibo:</label>
+          <input type="text" id="expenseDetailInput" placeholder="Ej. Compra de bolsas y alcohol medicinal">
+        </div>
+      </div>
+      <div class="modal-footer-valetec">
+        <button type="button" class="btn-action-outline" id="btnCancelExpense">❌ Cancelar</button>
+        <button type="button" class="btn-action-solid" id="btnSaveExpense">💾 Guardar Gasto</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Registrar Entrada de Droguería (Nuevo Lote) -->
+  <div class="modal-backdrop-valetec" id="receiveModal">
+    <div class="modal-dialog-valetec">
+      <div class="modal-header-valetec">
+        <h3>📥 Recibir Mercadería de Droguería</h3>
+        <button type="button" class="btn-close-modal" id="btnCloseReceiveModal"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body-valetec">
+        <div class="form-grid-valetec">
+          <div class="form-group-valetec">
+            <label>Medicamento Recibido:</label>
+            <select id="recProductSelect">
+              <option value="1">Valetec-Dol Forte 500mg</option>
+              <option value="2">Bio-Amoxil 500mg Cápsulas</option>
+              <option value="3">Farma-Naprox 550mg Tabletas</option>
+              <option value="4">Gastro-Bismut 262mg Masticables</option>
+              <option value="5">Sedafarma 2mg Ranuradas</option>
+              <option value="6">C-Vit Zinc Efervescente</option>
+              <option value="7">Dermo-Clean Antiséptico</option>
+            </select>
+          </div>
+          <div class="form-group-valetec">
+            <label>Droguería Proveedora:</label>
+            <input type="text" value="Droguería Andina S.A.C.">
+          </div>
+        </div>
+        <div class="form-grid-valetec mt-2">
+          <div class="form-group-valetec">
+            <label>N° Lote del Fabricante:</label>
+            <input type="text" id="recLotCode" placeholder="Ej. L-25091">
+          </div>
+          <div class="form-group-valetec">
+            <label>Fecha de Vencimiento:</label>
+            <input type="date" id="recExpireDate" value="2028-12-31">
+          </div>
+        </div>
+        <div class="form-grid-valetec mt-2">
+          <div class="form-group-valetec">
+            <label>Cantidad de Cajas:</label>
+            <input type="number" id="recBoxesCount" value="10" min="1">
+          </div>
+          <div class="form-group-valetec">
+            <label>Ubicación en Anaquel:</label>
+            <input type="text" id="recShelfLocation" value="Pasillo 1 • Anaquel A-1">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer-valetec">
+        <button type="button" class="btn-action-outline" id="btnCancelReceive">❌ Cancelar</button>
+        <button type="button" class="btn-action-solid" id="btnSaveReceive">💾 Guardar en Almacén</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Visor de Receta Médica DIGEMID -->
+  <div class="modal-backdrop-valetec" id="prescriptionViewerModal">
+    <div class="modal-dialog-valetec">
+      <div class="modal-header-valetec">
+        <h3>📑 Expediente de Receta Médica DIGEMID</h3>
+        <button type="button" class="btn-close-modal" id="btnCloseRxModal"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body-valetec" id="prescriptionViewerContent">
+        <!-- Renderizado dinámico -->
+      </div>
+      <div class="modal-footer-valetec">
+        <button type="button" class="btn-action-outline" id="btnCloseRxBtn">❌ Cerrar</button>
+        <button type="button" class="btn-action-solid" id="btnApproveAndFill">
+          <i class="bi bi-check2-circle"></i> <span>✅ Aprobar y Cargar al Carrito</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =============================================================
+       WIDGET DE ACCESIBILIDAD NATIVO (ESTILO USERWAY)
+  ============================================================= -->
+  <!-- Botón Flotante UserWay -->
+  <button type="button" class="userway-floating-btn" id="btnOpenUserway" title="Menú de Ayuda Visual y Accesibilidad">
+    <span style="font-size:24px;">♿</span>
+    <span class="userway-pulse-dot"></span>
+  </button>
+
+  <!-- Panel Desplegable UserWay Nativo -->
+  <div class="userway-drawer-panel" id="userwayDrawer">
+    <div class="userway-header">
+      <div class="userway-title-wrap">
+        <span style="font-size:26px;">♿</span>
+        <div>
+          <h4>Ayuda Visual & Accesibilidad</h4>
+          <small>Herramientas sencillas para personas de toda edad</small>
+        </div>
+      </div>
+      <button type="button" class="btn-userway-close" id="btnCloseUserway"><i class="bi bi-x-lg"></i></button>
+    </div>
+
+    <div class="userway-body">
+      
+      <!-- 1. Tamaño del Texto -->
+      <div class="userway-widget-card">
+        <div class="uw-widget-label">🔤 Tamaño del Texto:</div>
+        <div class="uw-btn-group">
+          <button type="button" class="btn-uw-ctrl active" onclick="accessibilityEngine.setFontSize('normal')">A (Normal)</button>
+          <button type="button" class="btn-uw-ctrl" onclick="accessibilityEngine.setFontSize('lg')">A+ (Grande)</button>
+          <button type="button" class="btn-uw-ctrl" onclick="accessibilityEngine.setFontSize('xl')">A++ (Muy Grande)</button>
+        </div>
+      </div>
+
+      <!-- 2. Modos de Contraste y Color -->
+      <div class="userway-widget-card mt-2">
+        <div class="uw-widget-label">🎨 Modo de Pantalla & Colores:</div>
+        <div class="uw-grid-2">
+          <button type="button" class="btn-uw-feature" id="btnToggleDarkMode" onclick="accessibilityEngine.toggleDarkMode()">
+            <span>🌙 Modo Noche</span>
+          </button>
+          <button type="button" class="btn-uw-feature" id="btnToggleHighContrast" onclick="accessibilityEngine.toggleHighContrast()">
+            <span>👓 Alto Contraste</span>
+          </button>
+          <button type="button" class="btn-uw-feature" id="btnToggleGrayscale" onclick="accessibilityEngine.toggleGrayscale()">
+            <span>⚪ Blanco y Negro</span>
+          </button>
+          <button type="button" class="btn-uw-feature" id="btnToggleDyslexia" onclick="accessibilityEngine.toggleDyslexia()">
+            <span>📖 Lectura Fácil</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. Espaciado y Botones -->
+      <div class="userway-widget-card mt-2">
+        <div class="uw-widget-label">👁️ Comodidad Visual:</div>
+        <div class="uw-grid-2">
+          <button type="button" class="btn-uw-feature" id="btnToggleSpacedText" onclick="accessibilityEngine.toggleSpacedText()">
+            <span>↔️ Separar Letras</span>
+          </button>
+          <button type="button" class="btn-uw-feature" id="btnToggleHighlightLinks" onclick="accessibilityEngine.toggleHighlightLinks()">
+            <span>🔘 Resaltar Botones</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Botón de Restablecer -->
+      <button type="button" class="btn-userway-reset mt-2" onclick="accessibilityEngine.resetAll()">
+        <span>🔄 Volver a Modo Normal</span>
+      </button>
+
+    </div>
+  </div>
+
+  <!-- Toast Flotante de Notificaciones del Sistema -->
+  <div class="valetec-toast" id="valetecToast">
+    <i class="bi bi-check-circle-fill" id="toastIcon"></i>
+    <span id="toastMessage">Operación registrada con éxito.</span>
+  </div>
+
+  <!-- Capa de Comunicación API (Frontend ↔ Backend) -->
+  <script src="./js/api.js"></script>
+  <!-- Script Principal de la Aplicación -->
+  <script src="./js/app.js"></script>
+</body>
+</html>
