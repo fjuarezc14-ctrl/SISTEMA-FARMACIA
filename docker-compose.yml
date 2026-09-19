@@ -1,0 +1,21 @@
+services:
+  valetec-backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: valetec_pharma_backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - NODE_ENV=production
+      - DATABASE_PATH=/app/src/db/pharmacy.db
+      - JWT_SECRET=valetec_pharma_production_secret_key_2026
+      - CORS_ORIGIN=*
+    volumes:
+      - valetec_db_data:/app/src/db
+
+volumes:
+  valetec_db_data:
+    driver: local
