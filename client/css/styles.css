@@ -780,12 +780,13 @@ body.valetec-app-body {
 ------------------------------------------------------------- */
 .counter-responsive-grid {
   display: grid;
-  grid-template-columns: 1fr 430px;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 16px;
   align-items: start;
 }
 
 .counter-catalog-pane {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -929,8 +930,8 @@ body.valetec-app-body {
 
 .products-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
 }
 
 .product-staff-card {
@@ -1396,8 +1397,8 @@ body.valetec-app-body {
 
 .bills-fast-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 3px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
   margin-bottom: 6px;
 }
 
@@ -1405,11 +1406,13 @@ body.valetec-app-body {
   background-color: #f0fdf4;
   border: 1.5px solid #86efac;
   border-radius: var(--radius-sm);
-  padding: 8px 3px;
-  font-size: 12px;
+  padding: 8px 4px;
+  font-size: 11.5px;
   font-weight: 800;
   color: #166534;
   cursor: pointer;
+  white-space: nowrap;
+  text-align: center;
   transition: var(--transition-fast);
 }
 
@@ -1427,6 +1430,7 @@ body.valetec-app-body {
   background: linear-gradient(135deg, #0284c7 0%, #0066cc 100%);
   border-color: #0284c7;
   color: #ffffff;
+  font-size: 11px;
 }
 
 .change-display-grid {
@@ -1473,9 +1477,9 @@ body.valetec-app-body {
 
 .ticket-action-btns {
   display: grid;
-  grid-template-columns: 1.1fr 2.2fr;
-  gap: 8px;
-  margin-top: 12px;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 6px;
+  margin-top: 10px;
 }
 
 .btn-order-cancel {
@@ -1483,14 +1487,15 @@ body.valetec-app-body {
   border: 1.5px solid #fca5a5;
   color: #dc2626;
   border-radius: var(--radius-md);
-  padding: 12px 10px;
-  font-size: 12.5px;
+  padding: 10px 6px;
+  font-size: 11.5px;
   font-weight: 800;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
+  white-space: nowrap;
   transition: var(--transition-fast);
 }
 
@@ -1508,15 +1513,16 @@ body.valetec-app-body {
   border: none;
   color: var(--text-white);
   border-radius: var(--radius-md);
-  padding: 13px 14px;
-  font-size: 14px;
+  padding: 10px 8px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.2px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
+  white-space: nowrap;
   box-shadow: 0 4px 14px rgba(0, 168, 132, 0.4);
   transition: var(--transition-fast);
 }
@@ -2579,6 +2585,34 @@ body.uw-highlight-links button, body.uw-highlight-links a {
     padding: 0 !important;
     width: 76mm !important;
     margin: 0 auto !important;
+  }
+}
+
+/* -------------------------------------------------------------
+   RESPONSIVIDAD PARA PANTALLAS LAPTOP Y ESCRITORIO MEDIANO
+------------------------------------------------------------- */
+@media (max-width: 1440px) {
+  .app-workspace-main {
+    padding: 14px 18px;
+  }
+  .counter-responsive-grid {
+    grid-template-columns: minmax(0, 1fr) 350px;
+    gap: 14px;
+  }
+  .products-cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .counter-responsive-grid {
+    grid-template-columns: 1fr;
+  }
+  .counter-ticket-pane {
+    max-width: 480px;
+    margin: 0 auto;
+    width: 100%;
   }
 }
 
