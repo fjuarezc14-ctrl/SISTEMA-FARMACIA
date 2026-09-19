@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment files
+server/.env
+.env
+.env.local
+
+# SQLite temporary journal files
+server/src/db/*.db-shm
+server/src/db/*.db-wal
+
+# Build outputs & Logs
+dist/
+build/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db

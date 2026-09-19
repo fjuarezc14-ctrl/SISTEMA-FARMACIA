@@ -1,0 +1,36 @@
+{
+  "name": "valetec-pharma-server",
+  "version": "2.0.0",
+  "description": "Backend Node.js & SQLite WAL para Sistema de Gestión Farmacéutica VALETEC PHARMA",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "db:migrate": "node src/db/migrate.js",
+    "db:seed": "node src/db/seed.js",
+    "test": "node test/verify.js"
+  },
+  "keywords": [
+    "pharmacy",
+    "valetec",
+    "fefo",
+    "digemid",
+    "pos",
+    "nodejs",
+    "sqlite"
+  ],
+  "author": "VALETEC Core Team",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.12.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
