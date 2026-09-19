@@ -146,6 +146,25 @@ class ValetecApiClient {
     });
   }
 
+  async closeZShift(closeData) {
+    return await this.request('/cash/close-z', {
+      method: 'POST',
+      body: JSON.stringify(closeData)
+    });
+  }
+
+  async openCashShift(openData) {
+    return await this.request('/cash/open', {
+      method: 'POST',
+      body: JSON.stringify(openData)
+    });
+  }
+
+  // 8. Métricas y Estadísticas Financieras en Tiempo Real
+  async getDashboardStats() {
+    return await this.request('/reports/dashboard');
+  }
+
   // 8. Motor Transaccional de Ventas & Descuento FEFO (PostgreSQL)
   async createSale(saleData) {
     return await this.request('/sales', {

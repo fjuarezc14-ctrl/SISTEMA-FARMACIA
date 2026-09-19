@@ -2543,10 +2543,12 @@ body.uw-highlight-links button, body.uw-highlight-links a {
   body * {
     visibility: hidden !important;
   }
-  #receiptModal, #receiptModal * {
+  #receiptModal, #receiptModal *,
+  #zReportModal, #zReportModal * {
     visibility: visible !important;
   }
-  #receiptModal {
+  #receiptModal,
+  #zReportModal {
     position: absolute !important;
     left: 0 !important;
     top: 0 !important;

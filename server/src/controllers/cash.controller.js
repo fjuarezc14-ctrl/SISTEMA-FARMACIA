@@ -1,58 +1,85 @@
-const { get, query, transaction } = require('../db');
+const { transaction, query, get } = require('../db');
 
 /**
- * Obtener turno activo de caja y sus movimientos
+ * Obtener el turno de caja actualmente abierto con sus movimientos y saldo calculado
  */
 async function getCurrentShift(req, res, next) {
   try {
-    const shift = await get(`
-      SELECT 
-        c.id,
-        c.terminal,
-        CAST(c.opening_balance AS FLOAT) AS "openingBalance",
-        CAST(c.cash_sales AS FLOAT) AS "cashSales",
-        CAST(c.digital_sales AS FLOAT) AS "digitalSales",
-        CAST(c.expenses AS FLOAT) AS "expenses",
-        CAST(c.expected_balance AS FLOAT) AS "expectedBalance",
-        CAST(c.counted_balance AS FLOAT) AS "countedBalance",
-        CAST(c.difference AS FLOAT) AS "difference",
-        c.status,
-        c.opened_at AS "openedAt",
-        u.name AS "cashierName"
-      FROM caja_turnos c
-      JOIN usuarios u ON c.user_id = u.id
-      WHERE c.status = 'open'
-      ORDER BY c.id DESC
-      LIMIT 1;
-    `);
+    const shift = await get(
+      `SELECT t.*, u.name as cashier_name, u.email as cashier_email 
+       FROM caja_turnos t 
+       LEFT JOIN usuarios u ON t.user_id = u.id 
+       WHERE t.status = 'open' 
+       ORDER BY t.id DESC 
+       LIMIT 1`
+    );
 
     if (!shift) {
       return res.status(200).json({
         success: true,
-        data: null,
-        message: 'No hay turno de caja abierto actualmente.'
+        statusCode: 200,
+        message: 'No hay ningún turno de caja abierto actualmente.',
+        data: { shift: null, movements: [], salesSummary: null }
       });
     }
 
-    const movements = await query(`
-      SELECT 
-        id,
-        type,
-        CAST(amount AS FLOAT) AS amount,
-        concept,
-        responsible,
-        TO_CHAR(created_at, 'HH24:MI:SS') AS time
-      FROM caja_movimientos
-      WHERE turno_id = $1
-      ORDER BY id DESC;
-    `, [shift.id]);
+    // Obtener movimientos de caja chica del turno
+    const movements = await query(
+      `SELECT * FROM caja_movimientos 
+       WHERE turno_id = $1 
+       ORDER BY id DESC`,
+      [shift.id]
+    );
+
+    // Resumen de ventas emitidas en este turno
+    const salesSummary = await get(
+      `SELECT 
+         COUNT(*) as total_vouchers,
+         COALESCE(SUM(CASE WHEN invoice_type = 'ticket' THEN 1 ELSE 0 END), 0) as tickets_count,
+         COALESCE(SUM(CASE WHEN invoice_type = 'boleta' THEN 1 ELSE 0 END), 0) as boletas_count,
+         COALESCE(SUM(CASE WHEN invoice_type = 'factura' THEN 1 ELSE 0 END), 0) as facturas_count,
+         COALESCE(SUM(CASE WHEN payment_method = 'cash' THEN total ELSE 0 END), 0) as cash_total,
+         COALESCE(SUM(CASE WHEN payment_method != 'cash' THEN total ELSE 0 END), 0) as digital_total,
+         COALESCE(SUM(total), 0) as grand_total
+       FROM ventas 
+       WHERE turno_id = $1 AND status = 'completed'`,
+      [shift.id]
+    );
 
     res.status(200).json({
       success: true,
-      source: 'PostgreSQL 16',
+      statusCode: 200,
       data: {
-        shift,
-        movements
+        shift: {
+          id: shift.id,
+          userId: shift.user_id,
+          cashierName: shift.cashier_name || 'Cajero de Turno',
+          terminal: shift.terminal,
+          openingBalance: parseFloat(shift.opening_balance),
+          cashSales: parseFloat(shift.cash_sales),
+          digitalSales: parseFloat(shift.digital_sales),
+          expenses: parseFloat(shift.expenses),
+          expectedBalance: parseFloat(shift.expected_balance),
+          status: shift.status,
+          openedAt: shift.opened_at
+        },
+        movements: movements.map(m => ({
+          id: m.id,
+          type: m.type,
+          amount: parseFloat(m.amount),
+          concept: m.concept,
+          responsible: m.responsible,
+          createdAt: m.created_at
+        })),
+        salesSummary: {
+          totalVouchers: parseInt(salesSummary.total_vouchers, 10),
+          ticketsCount: parseInt(salesSummary.tickets_count, 10),
+          boletasCount: parseInt(salesSummary.boletas_count, 10),
+          facturasCount: parseInt(salesSummary.facturas_count, 10),
+          cashTotal: parseFloat(salesSummary.cash_total),
+          digitalTotal: parseFloat(salesSummary.digital_total),
+          grandTotal: parseFloat(salesSummary.grand_total)
+        }
       }
     });
   } catch (err) {
@@ -61,61 +88,268 @@ async function getCurrentShift(req, res, next) {
 }
 
 /**
- * Registrar egreso o ingreso en caja chica
+ * Registrar un movimiento de caja chica (egreso o ingreso menor)
  */
 async function addMovement(req, res, next) {
   try {
     const { amount, concept, responsible, type = 'egreso' } = req.body;
 
-    if (!amount || amount <= 0 || !concept) {
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
       return res.status(400).json({
         success: false,
-        message: 'Monto y concepto son requeridos.'
+        statusCode: 400,
+        message: 'El monto del movimiento debe ser un número positivo mayor a 0.'
       });
     }
 
+    if (!concept || concept.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        statusCode: 400,
+        message: 'Debes indicar el concepto o justificación del gasto.'
+      });
+    }
+
+    if (!['egreso', 'ingreso'].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        statusCode: 400,
+        message: 'El tipo de movimiento debe ser "egreso" o "ingreso".'
+      });
+    }
+
+    const defaultResponsible = (req.user && req.user.name) ? req.user.name : (responsible || 'Cajero de Turno');
+
     const result = await transaction(async ({ run, get }) => {
+      // 1. Obtener turno abierto
       const shift = await get("SELECT * FROM caja_turnos WHERE status = 'open' ORDER BY id DESC LIMIT 1");
       if (!shift) {
-        throw new Error('No hay turno de caja abierto para registrar movimientos.');
+        const err = new Error('No hay ningún turno de caja abierto para registrar movimientos.');
+        err.statusCode = 400;
+        throw err;
       }
 
-      await run(
-        `INSERT INTO caja_movimientos (turno_id, type, amount, concept, responsible)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [shift.id, type, amount, concept, responsible || 'Cajero de Turno']
+      // 2. Insertar movimiento
+      const insertRes = await get(
+        `INSERT INTO caja_movimientos (turno_id, type, amount, concept, responsible) 
+         VALUES ($1, $2, $3, $4, $5) 
+         RETURNING id, created_at`,
+        [shift.id, type, numAmount, concept.trim(), defaultResponsible]
       );
 
-      // Actualizar totales en el turno
+      // 3. Recalcular balance del turno
+      let newExpenses = parseFloat(shift.expenses);
+      let newOpening = parseFloat(shift.opening_balance);
+      let newCashSales = parseFloat(shift.cash_sales);
+
       if (type === 'egreso') {
-        await run(
-          `UPDATE caja_turnos 
-           SET expenses = expenses + $1,
-               expected_balance = (opening_balance + cash_sales) - (expenses + $1)
-           WHERE id = $2`,
-          [amount, shift.id]
-        );
+        newExpenses += numAmount;
       } else {
-        await run(
-          `UPDATE caja_turnos 
-           SET cash_sales = cash_sales + $1,
-               expected_balance = (opening_balance + cash_sales + $1) - expenses
-           WHERE id = $2`,
-          [amount, shift.id]
-        );
+        // Ingreso extraordinario a fondo fijo
+        newOpening += numAmount;
       }
 
+      const newExpected = Math.round(((newOpening + newCashSales) - newExpenses) * 100) / 100;
+
+      await run(
+        `UPDATE caja_turnos 
+         SET expenses = $1, opening_balance = $2, expected_balance = $3 
+         WHERE id = $4`,
+        [newExpenses, newOpening, newExpected, shift.id]
+      );
+
       return {
-        shiftId: shift.id,
-        amount,
-        concept
+        movementId: insertRes.id,
+        turnoId: shift.id,
+        type,
+        amount: numAmount,
+        concept: concept.trim(),
+        responsible: defaultResponsible,
+        newExpectedBalance: newExpected,
+        createdAt: insertRes.created_at
       };
     });
 
     res.status(201).json({
       success: true,
-      message: `Movimiento de ${type} registrado en caja en PostgreSQL.`,
+      statusCode: 201,
+      message: `Movimiento de ${result.type} por S/ ${result.amount.toFixed(2)} registrado con éxito.`,
       data: result
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Ejecutar Cierre Z de Caja (Auditoría de Gaveta & Arqueo Oficial)
+ */
+async function closeZ(req, res, next) {
+  try {
+    const { countedBalance, denominations = {} } = req.body;
+
+    const counted = parseFloat(countedBalance);
+    if (isNaN(counted) || counted < 0) {
+      return res.status(400).json({
+        success: false,
+        statusCode: 400,
+        message: 'Debes proporcionar el monto físico contado en gaveta (número igual o mayor a 0).'
+      });
+    }
+
+    const report = await transaction(async ({ run, get, query }) => {
+      // 1. Obtener turno abierto
+      const shift = await get(
+        `SELECT t.*, u.name as cashier_name 
+         FROM caja_turnos t 
+         LEFT JOIN usuarios u ON t.user_id = u.id 
+         WHERE t.status = 'open' 
+         ORDER BY t.id DESC 
+         LIMIT 1`
+      );
+
+      if (!shift) {
+        const err = new Error('No hay ningún turno de caja abierto para realizar el Cierre Z.');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const expected = parseFloat(shift.expected_balance);
+      const difference = Math.round((counted - expected) * 100) / 100;
+
+      let auditStatus = 'exacto';
+      if (difference > 0) auditStatus = 'sobrante';
+      else if (difference < 0) auditStatus = 'faltante';
+
+      // 2. Sellar el turno en PostgreSQL
+      await run(
+        `UPDATE caja_turnos 
+         SET counted_balance = $1, difference = $2, status = 'closed_z', closed_at = NOW() 
+         WHERE id = $3`,
+        [counted, difference, shift.id]
+      );
+
+      // 3. Obtener resumen definitivo de ventas del turno
+      const salesStats = await get(
+        `SELECT 
+           COUNT(*) as total_vouchers,
+           COALESCE(SUM(CASE WHEN invoice_type = 'ticket' THEN 1 ELSE 0 END), 0) as tickets_count,
+           COALESCE(SUM(CASE WHEN invoice_type = 'boleta' THEN 1 ELSE 0 END), 0) as boletas_count,
+           COALESCE(SUM(CASE WHEN invoice_type = 'factura' THEN 1 ELSE 0 END), 0) as facturas_count,
+           COALESCE(SUM(CASE WHEN payment_method = 'cash' THEN total ELSE 0 END), 0) as cash_total,
+           COALESCE(SUM(CASE WHEN payment_method != 'cash' THEN total ELSE 0 END), 0) as digital_total,
+           COALESCE(SUM(subtotal), 0) as taxable_base,
+           COALESCE(SUM(igv), 0) as total_igv,
+           COALESCE(SUM(total), 0) as grand_total
+         FROM ventas 
+         WHERE turno_id = $1 AND status = 'completed'`,
+        [shift.id]
+      );
+
+      // 4. Lista de egresos
+      const movements = await query(
+        `SELECT * FROM caja_movimientos WHERE turno_id = $1 ORDER BY id ASC`,
+        [shift.id]
+      );
+
+      return {
+        turnoId: shift.id,
+        terminal: shift.terminal,
+        cashierName: shift.cashier_name || 'Cajero de Turno',
+        openedAt: shift.opened_at,
+        closedAt: new Date().toISOString(),
+        openingBalance: parseFloat(shift.opening_balance),
+        cashSales: parseFloat(salesStats.cash_total),
+        digitalSales: parseFloat(salesStats.digital_total),
+        expenses: parseFloat(shift.expenses),
+        expectedBalance: expected,
+        countedBalance: counted,
+        difference,
+        auditStatus,
+        vouchers: {
+          total: parseInt(salesStats.total_vouchers, 10),
+          tickets: parseInt(salesStats.tickets_count, 10),
+          boletas: parseInt(salesStats.boletas_count, 10),
+          facturas: parseInt(salesStats.facturas_count, 10),
+          taxableBase: parseFloat(salesStats.taxable_base),
+          totalIgv: parseFloat(salesStats.total_igv),
+          grandTotal: parseFloat(salesStats.grand_total)
+        },
+        movements: movements.map(m => ({
+          amount: parseFloat(m.amount),
+          concept: m.concept,
+          responsible: m.responsible,
+          type: m.type
+        })),
+        denominations
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: `Cierre Z completado exitosamente. Estado de cuadre: ${report.auditStatus.toUpperCase()}.`,
+      data: report
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Apertura de un nuevo turno de caja
+ */
+async function openShift(req, res, next) {
+  try {
+    const { openingBalance = 350.00, terminal = 'Caja 01' } = req.body;
+
+    const opening = parseFloat(openingBalance);
+    if (isNaN(opening) || opening < 0) {
+      return res.status(400).json({
+        success: false,
+        statusCode: 400,
+        message: 'El saldo inicial de apertura debe ser un monto válido mayor o igual a 0.'
+      });
+    }
+
+    // Identificar cajero
+    let userId = req.user ? req.user.id : null;
+    if (!userId) {
+      const defaultUser = await get("SELECT id FROM usuarios WHERE email = 'caja@valetec.pe' LIMIT 1");
+      userId = defaultUser ? defaultUser.id : 1;
+    }
+
+    // Verificar que no haya un turno ya abierto
+    const existing = await get("SELECT id FROM caja_turnos WHERE status = 'open' LIMIT 1");
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        statusCode: 400,
+        message: `Ya existe un turno abierto (ID: ${existing.id}). Debes realizar el Cierre Z antes de abrir otro.`
+      });
+    }
+
+    const newShift = await get(
+      `INSERT INTO caja_turnos 
+       (user_id, terminal, opening_balance, cash_sales, digital_sales, expenses, expected_balance, status, opened_at) 
+       VALUES ($1, $2, $3, 0.00, 0.00, 0.00, $3, 'open', NOW()) 
+       RETURNING *`,
+      [userId, terminal, opening]
+    );
+
+    res.status(201).json({
+      success: true,
+      statusCode: 201,
+      message: `Turno de caja abierto exitosamente con fondo inicial de S/ ${opening.toFixed(2)}.`,
+      data: {
+        id: newShift.id,
+        terminal: newShift.terminal,
+        openingBalance: parseFloat(newShift.opening_balance),
+        expectedBalance: parseFloat(newShift.expected_balance),
+        status: newShift.status,
+        openedAt: newShift.opened_at
+      }
     });
   } catch (err) {
     next(err);
@@ -124,5 +358,7 @@ async function addMovement(req, res, next) {
 
 module.exports = {
   getCurrentShift,
-  addMovement
+  addMovement,
+  closeZ,
+  openShift
 };

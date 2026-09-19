@@ -1324,12 +1324,22 @@ class CashModule {
     this.drawerExpected = document.getElementById('cashExpectedDrawer');
     this.statusBanner = document.getElementById('cuadreStatusBanner');
 
+    // Modal de egreso menor
     this.expenseModal = document.getElementById('expenseModal');
     this.btnOpenExp = document.getElementById('btnOpenExpenseModal');
     this.btnCloseExp = document.getElementById('btnCloseExpenseModal');
     this.btnCancelExp = document.getElementById('btnCancelExpense');
     this.btnSaveExp = document.getElementById('btnSaveExpense');
     this.expAmountInput = document.getElementById('expenseAmountInput');
+    this.expConceptSelect = document.getElementById('expenseConceptSelect');
+    this.expDetailInput = document.getElementById('expenseDetailInput');
+
+    // Modal de Reporte Z Oficial de Cierre de Caja
+    this.zReportModal = document.getElementById('zReportModal');
+    this.zReportModalBody = document.getElementById('zReportModalBody');
+    this.btnCloseZReportModal = document.getElementById('btnCloseZReportModal');
+    this.btnCloseZReportBtn = document.getElementById('btnCloseZReportBtn');
+    this.btnPrintZReportBtn = document.getElementById('btnPrintZReportBtn');
   }
 
   initEvents() {
@@ -1342,36 +1352,161 @@ class CashModule {
     if (this.btnCancelExp) this.btnCancelExp.addEventListener('click', () => this.toggleModal(false));
 
     if (this.btnSaveExp) {
-      this.btnSaveExp.addEventListener('click', () => {
+      this.btnSaveExp.addEventListener('click', async () => {
         const val = parseFloat(this.expAmountInput?.value || 0);
         if (val <= 0) {
-          alert("Ingresa un monto válido.");
+          alert("Ingresa un monto válido mayor a S/ 0.00.");
           return;
         }
-        this.expenses += val;
-        if (window.api) {
-          window.api.addCashMovement({
-            amount: val,
-            concept: 'Salida autorizada de caja chica',
-            responsible: 'Rodrigo Soto',
-            type: 'egreso'
-          }).then(() => syncWithBackend())
-            .catch(err => console.warn("Error guardando egreso:", err.message));
+
+        const detail = this.expDetailInput?.value?.trim();
+        const motive = this.expConceptSelect?.value || 'gasto';
+        const concept = detail ? `${detail} (${motive})` : `Gasto autorizado de caja chica (${motive})`;
+        const responsible = mockStaffProfiles[appNav?.currentRole || 'cashier']?.name || 'Rodrigo Soto';
+
+        try {
+          if (window.api && window.api.isConnected) {
+            await window.api.addCashMovement({
+              amount: val,
+              concept,
+              responsible,
+              type: 'egreso'
+            });
+            await syncWithBackend();
+          } else {
+            this.expenses += val;
+            this.calculateAudit();
+          }
+
+          if (this.expAmountInput) this.expAmountInput.value = '';
+          if (this.expDetailInput) this.expDetailInput.value = '';
+          this.toggleModal(false);
+          showValetecToast(`Salida de S/ ${val.toFixed(2)} registrada en PostgreSQL.`, "warning");
+        } catch (err) {
+          alert("Error guardando salida de caja: " + err.message);
         }
-        this.toggleModal(false);
-        this.calculateAudit();
-        showValetecToast(`Salida de S/ ${val.toFixed(2)} guardada en PostgreSQL.`, "warning");
       });
     }
 
-    document.getElementById('btnTriggerZClose')?.addEventListener('click', () => {
-      alert("CIERRE DE TURNO Z - CAJA 01\n\n• Cajero: Rodrigo Soto\n• Efectivo en Gaveta: S/ 2,005.50\n• Ventas Digitales: S/ 3,052.00\n• Tickets Emitidos: 142\n\nReporte Z sellado y registrado en la Torre de Control.");
+    // Botón de Cierre Z Oficial
+    document.getElementById('btnTriggerZClose')?.addEventListener('click', async () => {
+      const physical = this.calcPhysicalTotal();
+      const expected = (this.openingBalance + this.cashSales) - this.expenses;
+      const diff = Math.round((physical - expected) * 100) / 100;
+
+      let diffNotice = "✅ Cuadre Exacto (S/ 0.00)";
+      if (diff > 0) diffNotice = `⚠️ Sobrante de +S/ ${diff.toFixed(2)}`;
+      if (diff < 0) diffNotice = `❌ Faltante de -S/ ${Math.abs(diff).toFixed(2)}`;
+
+      const confirmed = confirm(
+        `🔒 CIERRE Z DE CAJA DEFINITIVO\n\n` +
+        `• Dinero en Gaveta Contado: S/ ${physical.toFixed(2)}\n` +
+        `• Saldo Teórico del Sistema: S/ ${expected.toFixed(2)}\n` +
+        `• Resultado de Auditoría: ${diffNotice}\n\n` +
+        `¿Deseas sellar el turno actual en PostgreSQL y emitir el Reporte Z Oficial?`
+      );
+
+      if (!confirmed) return;
+
+      const triggerBtn = document.getElementById('btnTriggerZClose');
+      const origText = triggerBtn ? triggerBtn.innerHTML : '';
+      if (triggerBtn) {
+        triggerBtn.disabled = true;
+        triggerBtn.innerHTML = `<span><span class="spinner-border spinner-border-sm"></span> Sellando Cierre Z...</span>`;
+      }
+
+      try {
+        if (window.api && window.api.isConnected) {
+          const res = await window.api.closeZShift({
+            countedBalance: physical,
+            denominations: this.getDenominationsObject()
+          });
+
+          if (res && res.success) {
+            this.showZReportModal(res.data);
+            await syncWithBackend();
+            showValetecToast("¡Cierre Z Oficial completado y sellado en PostgreSQL!", "success");
+          } else {
+            throw new Error(res?.message || "Error al procesar Cierre Z.");
+          }
+        } else {
+          // Modo contingencia local
+          const localReport = {
+            turnoId: 1,
+            terminal: 'Caja 01',
+            cashierName: mockStaffProfiles[appNav?.currentRole || 'cashier']?.name || 'Rodrigo Soto',
+            openedAt: new Date(Date.now() - 28800000).toISOString(),
+            closedAt: new Date().toISOString(),
+            openingBalance: this.openingBalance,
+            cashSales: this.cashSales,
+            digitalSales: this.digitalSales || 0,
+            expenses: this.expenses,
+            expectedBalance: expected,
+            countedBalance: physical,
+            difference: diff,
+            auditStatus: Math.abs(diff) < 0.1 ? 'exacto' : (diff > 0 ? 'sobrante' : 'faltante'),
+            vouchers: {
+              total: 142,
+              tickets: 98,
+              boletas: 36,
+              facturas: 8,
+              taxableBase: Math.round(((this.cashSales) / 1.18) * 100) / 100,
+              totalIgv: Math.round((this.cashSales - (this.cashSales / 1.18)) * 100) / 100,
+              grandTotal: this.cashSales
+            }
+          };
+          this.showZReportModal(localReport);
+          showValetecToast("Cierre Z simulado en modo desconectado.", "info");
+        }
+      } catch (err) {
+        alert("🚨 ERROR EN CIERRE Z:\n" + err.message);
+        showValetecToast(err.message, "danger");
+      } finally {
+        if (triggerBtn) {
+          triggerBtn.disabled = false;
+          triggerBtn.innerHTML = origText;
+        }
+      }
+    });
+
+    // Eventos del modal de Reporte Z
+    if (this.btnCloseZReportModal) this.btnCloseZReportModal.addEventListener('click', () => this.toggleZModal(false));
+    if (this.btnCloseZReportBtn) this.btnCloseZReportBtn.addEventListener('click', () => this.toggleZModal(false));
+    if (this.btnPrintZReportBtn) this.btnPrintZReportBtn.addEventListener('click', () => window.print());
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.zReportModal?.classList.contains('active')) {
+        this.toggleZModal(false);
+      }
     });
   }
 
   toggleModal(open) {
     if (open) this.expenseModal?.classList.add('active');
     else this.expenseModal?.classList.remove('active');
+  }
+
+  toggleZModal(open) {
+    if (open) this.zReportModal?.classList.add('active');
+    else this.zReportModal?.classList.remove('active');
+  }
+
+  calcPhysicalTotal() {
+    let physical = 0;
+    this.denomFields.forEach(f => {
+      const denom = parseFloat(f.dataset.val);
+      const count = parseInt(f.value || 0, 10);
+      physical += (denom * count);
+    });
+    return Math.round(physical * 100) / 100;
+  }
+
+  getDenominationsObject() {
+    const denoms = {};
+    this.denomFields.forEach(f => {
+      denoms[`val_${f.dataset.val}`] = parseInt(f.value || 0, 10);
+    });
+    return denoms;
   }
 
   calculateAudit() {
@@ -1385,13 +1520,22 @@ class CashModule {
       physical += sub;
     });
 
-    const expected = (this.openingBalance + this.cashSales) - this.expenses;
+    physical = Math.round(physical * 100) / 100;
+    const expected = Math.round(((this.openingBalance + this.cashSales) - this.expenses) * 100) / 100;
 
     if (this.drawerExpected) this.drawerExpected.innerText = `S/ ${expected.toFixed(2)}`;
     if (this.countedDisplay) this.countedDisplay.innerText = `S/ ${physical.toFixed(2)}`;
     if (this.expectedDisplay) this.expectedDisplay.innerText = `S/ ${expected.toFixed(2)}`;
 
-    const diff = physical - expected;
+    // Actualizar también tarjetas de KPI de caja
+    const openFundEl = document.getElementById('cashOpeningFund');
+    const cashSalesEl = document.getElementById('cashCashSales');
+    const digSalesEl = document.getElementById('cashDigitalSales');
+    if (openFundEl) openFundEl.innerText = `S/ ${this.openingBalance.toFixed(2)}`;
+    if (cashSalesEl) cashSalesEl.innerText = `S/ ${this.cashSales.toFixed(2)}`;
+    if (digSalesEl && this.digitalSales !== undefined) digSalesEl.innerText = `S/ ${Number(this.digitalSales).toFixed(2)}`;
+
+    const diff = Math.round((physical - expected) * 100) / 100;
     if (this.statusBanner) {
       if (Math.abs(diff) < 0.1) {
         this.statusBanner.className = 'cuadre-status-banner perfect';
@@ -1428,6 +1572,162 @@ class CashModule {
         `;
       }
     }
+  }
+
+  showZReportModal(report) {
+    if (!this.zReportModal || !this.zReportModalBody) return;
+
+    const pad = (n) => n.toString().padStart(2, '0');
+    const now = new Date(report.closedAt || Date.now());
+    const closeStr = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const openDate = new Date(report.openedAt || Date.now());
+    const openStr = `${pad(openDate.getDate())}/${pad(openDate.getMonth() + 1)}/${now.getFullYear()} ${pad(openDate.getHours())}:${pad(openDate.getMinutes())}`;
+
+    let statusLabel = '✅ CUADRE PERFECTO (S/ 0.00)';
+    let statusStyle = 'color: #065f46; font-weight: 800;';
+    if (report.difference < 0) {
+      statusLabel = `❌ FALTANTE EN GAVETA: -S/ ${Math.abs(report.difference).toFixed(2)}`;
+      statusStyle = 'color: #991b1b; font-weight: 800;';
+    } else if (report.difference > 0) {
+      statusLabel = `⚠️ SOBRANTE EN GAVETA: +S/ ${report.difference.toFixed(2)}`;
+      statusStyle = 'color: #92400e; font-weight: 800;';
+    }
+
+    const totalRevenue = parseFloat((report.cashSales || 0) + (report.digitalSales || 0)).toFixed(2);
+
+    this.zReportModalBody.innerHTML = `
+      <div class="thermal-receipt" id="printableZReportReceipt">
+        <div class="receipt-header">
+          <div class="receipt-logo-title">🏥 VALETEC PHARMA S.A.C.</div>
+          <div class="receipt-meta-line">R.U.C. 20601234567</div>
+          <div class="receipt-meta-line">Av. Aviación 2450 • San Borja, Lima</div>
+          <div class="receipt-meta-line">Central: (01) 500-8900 • DIGEMID: 10842-FAR</div>
+        </div>
+
+        <div class="receipt-dashed-line"></div>
+
+        <div class="receipt-doc-title">🔒 REPORTE Z OFICIAL DE CIERRE</div>
+        <div style="text-align: center; font-size: 13px; font-weight: 800; color: #0a2540;">
+          TURNO N° ${String(report.turnoId).padStart(4, '0')} • ${report.terminal || 'Caja 01'}
+        </div>
+
+        <div class="receipt-dashed-line"></div>
+
+        <div class="receipt-info-grid">
+          <div class="receipt-info-row">
+            <span>Cajero Responsable:</span>
+            <strong>${report.cashierName}</strong>
+          </div>
+          <div class="receipt-info-row">
+            <span>Apertura de Turno:</span>
+            <span>${openStr}</span>
+          </div>
+          <div class="receipt-info-row">
+            <span>Cierre Z Sellado:</span>
+            <strong>${closeStr}</strong>
+          </div>
+        </div>
+
+        <div class="receipt-dashed-line"></div>
+
+        <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 4px; color: #0a2540;">
+          📊 RESUMEN DE VENTAS Y FACTURACIÓN
+        </div>
+        <div class="receipt-totals-box">
+          <div class="receipt-total-row">
+            <span>(+) Fondo de Apertura:</span>
+            <span>S/ ${parseFloat(report.openingBalance || 0).toFixed(2)}</span>
+          </div>
+          <div class="receipt-total-row">
+            <span>(+) Ventas Efectivo:</span>
+            <span style="font-weight: 700;">S/ ${parseFloat(report.cashSales || 0).toFixed(2)}</span>
+          </div>
+          <div class="receipt-total-row">
+            <span>(+) Ventas Digitales (POS/Yape):</span>
+            <span>S/ ${parseFloat(report.digitalSales || 0).toFixed(2)}</span>
+          </div>
+          <div class="receipt-total-row" style="font-weight: 800; border-top: 1px dashed #cbd5e1; padding-top: 2px;">
+            <span>(=) TOTAL FACTURADO:</span>
+            <span style="color: #065f46;">S/ ${totalRevenue}</span>
+          </div>
+          <div class="receipt-total-row">
+            <span>(-) Salidas / Egresos:</span>
+            <span style="color: #991b1b;">-S/ ${parseFloat(report.expenses || 0).toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div class="receipt-dashed-line"></div>
+
+        <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 4px; color: #0a2540;">
+          🧮 AUDITORÍA Y ARQUEO DE GAVETA
+        </div>
+        <div class="receipt-totals-box">
+          <div class="receipt-total-row">
+            <span>Saldo Esperado en Sistema:</span>
+            <strong>S/ ${parseFloat(report.expectedBalance || 0).toFixed(2)}</strong>
+          </div>
+          <div class="receipt-total-row">
+            <span>Dinero Físico en Gaveta:</span>
+            <strong>S/ ${parseFloat(report.countedBalance || 0).toFixed(2)}</strong>
+          </div>
+          <div class="receipt-total-row grand-total" style="text-align: center;">
+            <span style="width: 100%; text-align: center; ${statusStyle}">
+              ${statusLabel}
+            </span>
+          </div>
+        </div>
+
+        <div class="receipt-dashed-line"></div>
+
+        <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 4px; color: #0a2540;">
+          🧾 COMPROBANTES FISCALES EMITIDOS
+        </div>
+        <div class="receipt-totals-box">
+          <div class="receipt-total-row">
+            <span>Tickets de Venta:</span>
+            <span>${report.vouchers?.tickets || 0}</span>
+          </div>
+          <div class="receipt-total-row">
+            <span>Boletas de Venta:</span>
+            <span>${report.vouchers?.boletas || 0}</span>
+          </div>
+          <div class="receipt-total-row">
+            <span>Facturas Emitidas:</span>
+            <span>${report.vouchers?.facturas || 0}</span>
+          </div>
+          <div class="receipt-total-row" style="font-weight: 700;">
+            <span>Total Comprobantes:</span>
+            <span>${report.vouchers?.total || 0}</span>
+          </div>
+          <div class="receipt-total-row">
+            <span>Base Imponible (Sin IGV):</span>
+            <span>S/ ${parseFloat(report.vouchers?.taxableBase || 0).toFixed(2)}</span>
+          </div>
+          <div class="receipt-total-row">
+            <span>I.G.V. 18% Declarable:</span>
+            <span>S/ ${parseFloat(report.vouchers?.totalIgv || 0).toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div class="receipt-dashed-line"></div>
+
+        <div style="margin-top: 20px; font-size: 10px; color: #475569;">
+          <div style="border-top: 1px solid #94a3b8; width: 75%; margin: 26px auto 4px auto;"></div>
+          <div style="text-align: center; font-weight: 700;">Firma del Cajero</div>
+          <div style="text-align: center; font-size: 9px;">${report.cashierName}</div>
+
+          <div style="border-top: 1px solid #94a3b8; width: 75%; margin: 26px auto 4px auto;"></div>
+          <div style="text-align: center; font-weight: 700;">Firma Supervisión / Regencia Q.F.</div>
+        </div>
+
+        <div class="receipt-footer">
+          <div>Reporte Z oficial sellado en PostgreSQL 16.</div>
+          <div>Copia de auditoría registrada en la Torre de Control.</div>
+        </div>
+      </div>
+    `;
+
+    this.toggleZModal(true);
   }
 }
 
@@ -1722,6 +2022,32 @@ function showValetecToast(message, type = 'success') {
   }, 3200);
 }
 
+function updateManagementDashboard(reportData) {
+  if (!reportData) return;
+  const f = reportData.financials;
+  if (f) {
+    const todaySalesEl = document.getElementById('mgmtTodaySales');
+    const grossProfitEl = document.getElementById('mgmtGrossProfit');
+    const patientsEl = document.getElementById('mgmtPatientsCount');
+    const avgTicketEl = document.getElementById('mgmtAvgTicket');
+    const marginEl = document.getElementById('mgmtGrossMargin');
+
+    const displaySales = f.todaySales > 0 ? f.todaySales : f.monthSales;
+    if (todaySalesEl) todaySalesEl.innerText = `S/ ${Number(displaySales).toFixed(2)}`;
+    if (grossProfitEl) grossProfitEl.innerText = `S/ ${Number(f.estimatedProfit).toFixed(2)}`;
+    const totalCount = (f.todayVouchers && f.todayVouchers > 0) ? f.todayVouchers : f.monthVouchers;
+    if (patientsEl) patientsEl.innerText = `${totalCount} Comprobantes`;
+    if (avgTicketEl) avgTicketEl.innerHTML = `Ticket promedio: <strong>S/ ${Number(f.averageTicket).toFixed(2)}</strong>`;
+    if (marginEl) marginEl.innerHTML = `Margen comercial: <strong>${f.profitMarginPercent}%</strong>`;
+  }
+
+  const inv = reportData.inventoryFefo;
+  if (inv) {
+    const lowStockEl = document.getElementById('mgmtLowStockCount');
+    if (lowStockEl) lowStockEl.innerText = `${inv.warningLots} Lotes`;
+  }
+}
+
 // =============================================================
 // 12. INICIALIZACIÓN GLOBAL & SINCRONIZACIÓN CON BACKEND (POSTGRESQL)
 // =============================================================
@@ -1757,7 +2083,9 @@ async function syncWithBackend() {
       if (cashApp) {
         cashApp.openingBalance = cashRes.data.shift.openingBalance;
         cashApp.cashSales = cashRes.data.shift.cashSales;
+        cashApp.digitalSales = cashRes.data.shift.digitalSales;
         cashApp.expenses = cashRes.data.shift.expenses;
+        cashApp.expectedBalance = cashRes.data.shift.expectedBalance;
         cashApp.calculateAudit();
       }
     }
@@ -1778,6 +2106,16 @@ async function syncWithBackend() {
         }));
         if (staffApp) staffApp.render();
       }
+    }
+
+    // 5. Cargar métricas en tiempo real de la Torre de Control (Dashboard)
+    try {
+      const reportRes = await window.api.getDashboardStats();
+      if (reportRes && reportRes.data) {
+        updateManagementDashboard(reportRes.data);
+      }
+    } catch (e) {
+      // Endpoint de reportes opcional para roles sin permiso
     }
 
     showValetecToast("Sincronizado con Backend Node.js y PostgreSQL 16.", "success");

@@ -458,23 +458,23 @@
           <div class="cash-kpi-grid">
             <div class="cash-stat-card">
               <span class="stat-label">🪙 Sencillo de Inicio (Fondo)</span>
-              <div class="stat-value">S/ 250.00</div>
-              <small class="stat-meta"><i class="bi bi-clock"></i> Abierto: 08:00 AM</small>
+              <div class="stat-value" id="cashOpeningFund">S/ 250.00</div>
+              <small class="stat-meta" id="cashOpeningMeta"><i class="bi bi-clock"></i> Turno Abierto</small>
             </div>
             <div class="cash-stat-card">
               <span class="stat-label">💵 Ventas en Efectivo (Hoy)</span>
-              <div class="stat-value text-teal">S/ 1,840.50</div>
-              <small class="stat-meta"><i class="bi bi-receipt"></i> 64 clientes cobrados</small>
+              <div class="stat-value text-teal" id="cashCashSales">S/ 1,840.50</div>
+              <small class="stat-meta" id="cashSalesMeta"><i class="bi bi-receipt"></i> Efectivo en caja</small>
             </div>
             <div class="cash-stat-card">
               <span class="stat-label">💳 Tarjeta / Yape / Plin</span>
-              <div class="stat-value text-blue">S/ 3,052.00</div>
-              <small class="stat-meta">POS: S/ 2,120 | Yape: S/ 932</small>
+              <div class="stat-value text-blue" id="cashDigitalSales">S/ 3,052.00</div>
+              <small class="stat-meta"><i class="bi bi-phone"></i> Pagos digitales</small>
             </div>
             <div class="cash-stat-card expected-highlight">
               <span class="stat-label">🎯 Dinero que DEBE haber en gaveta:</span>
               <div class="stat-value" id="cashExpectedDrawer">S/ 2,005.50</div>
-              <small class="stat-meta">Fondo (S/ 250) + Ventas - Gastos (S/ 85)</small>
+              <small class="stat-meta" id="cashExpectedMeta">Fondo + Ventas Efectivo - Gastos</small>
             </div>
           </div>
 
@@ -757,8 +757,8 @@
                 <span>💰 Venta Total de Hoy</span>
                 <i class="bi bi-cash-coin text-teal"></i>
               </div>
-              <div class="m-card-val">S/ 4,892.50</div>
-              <div class="m-card-sub text-teal"><i class="bi bi-arrow-up-right"></i> +14.2% sobre la meta del día</div>
+              <div class="m-card-val" id="mgmtTodaySales">S/ 4,892.50</div>
+              <div class="m-card-sub text-teal" id="mgmtTodaySub"><i class="bi bi-arrow-up-right"></i> En tiempo real desde PostgreSQL</div>
             </div>
 
             <div class="mgmt-metric-card">
@@ -766,26 +766,26 @@
                 <span>📈 Ganancia Estimada</span>
                 <i class="bi bi-graph-up-arrow text-blue"></i>
               </div>
-              <div class="m-card-val">S/ 1,642.10</div>
-              <div class="m-card-sub">Margen comercial: <strong>33.5%</strong></div>
+              <div class="m-card-val" id="mgmtGrossProfit">S/ 1,642.10</div>
+              <div class="m-card-sub" id="mgmtGrossMargin">Margen comercial: <strong>35.0%</strong></div>
             </div>
 
             <div class="mgmt-metric-card">
               <div class="m-card-head">
-                <span>👥 Clientes Atendidos</span>
+                <span>👥 Comprobantes Emitidos</span>
                 <i class="bi bi-person-check-fill text-warning"></i>
               </div>
-              <div class="m-card-val">142 Pacientes</div>
-              <div class="m-card-sub">Ticket promedio: <strong>S/ 34.45</strong></div>
+              <div class="m-card-val" id="mgmtPatientsCount">142 Comprobantes</div>
+              <div class="m-card-sub" id="mgmtAvgTicket">Ticket promedio: <strong>S/ 34.45</strong></div>
             </div>
 
             <div class="mgmt-metric-card">
               <div class="m-card-head">
-                <span>⚠️ Por Agotarse</span>
+                <span>⚠️ Lotes en Riesgo FEFO</span>
                 <i class="bi bi-exclamation-triangle-fill text-danger"></i>
               </div>
-              <div class="m-card-val text-danger">2 Medicinas</div>
-              <div class="m-card-sub">Pedir hoy a droguería</div>
+              <div class="m-card-val text-danger" id="mgmtLowStockCount">2 Lotes</div>
+              <div class="m-card-sub" id="mgmtFefoMeta">Vencimiento en &lt; 90 días</div>
             </div>
           </div>
 
@@ -1011,6 +1011,25 @@
         <button type="button" class="btn-action-outline" id="btnCloseReceiptBtn">❌ Cerrar [Esc]</button>
         <button type="button" class="btn-action-solid" id="btnPrintReceiptBtn">
           <i class="bi bi-printer-fill"></i> <span>🖨️ Imprimir Ticket (80mm)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Reporte Z Oficial de Cierre de Caja (80mm) -->
+  <div class="modal-backdrop-valetec" id="zReportModal">
+    <div class="modal-dialog-valetec" style="max-width: 460px;">
+      <div class="modal-header-valetec">
+        <h3><i class="bi bi-file-earmark-lock-fill"></i> 🔒 Reporte Z de Cierre de Turno</h3>
+        <button type="button" class="btn-close-modal" id="btnCloseZReportModal" title="Cerrar ventana"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body-valetec" id="zReportModalBody" style="background-color: #f8fafc; max-height: 75vh; overflow-y: auto; padding: 14px;">
+        <!-- Renderizado dinámico del Reporte Z térmico -->
+      </div>
+      <div class="modal-footer-valetec" style="display: flex; gap: 8px; justify-content: space-between;">
+        <button type="button" class="btn-action-outline" id="btnCloseZReportBtn">❌ Cerrar [Esc]</button>
+        <button type="button" class="btn-action-solid" id="btnPrintZReportBtn">
+          <i class="bi bi-printer-fill"></i> <span>🖨️ Imprimir Reporte Z (80mm)</span>
         </button>
       </div>
     </div>
