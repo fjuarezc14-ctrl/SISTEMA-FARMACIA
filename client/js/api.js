@@ -1,12 +1,14 @@
 /**
  * VALETEC PHARMA - CLIENTE DE COMUNICACIÓN API (Frontend <-> Backend)
  * Capa de integración HTTP REST que conecta el Frontend con el Servidor Node.js y PostgreSQL 16
+ * Incluye Autenticación JWT y Control de Accesos por Rol (RBAC)
  */
 
 class ValetecApiClient {
   constructor() {
-    // Si corre en Docker con Nginx proxy, o directo contra el puerto 4000:
     this.baseUrl = window.VALETEC_API_URL || 'http://localhost:4000/api';
+    this.token = localStorage.getItem('valetec_token') || null;
+    this.currentUser = JSON.parse(localStorage.getItem('valetec_user') || 'null');
     this.isConnected = false;
     this.lastHealthData = null;
   }
@@ -17,6 +19,11 @@ class ValetecApiClient {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
     };
+
+    // Adjuntar token de autenticación JWT si existe
+    if (this.token) {
+      defaultHeaders['Authorization'] = `Bearer ${this.token}`;
+    }
 
     try {
       const response = await fetch(url, {
@@ -29,6 +36,10 @@ class ValetecApiClient {
 
       const data = await response.json();
       if (!response.ok) {
+        // Si el token expiró o fue rechazado, limpiar sesión local
+        if (response.status === 401 && endpoint !== '/auth/login') {
+          this.logout();
+        }
         throw new Error(data.message || `Error HTTP ${response.status}`);
       }
       return data;
@@ -38,7 +49,47 @@ class ValetecApiClient {
     }
   }
 
-  // 1. Chequeo de Salud y Conectividad con Backend y Postgres
+  // 1. Autenticación Real con JWT
+  async login(email, password) {
+    const data = await this.request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password })
+    });
+
+    if (data.token) {
+      this.token = data.token;
+      this.currentUser = data.user;
+      localStorage.setItem('valetec_token', data.token);
+      localStorage.setItem('valetec_user', JSON.stringify(data.user));
+    }
+
+    return data;
+  }
+
+  async getMe() {
+    if (!this.token) return null;
+    try {
+      const data = await this.request('/auth/me');
+      if (data && data.user) {
+        this.currentUser = data.user;
+        localStorage.setItem('valetec_user', JSON.stringify(data.user));
+        return data.user;
+      }
+      return null;
+    } catch (err) {
+      this.logout();
+      return null;
+    }
+  }
+
+  logout() {
+    this.token = null;
+    this.currentUser = null;
+    localStorage.removeItem('valetec_token');
+    localStorage.removeItem('valetec_user');
+  }
+
+  // 2. Chequeo de Salud y Conectividad con Backend y Postgres
   async checkHealth() {
     try {
       const data = await this.request('/health');
@@ -53,12 +104,12 @@ class ValetecApiClient {
     }
   }
 
-  // 2. Catálogo de Medicamentos desde PostgreSQL
+  // 3. Catálogo de Medicamentos desde PostgreSQL
   async getProducts() {
     return await this.request('/products');
   }
 
-  // 3. Recepción de Lotes / Stock en Kardex (PostgreSQL)
+  // 4. Recepción de Lotes / Stock en Kardex (PostgreSQL)
   async addStock(stockData) {
     return await this.request('/products/receive', {
       method: 'POST',
@@ -66,12 +117,12 @@ class ValetecApiClient {
     });
   }
 
-  // 4. Personal y Perfiles de Turno
+  // 5. Personal y Perfiles de Turno
   async getUsers() {
     return await this.request('/users');
   }
 
-  // 5. Libro DIGEMID & Recetas Médicas
+  // 6. Libro DIGEMID & Recetas Médicas
   async getRecipes() {
     return await this.request('/recipes');
   }
@@ -83,7 +134,7 @@ class ValetecApiClient {
     });
   }
 
-  // 6. Turno Activo y Arqueo de Caja Chica
+  // 7. Turno Activo y Arqueo de Caja Chica
   async getCashShift() {
     return await this.request('/cash/current');
   }

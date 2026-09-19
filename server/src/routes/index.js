@@ -1,4 +1,5 @@
 const express = require('express');
+const authRoutes = require('./auth.routes');
 const healthRoutes = require('./health.routes');
 const testRoutes = require('./test.routes');
 const productRoutes = require('./product.routes');
@@ -8,6 +9,7 @@ const cashRoutes = require('./cash.routes');
 
 const router = express.Router();
 
+router.use('/auth', authRoutes);
 router.use('/health', healthRoutes);
 router.use('/products', productRoutes);
 router.use('/users', userRoutes);

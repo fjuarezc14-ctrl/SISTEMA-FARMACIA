@@ -257,7 +257,7 @@ let digemidMockRecords = [
 ];
 
 // =============================================================
-// 3. GESTOR DE AUTENTICACIÓN & LOGIN (AUTH MANAGER)
+// 3. GESTOR DE AUTENTICACIÓN & LOGIN (AUTH MANAGER CON JWT Y BCRYPT)
 // =============================================================
 class AuthManager {
   constructor() {
@@ -265,6 +265,12 @@ class AuthManager {
     this.loginScreen = document.getElementById('loginScreen');
     this.appScreen = document.getElementById('appScreen');
     this.usernameInput = document.getElementById('loginUsername');
+    this.passwordInput = document.getElementById('loginPassword');
+
+    // Cargar clave inicial por defecto para agilizar pruebas
+    if (this.passwordInput && !this.passwordInput.value) {
+      this.passwordInput.value = 'admin123';
+    }
   }
 
   selectQuickProfile(roleKey) {
@@ -274,30 +280,84 @@ class AuthManager {
       else btn.classList.remove('active');
     });
 
+    const passwordMap = {
+      admin: 'admin123',
+      qf: 'qf123',
+      tech: 'tech123',
+      cashier: 'cashier123'
+    };
+
     const profile = mockStaffProfiles[roleKey];
     if (profile && this.usernameInput) {
       this.usernameInput.value = profile.email;
     }
+    if (this.passwordInput && passwordMap[roleKey]) {
+      this.passwordInput.value = passwordMap[roleKey];
+    }
   }
 
-  login(e) {
+  async login(e) {
     if (e) e.preventDefault();
-    if (this.loginScreen) this.loginScreen.classList.add('d-none');
-    if (this.appScreen) this.appScreen.classList.remove('d-none');
+    const email = this.usernameInput?.value.trim();
+    const password = this.passwordInput?.value;
 
-    // Sincronizar con el selector del sistema
-    const roleSelect = document.getElementById('appRoleSelector');
-    if (roleSelect) roleSelect.value = this.selectedRole;
-    appNav.applyRolePermissions(this.selectedRole);
+    if (!email || !password) {
+      showValetecToast("Por favor, ingresa tu correo y contraseña.", "warning");
+      return;
+    }
 
-    showValetecToast(`¡Bienvenido al turno! Sesión iniciada como ${mockStaffProfiles[this.selectedRole].name}.`, "success");
+    const submitBtn = document.querySelector('.btn-login-submit');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Validando en PostgreSQL...`;
+    }
+
+    try {
+      // Petición real al backend con validación bcrypt y firma JWT
+      const res = await window.api.login(email, password);
+
+      if (this.loginScreen) this.loginScreen.classList.add('d-none');
+      if (this.appScreen) this.appScreen.classList.remove('d-none');
+
+      const roleSelect = document.getElementById('appRoleSelector');
+      if (roleSelect) roleSelect.value = res.user.roleKey;
+      appNav.applyRolePermissions(res.user.roleKey);
+
+      showValetecToast(`¡Sesión autorizada por JWT! Bienvenido, ${res.user.name}.`, "success");
+    } catch (err) {
+      showValetecToast(err.message || "Error al autenticar credenciales.", "danger");
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i class="bi bi-box-arrow-in-right"></i> 🚀 Ingresar al Sistema`;
+      }
+    }
+  }
+
+  async checkActiveSession() {
+    try {
+      const user = await window.api.getMe();
+      if (user) {
+        if (this.loginScreen) this.loginScreen.classList.add('d-none');
+        if (this.appScreen) this.appScreen.classList.remove('d-none');
+
+        const roleSelect = document.getElementById('appRoleSelector');
+        if (roleSelect) roleSelect.value = user.roleKey;
+        appNav.applyRolePermissions(user.roleKey);
+
+        showValetecToast(`Sesión activa recuperada por JWT: ${user.name}.`, "info");
+      }
+    } catch (e) {
+      // Sesión no activa, permanece en login
+    }
   }
 
   logout() {
     if (confirm("¿Seguro que deseas cerrar la sesión de tu turno actual?")) {
+      window.api.logout();
       if (this.appScreen) this.appScreen.classList.add('d-none');
       if (this.loginScreen) this.loginScreen.classList.remove('d-none');
-      showValetecToast("Sesión cerrada correctamente.", "info");
+      showValetecToast("Sesión cerrada y token JWT invalidado.", "info");
     }
   }
 }
@@ -1496,6 +1556,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Sincronización activa con Backend y Base de Datos
   syncWithBackend();
+
+  // Restaurar sesión activa de JWT si existe
+  authManager.checkActiveSession();
 
   // Revisar estado de conexión cada 15 segundos
   setInterval(() => {
