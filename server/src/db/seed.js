@@ -287,6 +287,13 @@ async function seedDatabase() {
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [prod.id, p.lot.number, p.lot.expire, p.lot.boxes, p.lot.blisters, p.lot.units, p.lot.fefo]
           );
+        } else {
+          await run(
+            `UPDATE lotes_fefo 
+             SET stock_boxes = $1, stock_blisters = $2, stock_units = $3, fefo_status = $4, expire_date = $5 
+             WHERE id = $6`,
+            [p.lot.boxes, p.lot.blisters, p.lot.units, p.lot.fefo, p.lot.expire, existingLot.id]
+          );
         }
       }
     }

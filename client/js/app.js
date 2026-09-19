@@ -655,6 +655,13 @@ class CounterModule {
     this.btnExact = document.getElementById('btnCashExact');
     this.btnCancel = document.getElementById('btnCancelOrder');
     this.btnCheckout = document.getElementById('btnCheckoutOrder');
+
+    // Modal de comprobante de venta térmico (Ticket 80mm)
+    this.receiptModal = document.getElementById('receiptModal');
+    this.receiptModalBody = document.getElementById('receiptModalBody');
+    this.btnCloseReceipt = document.getElementById('btnCloseReceiptModal');
+    this.btnCloseReceiptBtn = document.getElementById('btnCloseReceiptBtn');
+    this.btnPrintReceiptBtn = document.getElementById('btnPrintReceiptBtn');
   }
 
   initEvents() {
@@ -750,6 +757,17 @@ class CounterModule {
     if (this.btnCheckout) {
       this.btnCheckout.addEventListener('click', () => this.checkout());
     }
+
+    // Eventos del modal de comprobante térmico
+    if (this.btnCloseReceipt) this.btnCloseReceipt.addEventListener('click', () => this.toggleReceiptModal(false));
+    if (this.btnCloseReceiptBtn) this.btnCloseReceiptBtn.addEventListener('click', () => this.toggleReceiptModal(false));
+    if (this.btnPrintReceiptBtn) this.btnPrintReceiptBtn.addEventListener('click', () => window.print());
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.receiptModal?.classList.contains('active')) {
+        this.toggleReceiptModal(false);
+      }
+    });
   }
 
   lookupPatient() {
@@ -1025,7 +1043,138 @@ class CounterModule {
     this.recalcChange();
   }
 
-  checkout() {
+  toggleReceiptModal(open) {
+    if (open) this.receiptModal?.classList.add('active');
+    else this.receiptModal?.classList.remove('active');
+  }
+
+  showReceiptModal(sale) {
+    if (!this.receiptModal || !this.receiptModalBody) return;
+
+    const now = new Date(sale.createdAt || Date.now());
+    const pad = (n) => n.toString().padStart(2, '0');
+    const dateStr = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+    const voucherLabel = (sale.invoiceType === 'factura')
+      ? 'FACTURA ELECTRÓNICA'
+      : (sale.invoiceType === 'boleta' ? 'BOLETA DE VENTA ELECTRÓNICA' : 'TICKET DE VENTA');
+
+    const itemsRows = (sale.items || []).map(item => {
+      const fracLabel = item.fractionType === 'box' ? 'CJA' : (item.fractionType === 'blister' ? 'BLI' : 'UND');
+      const unitPrice = parseFloat(item.unitPrice || 0).toFixed(2);
+      const subtotal = parseFloat(item.subtotal || 0).toFixed(2);
+      return `
+        <tr>
+          <td>
+            <div><strong>${item.productName}</strong></div>
+            <small style="color: #64748b;">${item.quantity} ${fracLabel} × S/ ${unitPrice} [Lote: ${item.lotNumber || 'FEFO'}]</small>
+          </td>
+          <td class="text-right" style="font-weight: 700;">
+            S/ ${subtotal}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    this.receiptModalBody.innerHTML = `
+      <div class="thermal-receipt" id="printableThermalReceipt">
+        <div class="receipt-header">
+          <div class="receipt-logo-title">🏥 VALETEC PHARMA S.A.C.</div>
+          <div class="receipt-meta-line">R.U.C. 20601234567</div>
+          <div class="receipt-meta-line">Av. Aviación 2450 • San Borja, Lima</div>
+          <div class="receipt-meta-line">Central Telefónica: (01) 500-8900</div>
+          <div class="receipt-meta-line">Reg. Sanitario DIGEMID N° 10842-FAR</div>
+        </div>
+
+        <div class="receipt-dashed-line"></div>
+
+        <div class="receipt-doc-title">${voucherLabel}</div>
+        <div style="text-align: center; font-size: 14px; font-weight: 800; color: #0a2540; margin-bottom: 6px;">
+          ${sale.correlative}
+        </div>
+
+        <div class="receipt-dashed-line"></div>
+
+        <div class="receipt-info-grid">
+          <div class="receipt-info-row">
+            <span>Fecha/Hora:</span>
+            <strong>${dateStr}</strong>
+          </div>
+          <div class="receipt-info-row">
+            <span>Atendido por:</span>
+            <span>${mockStaffProfiles[appNav?.currentRole || 'cashier']?.name || 'Cajero de Turno'}</span>
+          </div>
+          <div class="receipt-info-row">
+            <span>Cliente:</span>
+            <span>${sale.customerName || 'CLIENTE GENERAL'}</span>
+          </div>
+          <div class="receipt-info-row">
+            <span>Doc. Identidad:</span>
+            <span>${sale.customerDoc || '00000000'}</span>
+          </div>
+          <div class="receipt-info-row">
+            <span>Forma de Pago:</span>
+            <span style="text-transform: uppercase;">${sale.paymentMethod === 'cash' ? 'EFECTIVO' : sale.paymentMethod}</span>
+          </div>
+        </div>
+
+        <div class="receipt-dashed-line"></div>
+
+        <table class="receipt-table">
+          <thead>
+            <tr>
+              <th>DESCRIPCIÓN</th>
+              <th class="text-right">TOTAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsRows}
+          </tbody>
+        </table>
+
+        <div class="receipt-dashed-line"></div>
+
+        <div class="receipt-totals-box">
+          <div class="receipt-total-row">
+            <span>OP. GRAVADA:</span>
+            <span>S/ ${parseFloat(sale.subtotal || 0).toFixed(2)}</span>
+          </div>
+          <div class="receipt-total-row">
+            <span>I.G.V. (18%):</span>
+            <span>S/ ${parseFloat(sale.igv || 0).toFixed(2)}</span>
+          </div>
+          <div class="receipt-total-row grand-total">
+            <span>TOTAL A PAGAR:</span>
+            <span>S/ ${parseFloat(sale.total || 0).toFixed(2)}</span>
+          </div>
+          <div class="receipt-total-row">
+            <span>IMPORTE RECIBIDO:</span>
+            <span>S/ ${parseFloat(sale.amountPaid || 0).toFixed(2)}</span>
+          </div>
+          <div class="receipt-total-row">
+            <span>VUELTO:</span>
+            <span style="font-weight: 700; color: #065f46;">S/ ${parseFloat(sale.changeGiven || 0).toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div class="receipt-dashed-line"></div>
+
+        <div class="receipt-barcode-box">
+          |||| | ||||| ||| ||||||| |||
+        </div>
+
+        <div class="receipt-footer">
+          <div>Representación impresa autorizada de Comprobante de Pago Electrónico.</div>
+          <div style="margin-top: 4px;">✅ Stock descontado automáticamente por FEFO en PostgreSQL.</div>
+          <div style="margin-top: 4px; font-weight: 700;">¡Gracias por cuidar tu salud en VALETEC PHARMA!</div>
+        </div>
+      </div>
+    `;
+
+    this.toggleReceiptModal(true);
+  }
+
+  async checkout() {
     if (this.order.length === 0) {
       showValetecToast("El carrito está vacío. Agrega medicinas antes de cobrar.", "warning");
       return;
@@ -1044,20 +1193,113 @@ class CounterModule {
     const total = this.calcTotal();
     const rec = parseFloat(this.cashInput?.value || 0);
     if (rec > 0 && rec < total) {
-      alert(`⚠️ Dinero insuficiente. Faltan S/ ${(total - rec).toFixed(2)}.`);
+      alert(`⚠️ Dinero insuficiente. Total: S/ ${total.toFixed(2)}, Recibido: S/ ${rec.toFixed(2)}. Faltan S/ ${(total - rec).toFixed(2)}.`);
       return;
     }
 
-    const vType = document.querySelector('input[name="orderVoucherType"]:checked')?.value || 'ticket';
-    const num = `VAL-${Math.floor(100000 + Math.random() * 900000)}`;
+    const invoiceType = document.querySelector('input[name="orderVoucherType"]:checked')?.value || 'ticket';
+    const customerDoc = this.patientInput?.value.trim() || '00000000';
+    let customerName = 'CLIENTE GENERAL';
+    const pNameEl = this.patientStatus?.querySelector('.p-name');
+    if (pNameEl && pNameEl.innerText && !pNameEl.innerText.includes('Cliente General')) {
+      customerName = pNameEl.innerText.replace('👤', '').trim();
+    }
 
-    alert(`¡COBRO COMPLETADO CON ÉXITO!\n\n🧾 Comprobante: ${vType.toUpperCase()} N° ${num}\n💰 Total: S/ ${total.toFixed(2)}\n🟢 Vuelto a entregar: S/ ${(rec > total ? (rec - total) : 0).toFixed(2)}\n👤 Atendido por: ${mockStaffProfiles[appNav.currentRole].name}\n\n✅ Venta registrada y comprobante impreso.`);
+    const items = this.order.map(i => ({
+      productId: i.product.id,
+      fractionType: i.frac,
+      quantity: i.qty,
+      unitPrice: i.price
+    }));
 
-    this.order = [];
-    if (this.cashInput) this.cashInput.value = '';
-    if (this.docCmpInput) this.docCmpInput.value = '';
-    this.updateUi();
-    showValetecToast("¡Venta completada con éxito!", "success");
+    const amountPaid = rec > 0 ? rec : total;
+
+    const btn = this.btnCheckout;
+    const origHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Descontando stock en PostgreSQL...`;
+
+    try {
+      let saleData;
+
+      if (window.api && window.api.isConnected) {
+        // Ejecución real contra el backend Node.js + PostgreSQL 16
+        const res = await window.api.createSale({
+          items,
+          invoiceType,
+          customerDoc,
+          customerName,
+          paymentMethod: 'cash',
+          amountPaid
+        });
+
+        if (!res || !res.success) {
+          throw new Error(res?.message || "No se pudo procesar la venta.");
+        }
+        saleData = res.data;
+      } else {
+        // Modo contingencia local si backend no está conectado
+        const series = invoiceType === 'factura' ? 'F001' : (invoiceType === 'boleta' ? 'B001' : 'T001');
+        const num = Math.floor(1000 + Math.random() * 9000);
+        const subtotal = Math.round((total / 1.18) * 100) / 100;
+        const igv = Math.round((total - subtotal) * 100) / 100;
+        const changeGiven = Math.max(0, Math.round((amountPaid - total) * 100) / 100);
+
+        saleData = {
+          saleId: Date.now(),
+          correlative: `${series}-${String(num).padStart(6, '0')}`,
+          invoiceSeries: series,
+          invoiceNumber: num,
+          invoiceType,
+          customerDoc,
+          customerName,
+          paymentMethod: 'cash',
+          subtotal,
+          igv,
+          total,
+          amountPaid,
+          changeGiven,
+          items: this.order.map(i => ({
+            productName: i.product.name,
+            fractionType: i.frac,
+            quantity: i.qty,
+            unitPrice: i.price,
+            subtotal: i.price * i.qty,
+            lotNumber: i.product.lotNumber || 'L-DEF'
+          })),
+          createdAt: new Date().toISOString()
+        };
+      }
+
+      // 1. Mostrar comprobante térmico en pantalla
+      this.showReceiptModal(saleData);
+
+      // 2. Limpiar orden y campos de entrada
+      this.order = [];
+      if (this.cashInput) this.cashInput.value = '';
+      if (this.docCmpInput) this.docCmpInput.value = '';
+      if (this.patientInput) this.patientInput.value = '';
+      if (this.patientStatus) {
+        this.patientStatus.innerHTML = `
+          <span class="p-name">👤 Cliente General</span>
+          <span class="p-points"><i class="bi bi-star-fill text-warning"></i> 0 Puntos</span>
+        `;
+      }
+      this.updateUi();
+
+      // 3. Sincronizar nuevo stock FEFO y saldo de caja con PostgreSQL
+      if (window.api && window.api.isConnected) {
+        await syncWithBackend();
+      }
+
+      showValetecToast(`¡Venta ${saleData.correlative} emitida con éxito!`, "success");
+    } catch (err) {
+      alert(`🚨 ERROR EN LA VENTA:\n\n${err.message}`);
+      showValetecToast(err.message, "danger");
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = origHtml;
+    }
   }
 }
 

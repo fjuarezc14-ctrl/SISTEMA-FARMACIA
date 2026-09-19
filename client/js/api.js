@@ -146,6 +146,22 @@ class ValetecApiClient {
     });
   }
 
+  // 8. Motor Transaccional de Ventas & Descuento FEFO (PostgreSQL)
+  async createSale(saleData) {
+    return await this.request('/sales', {
+      method: 'POST',
+      body: JSON.stringify(saleData)
+    });
+  }
+
+  async getSales(limit = 50) {
+    return await this.request(`/sales?limit=${limit}`);
+  }
+
+  async getSaleById(id) {
+    return await this.request(`/sales/${id}`);
+  }
+
   // Indicador visual en la barra superior del Frontend
   updateConnectionBadge(isOnline, data = null) {
     const badge = document.getElementById('liveApiStatusBadge');
