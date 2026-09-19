@@ -1862,31 +1862,109 @@ class DigemidModule {
     this.btnCloseBtn = document.getElementById('btnCloseRxBtn');
     this.btnApprove = document.getElementById('btnApproveAndFill');
 
+    // Modal de Nueva Receta DIGEMID
+    this.newRecipeModal = document.getElementById('newRecipeModal');
+    this.btnOpenNewRecipe = document.getElementById('btnNewPrescriptionEntry');
+    this.btnCloseNewRecipe = document.getElementById('btnCloseNewRecipeModal');
+    this.btnCancelNewRecipe = document.getElementById('btnCancelNewRecipe');
+    this.btnSaveNewRecipe = document.getElementById('btnSaveNewRecipe');
+
+    this.inPatientName = document.getElementById('recipePatientName');
+    this.inPatientDni = document.getElementById('recipePatientDni');
+    this.inDoctorCmp = document.getElementById('recipeDoctorCmp');
+    this.inDoctorName = document.getElementById('recipeDoctorName');
+    this.inMedication = document.getElementById('recipeMedicationDetails');
+    this.inNotes = document.getElementById('recipeNotes');
+
+    // Modal de Balance Sanitario DIGEMID
+    this.balanceModal = document.getElementById('digemidBalanceModal');
+    this.balanceBody = document.getElementById('digemidBalanceModalBody');
+    this.btnOpenBalance = document.getElementById('btnPrintDigemidBalance');
+    this.btnCloseBalance = document.getElementById('btnCloseBalanceModal');
+    this.btnCloseBalanceBtn = document.getElementById('btnCloseBalanceBtn');
+    this.btnPrintBalance = document.getElementById('btnPrintBalanceBtn');
+
+    // Indicadores numéricos sanitarios
+    this.vaultUnitsEl = document.getElementById('digemidVaultUnits');
+    this.folioStatusEl = document.getElementById('digemidFolioStatus');
+
     this.initEvents();
     this.render();
+    this.updateMetrics();
   }
 
   initEvents() {
+    // Modal Visor de Receta
     if (this.btnClose) this.btnClose.addEventListener('click', () => this.toggleModal(false));
     if (this.btnCloseBtn) this.btnCloseBtn.addEventListener('click', () => this.toggleModal(false));
 
-    document.getElementById('btnNewPrescriptionEntry')?.addEventListener('click', () => {
-      alert("Formulario de foliación de receta médica en el Libro Oficial de Controlados DIGEMID.");
-    });
+    // Modal Foliación de Nueva Receta
+    if (this.btnOpenNewRecipe) this.btnOpenNewRecipe.addEventListener('click', () => this.toggleNewRecipeModal(true));
+    if (this.btnCloseNewRecipe) this.btnCloseNewRecipe.addEventListener('click', () => this.toggleNewRecipeModal(false));
+    if (this.btnCancelNewRecipe) this.btnCancelNewRecipe.addEventListener('click', () => this.toggleNewRecipeModal(false));
+    if (this.btnSaveNewRecipe) this.btnSaveNewRecipe.addEventListener('click', () => this.handleSaveRecipe());
 
+    // Modal Balance Sanitario Oficial
+    if (this.btnOpenBalance) this.btnOpenBalance.addEventListener('click', () => this.openBalanceReport());
+    if (this.btnCloseBalance) this.btnCloseBalance.addEventListener('click', () => this.toggleBalanceModal(false));
+    if (this.btnCloseBalanceBtn) this.btnCloseBalanceBtn.addEventListener('click', () => this.toggleBalanceModal(false));
+    if (this.btnPrintBalance) this.btnPrintBalance.addEventListener('click', () => this.printBalance());
+
+    // Aprobación Q.F. e integración directa con Mostrador
     if (this.btnApprove) {
       this.btnApprove.addEventListener('click', () => {
         if (this.activeFolio) {
           const r = digemidMockRecords.find(x => x.folio === this.activeFolio);
           if (r) {
-            r.status = 'dispensed';
+            r.status = 'approved';
             this.render();
             if (window.api) {
-              window.api.updateRecipeStatus(r.folio, 'dispensed')
+              window.api.updateRecipeStatus(r.folio, 'approved')
                 .then(() => syncWithBackend())
-                .catch(err => console.warn("Error actualizando receta:", err.message));
+                .catch(err => console.warn("Aviso actualizando receta:", err.message));
             }
-            showValetecToast(`Receta ${r.folio} validada y registrada en PostgreSQL.`, "success");
+
+            // 1. Navegar de inmediato al Mostrador
+            if (typeof appNav !== 'undefined' && appNav && appNav.navigateTo) {
+              appNav.navigateTo('viewCounter');
+            }
+
+            // 2. Pre-llenar CMP y alertar en el mostrador
+            const cmpInput = document.getElementById('orderDoctorCmp');
+            if (cmpInput) {
+              cmpInput.value = r.doctorCmp;
+            }
+            const rxAlertBox = document.getElementById('prescriptionAlertBox');
+            if (rxAlertBox) {
+              rxAlertBox.classList.remove('d-none');
+            }
+
+            // 3. Cargar el medicamento recetado al carrito
+            if (typeof counterApp !== 'undefined' && counterApp) {
+              const medText = (r.medication || '').toLowerCase();
+              let matched = testPharmacyCatalog.find(p => 
+                medText.includes(p.name.toLowerCase()) || 
+                p.name.toLowerCase().includes(medText) ||
+                (p.genericDci && medText.includes(p.genericDci.toLowerCase()))
+              );
+
+              if (!matched) {
+                if (medText.includes('seda') || medText.includes('clona')) {
+                  matched = testPharmacyCatalog.find(p => p.name.includes('Sedafarma'));
+                } else if (medText.includes('amox')) {
+                  matched = testPharmacyCatalog.find(p => p.name.includes('Amoxil'));
+                } else if (medText.includes('naprox')) {
+                  matched = testPharmacyCatalog.find(p => p.name.includes('Naprox'));
+                }
+              }
+
+              if (matched) {
+                counterApp.addItem(matched.id, 'box');
+              }
+            }
+
+            showValetecToast(`Receta ${r.folio} aprobada por Q.F. Medicamento y CMP cargados en Mostrador.`, "success");
+            this.updateMetrics();
           }
         }
         this.toggleModal(false);
@@ -1899,27 +1977,371 @@ class DigemidModule {
     else this.modal?.classList.remove('active');
   }
 
+  toggleNewRecipeModal(open) {
+    if (open) {
+      this.newRecipeModal?.classList.add('active');
+      this.inPatientName?.focus();
+    } else {
+      this.newRecipeModal?.classList.remove('active');
+    }
+  }
+
+  toggleBalanceModal(open) {
+    if (open) this.balanceModal?.classList.add('active');
+    else this.balanceModal?.classList.remove('active');
+  }
+
+  async handleSaveRecipe() {
+    const patientName = this.inPatientName?.value.trim() || '';
+    const patientDni = this.inPatientDni?.value.trim() || '';
+    const doctorCmp = this.inDoctorCmp?.value.trim() || '';
+    const doctorName = this.inDoctorName?.value.trim() || '';
+    const medication = this.inMedication?.value.trim() || '';
+    const notes = this.inNotes?.value.trim() || 'Receta retenida en custodia oficial de regencia.';
+
+    if (!patientName || patientName.length < 3) {
+      alert("Por favor ingrese el nombre completo del paciente (mínimo 3 caracteres).");
+      this.inPatientName?.focus();
+      return;
+    }
+    if (!patientDni || patientDni.length < 8) {
+      alert("El DNI o documento del paciente debe tener al menos 8 dígitos.");
+      this.inPatientDni?.focus();
+      return;
+    }
+    if (!doctorCmp || doctorCmp.length < 4) {
+      alert("Por favor ingrese la colegiatura médica (CMP) del doctor.");
+      this.inDoctorCmp?.focus();
+      return;
+    }
+    if (!doctorName || doctorName.length < 3) {
+      alert("Por favor ingrese el nombre del médico tratante.");
+      this.inDoctorName?.focus();
+      return;
+    }
+    if (!medication || medication.length < 3) {
+      alert("Por favor detalle la medicina prescrita y su posología.");
+      this.inMedication?.focus();
+      return;
+    }
+
+    const payload = {
+      patientName,
+      patientDni,
+      doctorCmp,
+      doctorName,
+      medicationDetails: medication,
+      notes
+    };
+
+    try {
+      if (window.api) {
+        const res = await window.api.createRecipe(payload);
+        if (res && res.data) {
+          digemidMockRecords.unshift({
+            folio: res.data.folio,
+            patientName: res.data.patientName,
+            patientDni: res.data.patientDni,
+            doctorName: res.data.doctorName,
+            doctorCmp: res.data.doctorCmp,
+            medication: res.data.medication,
+            dateIssued: res.data.dateIssued,
+            status: res.data.status,
+            notes: res.data.notes
+          });
+          showValetecToast(`Receta ${res.data.folio} foliada con éxito en Libro Oficial DIGEMID.`, 'success');
+        }
+      }
+    } catch (err) {
+      console.warn("Foliación en memoria local:", err.message);
+      const fakeFolio = `REC-2026-${String(digemidMockRecords.length + 42).padStart(4, '0')}`;
+      digemidMockRecords.unshift({
+        folio: fakeFolio,
+        patientName: payload.patientName,
+        patientDni: payload.patientDni,
+        doctorName: payload.doctorName,
+        doctorCmp: payload.doctorCmp.toUpperCase().startsWith('CMP') ? payload.doctorCmp.toUpperCase() : `CMP-${payload.doctorCmp}`,
+        medication: payload.medicationDetails,
+        dateIssued: new Date().toLocaleDateString('es-PE'),
+        status: 'retained',
+        notes: payload.notes
+      });
+      showValetecToast(`Receta ${fakeFolio} foliada en memoria local.`, 'info');
+    }
+
+    // Limpiar campos y cerrar modal
+    if (this.inPatientName) this.inPatientName.value = '';
+    if (this.inPatientDni) this.inPatientDni.value = '';
+    if (this.inDoctorCmp) this.inDoctorCmp.value = '';
+    if (this.inDoctorName) this.inDoctorName.value = '';
+    if (this.inMedication) this.inMedication.value = '';
+    if (this.inNotes) this.inNotes.value = '';
+
+    this.toggleNewRecipeModal(false);
+    this.render();
+    this.updateMetrics();
+  }
+
+  async openBalanceReport() {
+    let balanceData = null;
+    try {
+      if (window.api) {
+        const res = await window.api.getSanitaryBalance();
+        if (res && res.data) balanceData = res.data;
+      }
+    } catch (err) {
+      console.warn("Obteniendo balance desde registros locales:", err.message);
+    }
+
+    // Si no se obtuvo de la API, estructurar desde datos locales
+    if (!balanceData) {
+      const retained = digemidMockRecords.filter(r => r.status === 'retained').length;
+      const approved = digemidMockRecords.filter(r => r.status === 'approved').length;
+      const dispensed = digemidMockRecords.filter(r => r.status === 'dispensed').length;
+      balanceData = {
+        establishment: {
+          name: 'BOTICA VALETEC PHARMA S.A.C.',
+          ruc: '20601234567',
+          sanitaryLicense: 'DIRIS-LC N° 10842-FAR',
+          address: 'Av. Aviación 2450, San Borja, Lima',
+          technicalDirector: 'Dra. Elena Vega (Q.F. Reg. CQFP 18492)'
+        },
+        summary: {
+          totalLedgerEntries: digemidMockRecords.length,
+          retainedCount: retained,
+          approvedCount: approved,
+          dispensedCount: dispensed
+        },
+        vaultInventory: {
+          productName: 'Sedafarma 2mg Ranuradas (Clonazepam)',
+          genericDci: 'Clonazepam 2mg - Lista IV',
+          location: 'Caja Fuerte de Regencia',
+          unitsInVault: 25,
+          boxesInVault: 1
+        },
+        records: digemidMockRecords
+      };
+    }
+
+    if (!this.balanceBody) return;
+
+    const est = balanceData.establishment;
+    const sum = balanceData.summary;
+    const vault = balanceData.vaultInventory;
+    const records = balanceData.records || [];
+
+    this.balanceBody.innerHTML = `
+      <div id="printSanitaryBalanceArea" style="font-family: 'Segoe UI', system-ui, sans-serif; color: #0f172a; font-size: 11.5px; line-height: 1.4;">
+        
+        <!-- Membrete Oficial Sanitario -->
+        <div style="text-align: center; border-bottom: 2px solid #004d99; padding-bottom: 10px; margin-bottom: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">MINISTERIO DE SALUD • DIGEMID</span>
+            <span style="font-size: 10px; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 2px 6px; border-radius: 4px;">REGISTRO OFICIAL</span>
+          </div>
+          <h2 style="font-size: 15px; font-weight: 900; color: #004d99; margin: 0 0 2px 0; letter-spacing: -0.2px;">
+            ${est.name}
+          </h2>
+          <div style="font-size: 10.5px; color: #475569;">
+            <strong>RUC:</strong> ${est.ruc} &nbsp;|&nbsp; <strong>Licencia:</strong> ${est.sanitaryLicense}
+          </div>
+          <div style="font-size: 10px; color: #64748b; margin-top: 2px;">
+            ${est.address}
+          </div>
+          <div style="display: inline-block; margin-top: 6px; padding: 3px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 20px; font-weight: 700; color: #0f172a; font-size: 11px;">
+            ⚖️ BALANCE OFICIAL DE MEDICAMENTOS CONTROLADOS & PSICOTRÓPICOS
+          </div>
+        </div>
+
+        <!-- Información de Regencia y Fecha -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px;">
+          <div>
+            <span style="color: #64748b; font-size: 9.5px; text-transform: uppercase; font-weight: 700; display: block;">Directora Técnica Responsable:</span>
+            <strong style="color: #004d99; font-size: 11.5px;">${est.technicalDirector}</strong>
+          </div>
+          <div style="text-align: right;">
+            <span style="color: #64748b; font-size: 9.5px; text-transform: uppercase; font-weight: 700; display: block;">Fecha de Emisión:</span>
+            <strong style="font-size: 11px;">${new Date().toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong>
+          </div>
+        </div>
+
+        <!-- Indicadores de Balance Sanitario -->
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px;">
+          <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 6px; text-align: center;">
+            <div style="font-size: 16px; font-weight: 900; color: #1d4ed8;">${sum.totalLedgerEntries}</div>
+            <div style="font-size: 9px; font-weight: 700; color: #3b82f6; text-transform: uppercase;">Total Folios</div>
+          </div>
+          <div style="background: #fefce8; border: 1px solid #fef08a; border-radius: 6px; padding: 6px; text-align: center;">
+            <div style="font-size: 16px; font-weight: 900; color: #a16207;">${sum.retainedCount}</div>
+            <div style="font-size: 9px; font-weight: 700; color: #ca8a04; text-transform: uppercase;">En Custodia</div>
+          </div>
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 6px; text-align: center;">
+            <div style="font-size: 16px; font-weight: 900; color: #15803d;">${sum.approvedCount}</div>
+            <div style="font-size: 9px; font-weight: 700; color: #16a34a; text-transform: uppercase;">Aprobadas Q.F.</div>
+          </div>
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; text-align: center;">
+            <div style="font-size: 16px; font-weight: 900; color: #475569;">${sum.dispensedCount}</div>
+            <div style="font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase;">Dispensadas</div>
+          </div>
+        </div>
+
+        <!-- Custodia Física en Caja Fuerte -->
+        ${vault ? `
+          <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong style="color: #6b21a8; font-size: 11px;">🔒 Custodia en Caja Fuerte (Lista IV):</strong>
+                <div style="color: #4b5563; font-size: 10.5px;">${vault.productName} • <em>${vault.genericDci}</em></div>
+                <small style="color: #9333ea; font-weight: 600;">Ubicación: ${vault.location}</small>
+              </div>
+              <div style="text-align: right;">
+                <span style="font-size: 16px; font-weight: 900; color: #7e22ce;">${vault.unitsInVault}</span>
+                <span style="font-size: 10px; font-weight: 700; color: #6b21a8;"> Unidades (${vault.boxesInVault} caja)</span>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Detalle de Recetas Foliadas -->
+        <div style="border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; margin-bottom: 14px; background: #ffffff;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 10px; text-align: left;">
+            <thead>
+              <tr style="background: #f1f5f9; border-bottom: 1px solid #cbd5e1; color: #334155;">
+                <th style="padding: 5px 8px;">Folio</th>
+                <th style="padding: 5px 8px;">Paciente (DNI)</th>
+                <th style="padding: 5px 8px;">Médico (CMP)</th>
+                <th style="padding: 5px 8px;">Rp. Medicamento Prescrito</th>
+                <th style="padding: 5px 8px; text-align: center;">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${records.map((rec, i) => `
+                <tr style="border-bottom: 1px solid #f1f5f9; background: ${i % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                  <td style="padding: 5px 8px; font-family: monospace; font-weight: 700; color: #0369a1;">${rec.folio}</td>
+                  <td style="padding: 5px 8px;"><strong>${rec.patientName}</strong><br><span style="color: #64748b;">${rec.patientDni}</span></td>
+                  <td style="padding: 5px 8px;">${rec.doctorName}<br><span style="color: #0284c7; font-weight: 700;">${rec.doctorCmp}</span></td>
+                  <td style="padding: 5px 8px;">${rec.medication}</td>
+                  <td style="padding: 5px 8px; text-align: center;">
+                    <span style="display: inline-block; padding: 2px 6px; border-radius: 10px; font-size: 9px; font-weight: 800; ${
+                      rec.status === 'dispensed' ? 'background: #dbeafe; color: #1d4ed8;' :
+                      rec.status === 'approved' ? 'background: #dcfce7; color: #15803d;' :
+                      'background: #fef9c3; color: #854d0e;'
+                    }">
+                      ${rec.status === 'dispensed' ? 'Dispensada' : rec.status === 'approved' ? 'Aprobada' : 'Retenida'}
+                    </span>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Sello y Certificación Legal DIGEMID -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; padding-top: 15px; border-top: 1px dashed #94a3b8; text-align: center;">
+          <div>
+            <div style="height: 30px; display: flex; align-items: center; justify-content: center; font-style: italic; color: #004d99; font-weight: 700;">
+              Dra. Elena Vega
+            </div>
+            <div style="border-top: 1px solid #475569; width: 75%; margin: 0 auto; padding-top: 4px;">
+              <strong style="font-size: 10px; display: block; color: #1e293b;">Dra. Elena Vega</strong>
+              <small style="font-size: 9px; color: #64748b;">Directora Técnica • Reg. CQFP 18492</small>
+            </div>
+          </div>
+          <div>
+            <div style="height: 30px; display: flex; align-items: center; justify-content: center; color: #475569; font-size: 20px;">
+              🛡️
+            </div>
+            <div style="border-top: 1px solid #475569; width: 75%; margin: 0 auto; padding-top: 4px;">
+              <strong style="font-size: 10px; display: block; color: #1e293b;">Sello de Inspección Sanitaria</strong>
+              <small style="font-size: 9px; color: #64748b;">DIRIS Lima Centro • DIGEMID</small>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    `;
+
+    this.toggleBalanceModal(true);
+  }
+
+  printBalance() {
+    const printContent = document.getElementById('printSanitaryBalanceArea');
+    if (!printContent) return;
+
+    const printWin = window.open('', '_blank', 'width=780,height=800');
+    if (printWin) {
+      printWin.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Balance Sanitario Oficial DIGEMID - Valetec Pharma</title>
+            <style>
+              body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; color: #0f172a; }
+              @media print {
+                body { padding: 0; }
+                button { display: none; }
+              }
+            </style>
+          </head>
+          <body>
+            ${printContent.innerHTML}
+            <script>
+              window.onload = function() { window.print(); window.close(); }
+            <\/script>
+          </body>
+        </html>
+      `);
+      printWin.document.close();
+    } else {
+      window.print();
+    }
+  }
+
+  updateMetrics() {
+    const retained = digemidMockRecords.filter(r => r.status === 'retained').length;
+    const total = digemidMockRecords.length;
+
+    // Buscar Sedafarma en catálogo para stock real en caja fuerte
+    const sedafarma = testPharmacyCatalog.find(p => p.prescriptionType === 'retained' || p.name.includes('Sedafarma'));
+    const vaultUnits = sedafarma ? sedafarma.stockUnits : 25;
+
+    if (this.vaultUnitsEl) {
+      this.vaultUnitsEl.innerText = `${vaultUnits} Pastillas en Caja Fuerte`;
+    }
+    if (this.folioStatusEl) {
+      const pct = total > 0 ? Math.round(((total - retained) / total) * 100) : 100;
+      this.folioStatusEl.innerText = `${pct}% Foliado al Día (${total} Recetas)`;
+    }
+  }
+
   viewRecord(folio) {
     const r = digemidMockRecords.find(x => x.folio === folio);
     if (!r || !this.content) return;
     this.activeFolio = folio;
 
+    let statusChip = '<span class="fefo-chip warning"><i class="bi bi-hourglass-split"></i> Receta Retenida</span>';
+    if (r.status === 'approved') statusChip = '<span class="fefo-chip good"><i class="bi bi-check-circle"></i> Aprobada por Regencia Q.F.</span>';
+    if (r.status === 'dispensed') statusChip = '<span class="fefo-chip good" style="background-color:#e0f0ff; color:#0066cc;"><i class="bi bi-check2-all"></i> Dispensada al Paciente</span>';
+
     this.content.innerHTML = `
       <div style="background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 8px; padding: 14px;">
-        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #e2e8f0; padding-bottom:6px; margin-bottom:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">
           <div>
-            <strong style="color: var(--valetec-navy);">EXPEDIENTE SANITARIO DE RECETA</strong><br>
-            <small style="color: var(--text-muted); font-family: monospace;">${r.folio}</small>
+            <strong style="color: var(--valetec-navy); font-size: 13px;">EXPEDIENTE SANITARIO DE RECETA MÉDICA</strong><br>
+            <span style="color: var(--valetec-blue); font-family: monospace; font-size: 12px; font-weight: 800;">${r.folio}</span>
           </div>
-          <span class="fefo-chip good"><i class="bi bi-shield-check"></i> Regencia Q.F. Conforme</span>
+          ${statusChip}
         </div>
-        <p style="margin: 3px 0; font-size: 12px;"><strong>Paciente:</strong> ${r.patientName} (DNI: ${r.patientDni})</p>
-        <p style="margin: 3px 0; font-size: 12px;"><strong>Médico:</strong> ${r.doctorName} (<strong>${r.doctorCmp}</strong>)</p>
-        <p style="margin: 3px 0; font-size: 12px;"><strong>Fecha:</strong> ${r.dateIssued}</p>
-        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:8px; margin:8px 0;">
-          <strong style="color: var(--valetec-navy);">Rp. Medicamento Controlado:</strong>
-          <p style="font-size: 13px; font-weight: 800; color: #0066cc; margin: 2px 0;">${r.medication}</p>
-          <small style="color: var(--text-muted);"><strong>Custodia:</strong> ${r.notes}</small>
+        <p style="margin: 4px 0; font-size: 12px;"><strong>👤 Paciente:</strong> ${r.patientName} &nbsp;|&nbsp; <strong>DNI:</strong> <code>${r.patientDni}</code></p>
+        <p style="margin: 4px 0; font-size: 12px;"><strong>👨‍⚕️ Médico Prescriptor:</strong> ${r.doctorName} &nbsp;|&nbsp; <strong>Colegiatura:</strong> <span class="shelf-tag">${r.doctorCmp}</span></p>
+        <p style="margin: 4px 0; font-size: 12px;"><strong>📅 Fecha de Emisión:</strong> ${r.dateIssued}</p>
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:10px; margin:10px 0;">
+          <strong style="color: var(--valetec-navy); font-size: 12px;">Rp. Medicamento Controlado & Posología:</strong>
+          <p style="font-size: 13.5px; font-weight: 800; color: #0066cc; margin: 4px 0;">${r.medication}</p>
+          <small style="color: var(--text-muted);"><strong>📌 Custodia:</strong> ${r.notes || 'En archivo de regencia'}</small>
+        </div>
+        <div style="font-size: 11px; color: #64748b; background: #f1f5f9; padding: 6px 10px; border-radius: 4px;">
+          ⚖️ Cumplimiento estricto D.S. 023-2001-SA (Reglamento de Estupefacientes y Psicotrópicos).
         </div>
       </div>
     `;
@@ -2074,7 +2496,10 @@ async function syncWithBackend() {
     const rxRes = await window.api.getRecipes();
     if (rxRes && rxRes.data && rxRes.data.length > 0) {
       digemidMockRecords = rxRes.data;
-      if (digemidApp) digemidApp.render();
+      if (digemidApp) {
+        digemidApp.render();
+        digemidApp.updateMetrics();
+      }
     }
 
     // 3. Cargar turno de caja activo desde PostgreSQL

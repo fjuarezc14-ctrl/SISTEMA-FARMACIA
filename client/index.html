@@ -638,6 +638,9 @@
               <p class="view-subheading">Registro sanitario legal de recetas retenidas (Lista IV) y antibióticos con CMP.</p>
             </div>
             <div class="header-actions-group">
+              <button type="button" class="btn-action-outline" id="btnPrintDigemidBalance">
+                <span>🖨️ Balance Sanitario</span>
+              </button>
               <button type="button" class="btn-action-solid" id="btnNewPrescriptionEntry">
                 <span>📝 + Foliar Nueva Receta</span>
               </button>
@@ -648,14 +651,14 @@
             <div class="san-card">
               <span class="feat-emoji" style="font-size: 26px;">🔒</span>
               <div>
-                <div class="san-num">25 Pastillas en Caja Fuerte</div>
+                <div class="san-num" id="digemidVaultUnits">25 Pastillas en Caja Fuerte</div>
                 <div class="san-label">Sedafarma 2mg (Custodia de Regencia)</div>
               </div>
             </div>
             <div class="san-card">
               <span class="feat-emoji" style="font-size: 26px;">✅</span>
               <div>
-                <div class="san-num">100% Foliado al Día</div>
+                <div class="san-num" id="digemidFolioStatus">100% Foliado al Día</div>
                 <div class="san-label">Libro Oficial de Psicotrópicos</div>
               </div>
             </div>
@@ -1030,6 +1033,69 @@
         <button type="button" class="btn-action-outline" id="btnCloseZReportBtn">❌ Cerrar [Esc]</button>
         <button type="button" class="btn-action-solid" id="btnPrintZReportBtn">
           <i class="bi bi-printer-fill"></i> <span>🖨️ Imprimir Reporte Z (80mm)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 6: Foliación de Nueva Receta Médica DIGEMID -->
+  <div class="modal-backdrop-valetec" id="newRecipeModal">
+    <div class="modal-dialog-valetec" style="max-width: 500px;">
+      <div class="modal-header-valetec">
+        <h3><i class="bi bi-journal-plus text-blue"></i> 📝 Foliar Nueva Receta en Libro Oficial</h3>
+        <button type="button" class="btn-close-modal" id="btnCloseNewRecipeModal" title="Cerrar"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body-valetec">
+        <div class="form-grid-valetec">
+          <div class="form-group-valetec" style="grid-column: 1 / -1;">
+            <label>👤 Nombre Completo del Paciente:</label>
+            <input type="text" id="recipePatientName" placeholder="Ej. Juan Pérez Ramos" required>
+          </div>
+          <div class="form-group-valetec">
+            <label>🆔 DNI / Doc. Paciente:</label>
+            <input type="text" id="recipePatientDni" placeholder="8 dígitos" maxlength="12" required>
+          </div>
+          <div class="form-group-valetec">
+            <label>🩺 Colegio Médico (CMP):</label>
+            <input type="text" id="recipeDoctorCmp" placeholder="Ej. CMP-48291" required>
+          </div>
+          <div class="form-group-valetec" style="grid-column: 1 / -1;">
+            <label>👨‍⚕️ Nombre del Médico Tratante:</label>
+            <input type="text" id="recipeDoctorName" placeholder="Ej. Dr. Manuel Ramos Castillo" required>
+          </div>
+          <div class="form-group-valetec" style="grid-column: 1 / -1;">
+            <label>💊 Medicamento Prescrito & Posología:</label>
+            <input type="text" id="recipeMedicationDetails" placeholder="Ej. Sedafarma 2mg (Clonazepam) - 1 caja x 30 unidades" required>
+          </div>
+          <div class="form-group-valetec" style="grid-column: 1 / -1;">
+            <label>📌 Notas de Custodia o Diagnóstico:</label>
+            <input type="text" id="recipeNotes" placeholder="Ej. Receta retenida archivada en expediente de psicotrópicos">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer-valetec" style="display: flex; gap: 8px; justify-content: space-between;">
+        <button type="button" class="btn-action-outline" id="btnCancelNewRecipe">❌ Cancelar</button>
+        <button type="button" class="btn-action-solid" id="btnSaveNewRecipe">
+          <i class="bi bi-shield-check"></i> <span>💾 Foliar en Libro Oficial</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 7: Balance Sanitario Oficial DIGEMID (Imprimible) -->
+  <div class="modal-backdrop-valetec" id="digemidBalanceModal">
+    <div class="modal-dialog-valetec" style="max-width: 520px;">
+      <div class="modal-header-valetec">
+        <h3><i class="bi bi-shield-shaded text-teal"></i> 📋 Balance Sanitario Oficial DIGEMID</h3>
+        <button type="button" class="btn-close-modal" id="btnCloseBalanceModal" title="Cerrar"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body-valetec" id="digemidBalanceModalBody" style="background-color: #f8fafc; max-height: 75vh; overflow-y: auto; padding: 14px;">
+        <!-- Renderizado dinámico del balance sanitario -->
+      </div>
+      <div class="modal-footer-valetec" style="display: flex; gap: 8px; justify-content: space-between;">
+        <button type="button" class="btn-action-outline" id="btnCloseBalanceBtn">❌ Cerrar [Esc]</button>
+        <button type="button" class="btn-action-solid" id="btnPrintBalanceBtn">
+          <i class="bi bi-printer-fill"></i> <span>🖨️ Imprimir Balance Sanitario</span>
         </button>
       </div>
     </div>

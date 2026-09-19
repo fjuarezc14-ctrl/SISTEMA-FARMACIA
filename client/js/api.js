@@ -123,8 +123,15 @@ class ValetecApiClient {
   }
 
   // 6. Libro DIGEMID & Recetas Médicas
-  async getRecipes() {
-    return await this.request('/recipes');
+  async getRecipes(params = '') {
+    return await this.request(`/recipes${params ? '?' + params : ''}`);
+  }
+
+  async createRecipe(recipeData) {
+    return await this.request('/recipes', {
+      method: 'POST',
+      body: JSON.stringify(recipeData)
+    });
   }
 
   async updateRecipeStatus(folio, status) {
@@ -132,6 +139,10 @@ class ValetecApiClient {
       method: 'PATCH',
       body: JSON.stringify({ status })
     });
+  }
+
+  async getSanitaryBalance() {
+    return await this.request('/recipes/balance');
   }
 
   // 7. Turno Activo y Arqueo de Caja Chica
