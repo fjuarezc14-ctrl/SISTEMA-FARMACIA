@@ -1,4 +1,22 @@
 services:
+  valetec-db:
+    image: postgres:16-alpine
+    container_name: valetec_pharma_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: valetec_user
+      POSTGRES_PASSWORD: valetec_secure_password_2026
+      POSTGRES_DB: valetec_pharma
+    ports:
+      - "5434:5432"
+    volumes:
+      - valetec_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U valetec_user -d valetec_pharma"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
   valetec-backend:
     build:
       context: ./server
@@ -8,14 +26,20 @@ services:
     ports:
       - "4000:4000"
     environment:
-      - PORT=4000
-      - NODE_ENV=production
-      - DATABASE_PATH=/app/src/db/pharmacy.db
-      - JWT_SECRET=valetec_pharma_production_secret_key_2026
-      - CORS_ORIGIN=*
-    volumes:
-      - valetec_db_data:/app/src/db
+      PORT: 4000
+      NODE_ENV: production
+      DB_CLIENT: postgres
+      PGHOST: valetec-db
+      PGPORT: 5432
+      PGUSER: valetec_user
+      PGPASSWORD: valetec_secure_password_2026
+      PGDATABASE: valetec_pharma
+      JWT_SECRET: valetec_pharma_production_secret_key_2026
+      CORS_ORIGIN: "*"
+    depends_on:
+      valetec-db:
+        condition: service_healthy
 
 volumes:
-  valetec_db_data:
+  valetec_postgres_data:
     driver: local

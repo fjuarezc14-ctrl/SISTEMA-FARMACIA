@@ -1,10 +1,10 @@
 const bcrypt = require('bcryptjs');
-const { transaction, query } = require('./index');
+const { transaction } = require('./index');
 
-function seedDatabase() {
-  console.log('🌱 Sembrando datos maestros iniciales de VALETEC PHARMA...');
+async function seedDatabase() {
+  console.log('🌱 Sembrando datos maestros iniciales en PostgreSQL (VALETEC PHARMA)...');
 
-  return transaction(({ run, get }) => {
+  return await transaction(async ({ run, get, query }) => {
     // 1. Roles
     const rolesData = [
       { name: 'admin', label: 'Dueño / Gerente General', description: 'Control Total, Finanzas, Compras y Supervisión' },
@@ -14,16 +14,17 @@ function seedDatabase() {
     ];
 
     for (const r of rolesData) {
-      const existing = get('SELECT id FROM roles WHERE name = ?', [r.name]);
+      const existing = await get('SELECT id FROM roles WHERE name = $1', [r.name]);
       if (!existing) {
-        run('INSERT INTO roles (name, label, description) VALUES (?, ?, ?)', [r.name, r.label, r.description]);
+        await run('INSERT INTO roles (name, label, description) VALUES ($1, $2, $3)', [r.name, r.label, r.description]);
       }
     }
 
+    const rolesRows = await query('SELECT id, name FROM roles');
     const roleMap = {};
-    query('SELECT id, name FROM roles').forEach(r => { roleMap[r.name] = r.id; });
+    rolesRows.forEach(r => { roleMap[r.name] = r.id; });
 
-    // 2. Usuarios con contraseñas seguras hasheadas
+    // 2. Usuarios
     const salt = bcrypt.genSaltSync(10);
     const usersData = [
       {
@@ -84,18 +85,18 @@ function seedDatabase() {
     ];
 
     for (const u of usersData) {
-      const existing = get('SELECT id FROM usuarios WHERE email = ?', [u.email]);
+      const existing = await get('SELECT id FROM usuarios WHERE email = $1', [u.email]);
       if (!existing) {
         const hash = bcrypt.hashSync(u.password, salt);
-        run(
+        await run(
           `INSERT INTO usuarios (role_id, name, email, password_hash, terminal, shift, permissions, target, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
           [u.role_id, u.name, u.email, hash, u.terminal, u.shift, u.permissions, u.target, u.status]
         );
       }
     }
 
-    // 3. Categorías Farmacéuticas
+    // 3. Categorías
     const catData = [
       { slug: 'dolor', name: 'Dolor y Fiebre', icon: 'bi-capsule' },
       { slug: 'antibioticos', name: 'Antibióticos y Antivirales', icon: 'bi-shield-plus' },
@@ -106,16 +107,17 @@ function seedDatabase() {
     ];
 
     for (const c of catData) {
-      const existing = get('SELECT id FROM categorias WHERE slug = ?', [c.slug]);
+      const existing = await get('SELECT id FROM categorias WHERE slug = $1', [c.slug]);
       if (!existing) {
-        run('INSERT INTO categorias (slug, name, icon) VALUES (?, ?, ?)', [c.slug, c.name, c.icon]);
+        await run('INSERT INTO categorias (slug, name, icon) VALUES ($1, $2, $3)', [c.slug, c.name, c.icon]);
       }
     }
 
+    const catRows = await query('SELECT id, slug FROM categorias');
     const catMap = {};
-    query('SELECT id, slug FROM categorias').forEach(c => { catMap[c.slug] = c.id; });
+    catRows.forEach(c => { catMap[c.slug] = c.id; });
 
-    // 4. Catálogo Oficial de Medicamentos
+    // 4. Catálogo de Productos
     const productsData = [
       {
         barcode: '7750990001',
@@ -255,37 +257,34 @@ function seedDatabase() {
       }
     ];
 
-    // Insert products first
     for (const p of productsData) {
-      const existing = get('SELECT id FROM productos WHERE barcode = ?', [p.barcode]);
+      const existing = await get('SELECT id FROM productos WHERE barcode = $1', [p.barcode]);
       if (!existing) {
         const catId = catMap[p.category_slug];
-        run(
+        await run(
           `INSERT INTO productos 
            (barcode, name, generic_dci, laboratory, category_id, location, box_price, blister_price, unit_price, units_per_box, units_per_blister, prescription_type, generic_saving_percent)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
           [p.barcode, p.name, p.generic_dci, p.laboratory, catId, p.location, p.box_price, p.blister_price, p.unit_price, p.units_per_box, p.units_per_blister, p.prescription_type, p.generic_saving_percent]
         );
       }
     }
 
-    // Link alternative generics and seed FEFO lots
     for (const p of productsData) {
-      const prod = get('SELECT id FROM productos WHERE barcode = ?', [p.barcode]);
+      const prod = await get('SELECT id FROM productos WHERE barcode = $1', [p.barcode]);
       if (prod) {
         if (p.alt_barcode) {
-          const alt = get('SELECT id FROM productos WHERE barcode = ?', [p.alt_barcode]);
+          const alt = await get('SELECT id FROM productos WHERE barcode = $1', [p.alt_barcode]);
           if (alt) {
-            run('UPDATE productos SET generic_alt_id = ? WHERE id = ?', [alt.id, prod.id]);
+            await run('UPDATE productos SET generic_alt_id = $1 WHERE id = $2', [alt.id, prod.id]);
           }
         }
 
-        // FEFO Lot
-        const existingLot = get('SELECT id FROM lotes_fefo WHERE product_id = ? AND lot_number = ?', [prod.id, p.lot.number]);
+        const existingLot = await get('SELECT id FROM lotes_fefo WHERE product_id = $1 AND lot_number = $2', [prod.id, p.lot.number]);
         if (!existingLot) {
-          run(
+          await run(
             `INSERT INTO lotes_fefo (product_id, lot_number, expire_date, stock_boxes, stock_blisters, stock_units, fefo_status)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [prod.id, p.lot.number, p.lot.expire, p.lot.boxes, p.lot.blisters, p.lot.units, p.lot.fefo]
           );
         }
@@ -330,61 +329,60 @@ function seedDatabase() {
     ];
 
     for (const r of digemidData) {
-      const existing = get('SELECT id FROM recetas_digemid WHERE folio = ?', [r.folio]);
+      const existing = await get('SELECT id FROM recetas_digemid WHERE folio = $1', [r.folio]);
       if (!existing) {
-        run(
+        await run(
           `INSERT INTO recetas_digemid (folio, patient_name, patient_dni, doctor_name, doctor_cmp, medication_details, date_issued, status, notes)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
           [r.folio, r.patient_name, r.patient_dni, r.doctor_name, r.doctor_cmp, r.medication_details, r.date_issued, r.status, r.notes]
         );
       }
     }
 
-    // 6. Turno y Movimientos de Caja Demo
-    const cashierUser = get('SELECT id FROM usuarios WHERE email = ?', ['caja@valetec.pe']);
+    // 6. Turno y Caja Chica
+    const cashierUser = await get('SELECT id FROM usuarios WHERE email = $1', ['caja@valetec.pe']);
     if (cashierUser) {
-      let turno = get('SELECT id FROM caja_turnos WHERE user_id = ? AND status = ?', [cashierUser.id, 'open']);
+      let turno = await get('SELECT id FROM caja_turnos WHERE user_id = $1 AND status = $2', [cashierUser.id, 'open']);
       if (!turno) {
-        run(
+        await run(
           `INSERT INTO caja_turnos 
            (user_id, terminal, opening_balance, cash_sales, digital_sales, expenses, expected_balance, counted_balance, difference, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
           [cashierUser.id, 'Caja 01', 350.00, 1725.50, 3052.00, 70.00, 2005.50, 2005.50, 0.00, 'open']
         );
-        turno = get('SELECT id FROM caja_turnos WHERE user_id = ? AND status = ?', [cashierUser.id, 'open']);
+        turno = await get('SELECT id FROM caja_turnos WHERE user_id = $1 AND status = $2', [cashierUser.id, 'open']);
       }
 
       if (turno) {
-        const movCount = get('SELECT COUNT(*) as count FROM caja_movimientos WHERE turno_id = ?', [turno.id]);
-        if (movCount.count === 0) {
-          run(
+        const movCount = await get('SELECT COUNT(*) as count FROM caja_movimientos WHERE turno_id = $1', [turno.id]);
+        if (parseInt(movCount.count, 10) === 0) {
+          await run(
             `INSERT INTO caja_movimientos (turno_id, type, amount, concept, responsible)
-             VALUES (?, ?, ?, ?, ?)`,
+             VALUES ($1, $2, $3, $4, $5)`,
             [turno.id, 'egreso', 45.00, 'Compra artículos de limpieza de farmacia', 'Rodrigo Soto']
           );
-          run(
+          await run(
             `INSERT INTO caja_movimientos (turno_id, type, amount, concept, responsible)
-             VALUES (?, ?, ?, ?, ?)`,
+             VALUES ($1, $2, $3, $4, $5)`,
             [turno.id, 'egreso', 25.00, 'Botellón de agua para dispensador', 'Rodrigo Soto']
           );
         }
       }
     }
 
-    console.log('✅ Seeding finalizado con éxito.');
+    console.log('✅ Seeding completado con éxito en PostgreSQL.');
     return true;
   });
 }
 
 // Allow direct CLI execution: node src/db/seed.js
 if (require.main === module) {
-  try {
-    seedDatabase();
-    process.exit(0);
-  } catch (err) {
-    console.error('❌ Error en el seeder:', err);
-    process.exit(1);
-  }
+  seedDatabase()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error('❌ Error en seeder PostgreSQL:', err);
+      process.exit(1);
+    });
 }
 
 module.exports = { seedDatabase };

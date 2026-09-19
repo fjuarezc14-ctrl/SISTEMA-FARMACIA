@@ -1,15 +1,17 @@
-const { get } = require('../db');
+const { get, pool } = require('../db');
 
-function checkHealth(req, res) {
+async function checkHealth(req, res) {
   let dbStatus = 'disconnected';
   let dbLatencyMs = 0;
+  let pgVersion = 'unknown';
 
   try {
     const start = performance.now();
-    const test = get('SELECT 1 AS alive');
+    const test = await get('SELECT 1 AS alive, version() AS ver');
     dbLatencyMs = Math.round((performance.now() - start) * 100) / 100;
-    if (test && test.alive === 1) {
-      dbStatus = 'connected (SQLite WAL)';
+    if (test && (test.alive === 1 || test.alive === '1')) {
+      dbStatus = 'connected (PostgreSQL 16)';
+      pgVersion = test.ver ? test.ver.split(' on ')[0] : 'PostgreSQL';
     }
   } catch (err) {
     dbStatus = `error: ${err.message}`;
@@ -27,7 +29,12 @@ function checkHealth(req, res) {
     database: {
       status: dbStatus,
       latencyMs: dbLatencyMs,
-      engine: 'SQLite3 (Native DatabaseSync WAL Mode)'
+      engine: pgVersion,
+      pool: {
+        total: pool.totalCount,
+        idle: pool.idleCount,
+        waiting: pool.waitingCount
+      }
     },
     system: {
       nodeVersion: process.version,

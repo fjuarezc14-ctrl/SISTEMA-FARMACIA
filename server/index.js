@@ -2,24 +2,25 @@ const app = require('./src/app');
 const config = require('./src/config/env');
 const { runMigrations } = require('./src/db/migrate');
 const { seedDatabase } = require('./src/db/seed');
-const { get } = require('./src/db');
+const { get, pool } = require('./src/db');
 
-function startServer() {
+async function startServer() {
   try {
     console.log('====================================================');
     console.log('   VALETEC PHARMA v2 - SERVIDOR BACKEND (NODE.JS)   ');
+    console.log('       MOTOR DE BASE DE DATOS: POSTGRESQL 16        ');
     console.log('====================================================');
 
     // Auto-run migrations on startup
-    runMigrations();
+    await runMigrations();
 
     // Check if database needs initial seeding
-    const productCount = get('SELECT COUNT(*) AS count FROM productos');
-    if (!productCount || productCount.count === 0) {
-      console.log('ℹ️ Base de datos vacía detectada. Ejecutando sembrado inicial...');
-      seedDatabase();
+    const productCount = await get('SELECT COUNT(*) AS count FROM productos');
+    if (!productCount || parseInt(productCount.count, 10) === 0) {
+      console.log('ℹ️ Base de datos PostgreSQL vacía. Ejecutando sembrado inicial...');
+      await seedDatabase();
     } else {
-      console.log(`✅ Base de datos lista (${productCount.count} productos registrados).`);
+      console.log(`✅ Base de datos PostgreSQL lista (${productCount.count} productos registrados).`);
     }
 
     // Start Express listener
@@ -34,9 +35,15 @@ function startServer() {
     });
 
     // Graceful Shutdown
-    const shutdown = (signal) => {
+    const shutdown = async (signal) => {
       console.log(`\n🛑 Recibida señal ${signal}. Cerrando servidor limpiamente...`);
-      server.close(() => {
+      server.close(async () => {
+        try {
+          await pool.end();
+          console.log('👋 Pool de conexiones PostgreSQL cerrado.');
+        } catch (e) {
+          console.error('Error cerrando pool:', e);
+        }
         console.log('👋 Servidor VALETEC PHARMA cerrado con éxito.');
         process.exit(0);
       });
@@ -46,7 +53,7 @@ function startServer() {
     process.on('SIGTERM', () => shutdown('SIGTERM'));
 
   } catch (error) {
-    console.error('❌ Error fatal al iniciar el servidor:', error);
+    console.error('❌ Error fatal al iniciar el servidor con PostgreSQL:', error);
     process.exit(1);
   }
 }

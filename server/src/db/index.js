@@ -1,70 +1,82 @@
-const { DatabaseSync } = require('node:sqlite');
-const path = require('path');
-const fs = require('fs');
+const { Pool } = require('pg');
 const config = require('../config/env');
 
-// Ensure db directory exists
-const dbDir = path.dirname(config.dbPath);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-}
+// Configure PostgreSQL connection pool
+const pool = new Pool({
+  host: config.pgHost,
+  port: config.pgPort,
+  user: config.pgUser,
+  password: config.pgPassword,
+  database: config.pgDatabase,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000
+});
 
-// Initialize SQLite database connection
-const db = new DatabaseSync(config.dbPath);
-
-// Enforce Foreign Key Integrity and High-Performance WAL mode
-db.exec('PRAGMA foreign_keys = ON;');
-db.exec('PRAGMA journal_mode = WAL;');
+pool.on('error', (err) => {
+  console.error('🚨 Unexpected error on idle PostgreSQL client:', err.message);
+});
 
 /**
  * Execute a query returning multiple rows
  */
-function query(sql, params = []) {
-  const stmt = db.prepare(sql);
-  return stmt.all(...params);
+async function query(sql, params = []) {
+  const res = await pool.query(sql, params);
+  return res.rows;
 }
 
 /**
  * Execute a query returning a single row
  */
-function get(sql, params = []) {
-  const stmt = db.prepare(sql);
-  return stmt.get(...params);
+async function get(sql, params = []) {
+  const res = await pool.query(sql, params);
+  return res.rows[0] || null;
 }
 
 /**
  * Execute an INSERT, UPDATE or DELETE query
  */
-function run(sql, params = []) {
-  const stmt = db.prepare(sql);
-  return stmt.run(...params);
+async function run(sql, params = []) {
+  const res = await pool.query(sql, params);
+  return {
+    rowCount: res.rowCount,
+    rows: res.rows
+  };
 }
 
 /**
  * Execute raw multi-line SQL commands (e.g. migrations)
  */
-function exec(sql) {
-  return db.exec(sql);
+async function exec(sql) {
+  return await pool.query(sql);
 }
 
 /**
- * Atomic ACID Transaction Wrapper
- * Automatically rolls back on any thrown exception
+ * Atomic ACID Transaction Wrapper for PostgreSQL
+ * Automatically issues ROLLBACK if any exception occurs.
  */
-function transaction(fn) {
-  db.exec('BEGIN TRANSACTION;');
+async function transaction(fn) {
+  const client = await pool.connect();
   try {
-    const result = fn({ query, get, run, exec, db });
-    db.exec('COMMIT;');
+    await client.query('BEGIN');
+    const helper = {
+      query: (sql, params = []) => client.query(sql, params).then(r => r.rows),
+      get: (sql, params = []) => client.query(sql, params).then(r => r.rows[0] || null),
+      run: (sql, params = []) => client.query(sql, params)
+    };
+    const result = await fn(helper);
+    await client.query('COMMIT');
     return result;
   } catch (error) {
-    db.exec('ROLLBACK;');
+    await client.query('ROLLBACK');
     throw error;
+  } finally {
+    client.release();
   }
 }
 
 module.exports = {
-  db,
+  pool,
   query,
   get,
   run,
