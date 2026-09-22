@@ -130,6 +130,7 @@ CREATE TABLE IF NOT EXISTS ventas (
   total NUMERIC(10, 2) NOT NULL CHECK(total >= 0),
   amount_paid NUMERIC(10, 2) NOT NULL CHECK(amount_paid >= 0),
   change_given NUMERIC(10, 2) NOT NULL DEFAULT 0.00 CHECK(change_given >= 0),
+  payment_reference VARCHAR(100),
   status VARCHAR(20) NOT NULL DEFAULT 'completed' CHECK(status IN ('completed', 'cancelled')),
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );

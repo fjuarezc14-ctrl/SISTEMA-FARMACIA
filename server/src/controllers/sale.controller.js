@@ -1,4 +1,5 @@
 const { transaction, query, get } = require('../db');
+const { generateUBL21, numberToLetters } = require('../services/sunat.service');
 
 /**
  * Mapeo de prefijo de serie por tipo de comprobante
@@ -27,6 +28,7 @@ async function createSale(req, res, next) {
       customerName = 'CLIENTE VARIOS',
       paymentMethod = 'cash',
       amountPaid,
+      paymentReference = null,
       userId: bodyUserId
     } = req.body;
 
@@ -53,6 +55,8 @@ async function createSale(req, res, next) {
         message: 'Método de pago inválido. Debe ser: cash, yape o card.'
       });
     }
+
+    const sanitizedRef = paymentReference ? String(paymentReference).trim() : null;
 
     // Identificar usuario autenticado o cajero dinámicamente en PostgreSQL
     let activeUserId = (req.user && req.user.id) ? req.user.id : bodyUserId;
@@ -157,21 +161,51 @@ async function createSale(req, res, next) {
       const igvAmount = Math.round((calculatedTotal - subtotalBase) * 100) / 100;
 
       // Cálculo de dinero recibido y vuelto
-      const paid = (amountPaid !== undefined && amountPaid !== null) ? parseFloat(amountPaid) : calculatedTotal;
-      if (paymentMethod === 'cash' && paid < calculatedTotal) {
-        const err = new Error(`Monto recibido (S/ ${paid.toFixed(2)}) es menor al total de la venta (S/ ${calculatedTotal.toFixed(2)}).`);
-        err.statusCode = 400;
-        throw err;
+      let paid = calculatedTotal;
+      let changeGiven = 0;
+
+      if (paymentMethod === 'cash') {
+        paid = (amountPaid !== undefined && amountPaid !== null && amountPaid !== '') ? parseFloat(amountPaid) : calculatedTotal;
+        if (paid < calculatedTotal) {
+          const err = new Error(`Monto recibido (S/ ${paid.toFixed(2)}) es menor al total de la venta (S/ ${calculatedTotal.toFixed(2)}).`);
+          err.statusCode = 400;
+          throw err;
+        }
+        changeGiven = Math.max(0, Math.round((paid - calculatedTotal) * 100) / 100);
+      } else {
+        paid = calculatedTotal;
+        changeGiven = 0;
       }
-      const changeGiven = (paymentMethod === 'cash') ? Math.max(0, Math.round((paid - calculatedTotal) * 100) / 100) : 0;
+
+      // 3.1 Generación de comprobante electrónico UBL 2.1 y Hash SHA-256 (SUNAT)
+      let cpeData = null;
+      if (['boleta', 'factura'].includes(invoiceType)) {
+        cpeData = generateUBL21({
+          invoiceSeries: series,
+          invoiceNumber: nextNumber,
+          invoiceType,
+          customerDoc,
+          customerName,
+          subtotal: subtotalBase,
+          igv: igvAmount,
+          total: calculatedTotal,
+          items: validatedItems,
+          createdAt: new Date()
+        });
+      }
 
       // 4. Insertar cabecera de la venta en PostgreSQL
       const insertSaleRes = await query(
         `INSERT INTO ventas 
-         (invoice_series, invoice_number, invoice_type, user_id, turno_id, customer_doc, customer_name, payment_method, subtotal, igv, total, amount_paid, change_given, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'completed')
+         (invoice_series, invoice_number, invoice_type, user_id, turno_id, customer_doc, customer_name, payment_method, payment_reference, subtotal, igv, total, amount_paid, change_given, status, hash_cpe, xml_ubl)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'completed', $15, $16)
          RETURNING id`,
-        [series, nextNumber, invoiceType, activeUserId, turnoId, customerDoc, customerName, paymentMethod, subtotalBase, igvAmount, calculatedTotal, paid, changeGiven]
+        [
+          series, nextNumber, invoiceType, activeUserId, turnoId, customerDoc, customerName,
+          paymentMethod, sanitizedRef, subtotalBase, igvAmount, calculatedTotal, paid, changeGiven,
+          cpeData ? cpeData.hash : null,
+          cpeData ? cpeData.xml : null
+        ]
       );
       const saleId = insertSaleRes[0].id;
 
@@ -244,6 +278,8 @@ async function createSale(req, res, next) {
         }
       }
 
+      const totalInWords = cpeData ? cpeData.totalInWords : numberToLetters(calculatedTotal);
+
       return {
         saleId,
         correlative: formattedCorrelative,
@@ -253,11 +289,22 @@ async function createSale(req, res, next) {
         customerDoc,
         customerName,
         paymentMethod,
+        paymentReference: sanitizedRef,
         subtotal: subtotalBase,
         igv: igvAmount,
         total: calculatedTotal,
+        totalInWords,
         amountPaid: paid,
         changeGiven,
+        cpe: cpeData ? {
+          cpeId: cpeData.cpeId,
+          tipoCpe: cpeData.tipoCpe,
+          hash: cpeData.hash,
+          hashHex: cpeData.hashHex,
+          totalInWords: cpeData.totalInWords,
+          taxBreakdown: cpeData.taxBreakdown,
+          sunatStatus: 'GENERADO_UBL21'
+        } : null,
         items: dispensedDetails,
         createdAt: new Date().toISOString()
       };
@@ -265,7 +312,7 @@ async function createSale(req, res, next) {
 
     res.status(201).json({
       success: true,
-      message: `Comprobante ${saleResult.correlative} emitido exitosamente con descuento FEFO en PostgreSQL.`,
+      message: `Comprobante ${saleResult.correlative} emitido exitosamente con UBL 2.1 y descuento FEFO en PostgreSQL.`,
       data: saleResult
     });
 
@@ -290,11 +337,13 @@ async function getSales(req, res, next) {
         v.customer_doc AS "customerDoc",
         v.customer_name AS "customerName",
         v.payment_method AS "paymentMethod",
+        v.payment_reference AS "paymentReference",
         CAST(v.subtotal AS FLOAT) AS subtotal,
         CAST(v.igv AS FLOAT) AS igv,
         CAST(v.total AS FLOAT) AS total,
         CAST(v.amount_paid AS FLOAT) AS "amountPaid",
         CAST(v.change_given AS FLOAT) AS "changeGiven",
+        v.hash_cpe AS "hashCpe",
         v.status,
         TO_CHAR(v.created_at, 'YYYY-MM-DD HH24:MI:SS') AS "createdAt",
         u.name AS "cashierName"
@@ -334,11 +383,14 @@ async function getSaleById(req, res, next) {
         v.customer_doc AS "customerDoc",
         v.customer_name AS "customerName",
         v.payment_method AS "paymentMethod",
+        v.payment_reference AS "paymentReference",
         CAST(v.subtotal AS FLOAT) AS subtotal,
         CAST(v.igv AS FLOAT) AS igv,
         CAST(v.total AS FLOAT) AS total,
         CAST(v.amount_paid AS FLOAT) AS "amountPaid",
         CAST(v.change_given AS FLOAT) AS "changeGiven",
+        v.hash_cpe AS "hashCpe",
+        v.xml_ubl AS "xmlUbl",
         v.status,
         TO_CHAR(v.created_at, 'YYYY-MM-DD HH24:MI:SS') AS "createdAt",
         u.name AS "cashierName"
@@ -380,8 +432,129 @@ async function getSaleById(req, res, next) {
   }
 }
 
+/**
+ * Anular venta y restituir stock en lotes FEFO y saldo en turno de caja (ACID)
+ */
+async function cancelSale(req, res, next) {
+  try {
+    const saleId = parseInt(req.params.id, 10);
+    if (isNaN(saleId)) {
+      return res.status(400).json({ success: false, message: 'ID de venta inválido.' });
+    }
+
+    const cancelResult = await transaction(async ({ run, get, query }) => {
+      // 1. Obtener y bloquear la venta
+      const sale = await get('SELECT * FROM ventas WHERE id = $1 FOR UPDATE', [saleId]);
+      if (!sale) {
+        const err = new Error('Venta no encontrada.');
+        err.statusCode = 404;
+        throw err;
+      }
+
+      if (sale.status === 'cancelled') {
+        const err = new Error('Esta venta ya se encuentra anulada.');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      if (sale.status !== 'completed') {
+        const err = new Error(`Solo se pueden anular ventas con estado completado (estado actual: ${sale.status}).`);
+        err.statusCode = 400;
+        throw err;
+      }
+
+      // 2. Obtener partidas de venta
+      const items = await query(
+        `SELECT d.id, d.product_id, d.lot_id, d.fraction_type, d.quantity,
+                p.units_per_box, p.units_per_blister, p.name AS product_name
+         FROM ventas_detalles d
+         JOIN productos p ON d.product_id = p.id
+         WHERE d.sale_id = $1`,
+        [saleId]
+      );
+
+      // 3. Restituir stock lote por lote en lotes_fefo
+      for (const item of items) {
+        const qty = parseInt(item.quantity, 10);
+        const unitsPerBox = parseInt(item.units_per_box, 10);
+        const unitsPerBlister = parseInt(item.units_per_blister, 10);
+        const blistersPerBox = unitsPerBox / unitsPerBlister;
+
+        let baseUnitsToRestore = qty;
+        if (item.fraction_type === 'box') {
+          baseUnitsToRestore = qty * unitsPerBox;
+        } else if (item.fraction_type === 'blister') {
+          baseUnitsToRestore = Math.round(qty * blistersPerBox);
+        }
+
+        if (item.lot_id) {
+          const lot = await get('SELECT * FROM lotes_fefo WHERE id = $1 FOR UPDATE', [item.lot_id]);
+          if (lot) {
+            const newUnits = parseInt(lot.stock_units, 10) + baseUnitsToRestore;
+            const newBoxes = Math.floor(newUnits / unitsPerBox);
+            const newBlisters = Math.floor(newUnits / blistersPerBox);
+
+            await run(
+              `UPDATE lotes_fefo 
+               SET stock_units = $1, stock_boxes = $2, stock_blisters = $3, fefo_status = 'good', updated_at = NOW() 
+               WHERE id = $4`,
+              [newUnits, newBoxes, newBlisters, lot.id]
+            );
+          }
+        }
+      }
+
+      // 4. Ajustar turno de caja si la venta estuvo asignada a un turno
+      if (sale.turno_id) {
+        const saleTotal = parseFloat(sale.total);
+        if (sale.payment_method === 'cash') {
+          await run(
+            `UPDATE caja_turnos 
+             SET cash_sales = GREATEST(0, cash_sales - $1),
+                 expected_balance = (opening_balance + GREATEST(0, cash_sales - $1)) - expenses
+             WHERE id = $2`,
+            [saleTotal, sale.turno_id]
+          );
+        } else {
+          await run(
+            `UPDATE caja_turnos 
+             SET digital_sales = GREATEST(0, digital_sales - $1)
+             WHERE id = $2`,
+            [saleTotal, sale.turno_id]
+          );
+        }
+      }
+
+      // 5. Marcar venta como anulada
+      await run(
+        `UPDATE ventas 
+         SET status = 'cancelled' 
+         WHERE id = $1`,
+        [saleId]
+      );
+
+      const correlative = `${sale.invoice_series}-${String(sale.invoice_number).padStart(6, '0')}`;
+      return {
+        saleId: sale.id,
+        correlative,
+        status: 'cancelled',
+        total: parseFloat(sale.total)
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Venta ${cancelResult.correlative} anulada exitosamente. Stock devuelto a almacén y caja actualizada.`,
+      data: cancelResult
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createSale,
   getSales,
-  getSaleById
+  getSaleById,
+  cancelSale
 };

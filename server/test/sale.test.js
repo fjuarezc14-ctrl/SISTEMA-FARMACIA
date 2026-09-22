@@ -221,6 +221,116 @@ async function runSaleTests() {
       assert(data.data.items[0].lotNumber.length > 0);
     });
 
+    // 8. Pago digital con Yape y Código de Operación
+    let digitalSale = null;
+    await test('Emisión con medio de pago Yape y código de operación (paymentReference)', async () => {
+      const res = await fetch(baseUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoiceType: 'boleta',
+          customerDoc: '78291034',
+          customerName: 'JUAN PEREZ YAPE',
+          paymentMethod: 'yape',
+          paymentReference: 'OP-449102',
+          items: [
+            {
+              productId: 1,
+              fractionType: 'unit',
+              quantity: 4,
+              unitPrice: 0.35
+            }
+          ]
+        })
+      });
+
+      assert.strictEqual(res.status, 201);
+      const data = await res.json();
+      assert.strictEqual(data.success, true);
+      assert.strictEqual(data.data.paymentMethod, 'yape');
+      assert.strictEqual(data.data.paymentReference, 'OP-449102');
+      assert.strictEqual(data.data.changeGiven, 0);
+      digitalSale = data.data;
+
+      // Verificar en base de datos que payment_reference se guardó
+      const saleInDb = await get('SELECT payment_reference FROM ventas WHERE id = $1', [digitalSale.saleId]);
+      assert.strictEqual(saleInDb.payment_reference, 'OP-449102');
+    });
+
+    // 9. Anulación atómica de venta (PATCH /:id/cancel) con restitución de stock FEFO y ajuste en caja
+    await test('Anulación atómica de venta (PATCH /:id/cancel) restituye stock en lote FEFO y revierte saldo', async () => {
+      // 1. Emitir una venta en efectivo para poder anularla
+      const lotBefore = await get('SELECT stock_units FROM lotes_fefo WHERE product_id = 1 ORDER BY expire_date ASC LIMIT 1');
+      const unitsBefore = parseInt(lotBefore.stock_units, 10);
+
+      const shiftBefore = await get("SELECT cash_sales, expected_balance FROM caja_turnos WHERE status = 'open' LIMIT 1");
+      const cashBefore = parseFloat(shiftBefore.cash_sales);
+
+      const createRes = await fetch(baseUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoiceType: 'boleta',
+          customerDoc: '33445566',
+          customerName: 'CLIENTE ANULACION',
+          paymentMethod: 'cash',
+          amountPaid: 10.00,
+          items: [
+            {
+              productId: 1,
+              fractionType: 'unit',
+              quantity: 5,
+              unitPrice: 0.35 // Total 1.75
+            }
+          ]
+        })
+      });
+      assert.strictEqual(createRes.status, 201);
+      const created = await createRes.json();
+      const saleToCancelId = created.data.saleId;
+
+      // Verificar que el lote se redujo en 5 unidades
+      const lotAfterSale = await get('SELECT stock_units FROM lotes_fefo WHERE product_id = 1 ORDER BY expire_date ASC LIMIT 1');
+      assert.strictEqual(parseInt(lotAfterSale.stock_units, 10), unitsBefore - 5);
+
+      // 2. Anular la venta
+      const cancelRes = await fetch(`${baseUrl}/${saleToCancelId}/cancel`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      assert.strictEqual(cancelRes.status, 200);
+      const cancelData = await cancelRes.json();
+      assert.strictEqual(cancelData.success, true);
+      assert.strictEqual(cancelData.data.status, 'cancelled');
+
+      // 3. Verificar estado en base de datos
+      const saleInDb = await get('SELECT status FROM ventas WHERE id = $1', [saleToCancelId]);
+      assert.strictEqual(saleInDb.status, 'cancelled');
+
+      // 4. Verificar que el stock en lotes_fefo volvió a su valor original (+5)
+      const lotAfterCancel = await get('SELECT stock_units FROM lotes_fefo WHERE product_id = 1 ORDER BY expire_date ASC LIMIT 1');
+      assert.strictEqual(parseInt(lotAfterCancel.stock_units, 10), unitsBefore, 'El stock no se restituyó al anular la venta');
+
+      // 5. Verificar que el saldo de caja chica descontó la venta anulada
+      const shiftAfterCancel = await get("SELECT cash_sales FROM caja_turnos WHERE status = 'open' LIMIT 1");
+      assert.strictEqual(parseFloat(shiftAfterCancel.cash_sales), cashBefore, 'El saldo de caja no se revirtió correctamente');
+    });
+
+    // 10. Rechazo de doble anulación
+    await test('Rechaza anulación de una venta ya anulada (400 Bad Request)', async () => {
+      // Intentar anular la misma venta digital o una venta ya anulada
+      // Anulamos digitalSale
+      const cancel1 = await fetch(`${baseUrl}/${digitalSale.saleId}/cancel`, { method: 'PATCH' });
+      assert.strictEqual(cancel1.status, 200);
+
+      // Segunda anulación debe fallar
+      const cancel2 = await fetch(`${baseUrl}/${digitalSale.saleId}/cancel`, { method: 'PATCH' });
+      assert.strictEqual(cancel2.status, 400);
+      const data2 = await cancel2.json();
+      assert.strictEqual(data2.success, false);
+      assert(data2.message.includes('ya se encuentra anulada'));
+    });
+
   } finally {
     server.close();
     await pool.end();

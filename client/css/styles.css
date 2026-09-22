@@ -1829,38 +1829,82 @@ body.valetec-app-body {
   outline: none;
 }
 
-.table-responsive-container {
+.table-responsive-container,
+.table-responsive {
+  width: 100%;
+  max-width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background-color: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+  margin-top: 10px;
+  position: relative;
 }
 
-.valetec-table {
+.valetec-table,
+.valetec-data-table,
+table.table {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 11.5px;
+  min-width: 700px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12.5px;
+  color: var(--text-main);
   text-align: left;
 }
 
-.valetec-table th {
-  background-color: var(--bg-subtle);
-  color: var(--text-muted);
+.valetec-table th,
+.valetec-data-table th,
+table.table th {
+  background-color: #f8fafc;
+  color: #475569;
+  font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
-  font-size: 10.5px;
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--border-strong);
+  letter-spacing: 0.4px;
+  padding: 11px 14px;
+  border-bottom: 2px solid #e2e8f0;
   white-space: nowrap;
+  user-select: none;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
-.valetec-table td {
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--border-subtle);
+.valetec-table td,
+.valetec-data-table td,
+table.table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
+  transition: background-color 0.12s ease;
 }
 
-.valetec-table tr:hover td {
+.valetec-table tbody tr:hover td,
+.valetec-data-table tbody tr:hover td,
+table.table tbody tr:hover td {
   background-color: #f8fafc;
+}
+
+.valetec-table tbody tr:last-child td,
+.valetec-data-table tbody tr:last-child td,
+table.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.valetec-table code,
+.valetec-data-table code,
+table.table code {
+  background-color: #f1f5f9;
+  color: var(--valetec-navy);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid #e2e8f0;
 }
 
 .fefo-chip {
@@ -2038,13 +2082,17 @@ body.valetec-app-body {
 .modal-backdrop-valetec {
   position: fixed;
   inset: 0;
-  background-color: rgba(10, 37, 64, 0.6);
-  backdrop-filter: blur(4px);
+  background-color: rgba(10, 37, 64, 0.65);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
   z-index: 1200;
   display: none;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 20px 16px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
 }
 
 .modal-backdrop-valetec.active {
@@ -2055,75 +2103,200 @@ body.valetec-app-body {
   background-color: var(--bg-surface);
   border-radius: var(--radius-md);
   width: 100%;
-  max-width: 540px;
-  box-shadow: var(--shadow-lg);
+  max-width: 560px;
+  max-height: min(90vh, 850px);
+  box-shadow: 0 24px 48px -12px rgba(10, 37, 64, 0.28), 0 0 0 1px rgba(10, 37, 64, 0.08);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  margin: auto;
+  position: relative;
+  animation: modalPopUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalPopUp {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Permitir que form interno se ajuste fluidamente al flexbox del diálogo */
+.modal-dialog-valetec > form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: hidden;
 }
 
 .modal-header-valetec {
-  padding: 12px 18px;
+  padding: 14px 22px;
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background-color: var(--bg-surface);
+  flex-shrink: 0;
+  gap: 12px;
 }
 
 .modal-header-valetec h3 {
-  font-size: 14.5px;
+  font-size: 15px;
   font-weight: 800;
   color: var(--valetec-navy);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  margin: 0;
+  line-height: 1.3;
 }
 
 .btn-close-modal {
-  background: none;
-  border: none;
-  font-size: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  font-size: 14px;
   color: var(--text-muted);
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.btn-close-modal:hover {
+  background-color: #fee2e2;
+  border-color: #fecaca;
+  color: var(--valetec-danger);
 }
 
 .modal-body-valetec {
-  padding: 16px 18px;
+  padding: 18px 22px;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+  background-color: var(--bg-surface);
+  overscroll-behavior: contain;
+}
+
+/* Scrollbars ergonómicas para modales y contenedores de datos */
+.modal-body-valetec::-webkit-scrollbar,
+.table-responsive-container::-webkit-scrollbar,
+.table-responsive::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.modal-body-valetec::-webkit-scrollbar-track,
+.table-responsive-container::-webkit-scrollbar-track,
+.table-responsive::-webkit-scrollbar-track {
+  background: transparent;
+}
+.modal-body-valetec::-webkit-scrollbar-thumb,
+.table-responsive-container::-webkit-scrollbar-thumb,
+.table-responsive::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: var(--radius-full);
+}
+.modal-body-valetec::-webkit-scrollbar-thumb:hover,
+.table-responsive-container::-webkit-scrollbar-thumb:hover,
+.table-responsive::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 .form-grid-valetec {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 14px;
 }
 
 .form-group-valetec {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .form-group-valetec label {
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--text-main);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--valetec-navy);
+  letter-spacing: 0.1px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.form-group-valetec input, .form-group-valetec select {
-  height: 34px;
-  padding: 0 8px;
-  font-size: 12px;
-  font-family: inherit;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-xs);
+.form-control,
+.form-select-valetec,
+.form-group-valetec input,
+.form-group-valetec select,
+.form-group-valetec textarea {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  font-size: 12.5px;
+  font-family: var(--font-family);
+  color: var(--text-main);
+  background-color: var(--bg-surface);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   outline: none;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease;
+  box-sizing: border-box;
+}
+
+.form-group-valetec textarea,
+textarea.form-control {
+  height: auto;
+  min-height: 64px;
+  padding: 10px 12px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.form-control:focus,
+.form-select-valetec:focus,
+.form-group-valetec input:focus,
+.form-group-valetec select:focus,
+.form-group-valetec textarea:focus {
+  border-color: var(--valetec-blue);
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.15);
+  background-color: #ffffff;
+}
+
+.form-control::placeholder,
+.form-group-valetec input::placeholder,
+.form-group-valetec textarea::placeholder {
+  color: var(--text-light);
+  font-weight: 400;
+}
+
+.form-control[readonly],
+.form-group-valetec input[readonly],
+.form-control[disabled],
+.form-group-valetec select[disabled] {
+  background-color: #f1f5f9;
+  color: #64748b;
+  border-color: var(--border-subtle);
+  cursor: not-allowed;
 }
 
 .modal-footer-valetec {
-  padding: 10px 18px;
+  padding: 12px 22px;
   border-top: 1px solid var(--border-subtle);
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
   background-color: var(--bg-subtle);
+  flex-shrink: 0;
 }
 
 .valetec-toast {
@@ -2417,11 +2590,71 @@ body.uw-highlight-links button, body.uw-highlight-links a {
   .tables-dual-col { grid-template-columns: 1fr; }
   .header-left, .header-right { gap: 8px; }
   .app-nav-bar { padding: 0 8px; }
-  .nav-container { padding: 0; }
-  .nav-tab-btn { padding: 10px 12px; font-size: 12px; }
-  .app-workspace-main { padding: 12px 14px; }
+  .nav-container { padding: 0; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+  .nav-tab-btn { padding: 10px 12px; font-size: 12px; white-space: nowrap; flex-shrink: 0; }
+  .app-workspace-main { padding: 10px 12px; }
+  .valetec-card-box { padding: 16px 14px; }
+  .header-actions-group { width: 100%; flex-wrap: wrap; gap: 6px; }
+  .header-actions-group button { font-size: 11.5px; padding: 6px 10px; }
   .userway-drawer-panel { left: 12px; width: calc(100vw - 24px); }
   .userway-floating-btn { bottom: 16px; left: 16px; }
+  .modal-dialog-valetec { width: 96% !important; max-width: 96% !important; }
+}
+
+@media (max-width: 640px) {
+  .modal-backdrop-valetec {
+    padding: 10px 8px;
+    align-items: center;
+  }
+  .modal-dialog-valetec {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: calc(100vh - 20px) !important;
+    margin: auto 0 !important;
+    border-radius: var(--radius-md) !important;
+  }
+  .modal-header-valetec {
+    padding: 12px 16px;
+  }
+  .modal-header-valetec h3 {
+    font-size: 13.5px;
+  }
+  .modal-body-valetec {
+    padding: 14px 16px;
+  }
+  .form-grid-valetec {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  .form-group-valetec label {
+    font-size: 11px;
+  }
+  .modal-footer-valetec {
+    padding: 10px 16px;
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+  .modal-footer-valetec button,
+  .modal-footer-valetec a {
+    width: 100%;
+    justify-content: center;
+  }
+  .valetec-table,
+  .valetec-data-table,
+  table.table {
+    font-size: 11.5px;
+  }
+  .valetec-table th,
+  .valetec-data-table th,
+  table.table th {
+    padding: 9px 10px;
+    font-size: 10px;
+  }
+  .valetec-table td,
+  .valetec-data-table td,
+  table.table td {
+    padding: 9px 10px;
+  }
 }
 
 /* =============================================================
@@ -2661,6 +2894,218 @@ body.uw-highlight-links button, body.uw-highlight-links a {
     max-width: 460px;
     margin: 0 auto;
     width: 100%;
+  }
+}
+
+/* -------------------------------------------------------------
+   FASE 1: MEDIOS DE PAGO TÁCTILES & HISTORIAL DE VENTAS
+------------------------------------------------------------- */
+.btn-history-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #0284c7;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-history-trigger:hover {
+  background: #e0f2fe;
+  border-color: #0284c7;
+}
+
+.payment-methods-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.pay-method-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 4px;
+  background: #f1f5f9;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.pay-method-btn:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+.pay-method-btn.active {
+  background: #0284c7;
+  border-color: #0369a1;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3);
+}
+
+.digital-calc-wrapper {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.badge-sale-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.badge-sale-status.completed {
+  background: #dcfce7;
+  color: #166534;
+}
+.badge-sale-status.cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* =============================================================
+   ESTILOS COMPROBANTE TÉRMICO SUNAT UBL 2.1 (80MM / PDF)
+============================================================= */
+.thermal-receipt {
+  background: #ffffff;
+  padding: 16px 14px;
+  border-radius: 8px;
+  border: 1px dashed #cbd5e1;
+  font-family: 'Courier New', Courier, monospace;
+  color: #0f172a;
+  max-width: 380px;
+  margin: 0 auto;
+}
+.receipt-header {
+  text-align: center;
+  margin-bottom: 8px;
+}
+.receipt-logo-title {
+  font-size: 14.5px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  color: #0a2540;
+}
+.receipt-meta-line {
+  font-size: 11px;
+  color: #475569;
+  line-height: 1.35;
+}
+.receipt-dashed-line {
+  border-top: 1px dashed #94a3b8;
+  margin: 8px 0;
+}
+.receipt-doc-title {
+  text-align: center;
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.receipt-info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+}
+.receipt-info-row {
+  display: flex;
+  justify-content: space-between;
+}
+.receipt-table {
+  width: 100%;
+  font-size: 11px;
+  border-collapse: collapse;
+}
+.receipt-table th {
+  border-bottom: 1px dashed #94a3b8;
+  padding: 4px 0;
+  text-align: left;
+}
+.receipt-table td {
+  padding: 4px 0;
+}
+.text-right {
+  text-align: right;
+}
+.receipt-totals-box {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11.5px;
+}
+.receipt-total-row {
+  display: flex;
+  justify-content: space-between;
+}
+.receipt-total-row.grand-total {
+  font-size: 13.5px;
+  font-weight: 900;
+  border-top: 1px solid #0f172a;
+  border-bottom: 1px solid #0f172a;
+  padding: 4px 0;
+  margin: 4px 0;
+}
+.receipt-hash-box {
+  background: #f8fafc;
+  border: 1px dotted #94a3b8;
+  padding: 6px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  word-break: break-all;
+  text-align: center;
+  margin: 6px 0;
+}
+.receipt-qr-box {
+  text-align: center;
+  margin: 8px auto;
+}
+.receipt-footer {
+  text-align: center;
+  font-size: 10px;
+  color: #475569;
+  line-height: 1.35;
+}
+
+/* Modo Impresión / Generación PDF para Ticketera Térmica 80mm */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #printableThermalReceipt,
+  #printableThermalReceipt * {
+    visibility: visible !important;
+  }
+  #printableThermalReceipt {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 80mm !important;
+    max-width: 80mm !important;
+    padding: 2mm !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+  .modal-backdrop-valetec {
+    background: transparent !important;
+  }
+  @page {
+    size: 80mm auto;
+    margin: 0;
   }
 }
 

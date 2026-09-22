@@ -2,6 +2,9 @@ FROM node:24-alpine
 
 WORKDIR /app
 
+# Install PostgreSQL client tools (pg_dump)
+RUN apk add --no-cache postgresql-client
+
 # Copy dependency definition
 COPY package*.json ./
 
