@@ -373,39 +373,48 @@ body.valetec-app-body {
 }
 
 /* -------------------------------------------------------------
-   1. HEADER DEL SISTEMA PRINCIPAL
+   1. ESTRUCTURA PRINCIPAL DEL SISTEMA (LAYOUT SIDEBAR + WORKSPACE)
 ------------------------------------------------------------- */
-.app-top-header {
-  background: linear-gradient(90deg, var(--valetec-navy-dark) 0%, var(--valetec-navy) 100%);
-  color: var(--text-white);
-  padding: 8px 16px;
+.app-main-wrapper {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-  box-shadow: var(--shadow-sm);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  min-height: 100vh;
   width: 100%;
-  max-width: 100vw;
-  box-sizing: border-box;
+  position: relative;
+  background: var(--bg-main);
+  overflow-x: hidden;
 }
 
-.header-left, .header-right {
+/* -------------------------------------------------------------
+   2. SIDEBAR LATERAL PROFESIONAL (VALETEC PHARMA)
+------------------------------------------------------------- */
+.app-sidebar {
+  width: 260px;
+  min-width: 260px;
+  max-width: 260px;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 1050;
+  background: linear-gradient(180deg, #07192b 0%, #0a2540 100%);
+  color: var(--text-white);
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.18);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 16px 18px 14px 18px;
   display: flex;
   align-items: center;
-  gap: 14px;
-}
-
-.btn-mobile-menu {
-  display: none;
-  background: none;
-  border: none;
-  color: var(--text-white);
-  font-size: 24px;
-  cursor: pointer;
-  padding: 4px;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
 }
 
 .valetec-brand-wrap {
@@ -415,15 +424,15 @@ body.valetec-app-body {
 }
 
 .brand-icon-box {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: var(--radius-md);
   background: linear-gradient(135deg, var(--valetec-teal) 0%, var(--valetec-teal-dark) 100%);
   color: var(--valetec-navy-dark);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 20px;
   box-shadow: 0 4px 10px rgba(0, 212, 178, 0.35);
   font-weight: 900;
 }
@@ -434,10 +443,11 @@ body.valetec-app-body {
 }
 
 .brand-title {
-  font-size: 17px;
+  font-size: 15.5px;
   font-weight: 900;
-  letter-spacing: -0.4px;
+  letter-spacing: -0.3px;
   line-height: 1.1;
+  color: #fff;
 }
 
 .brand-teal {
@@ -445,240 +455,161 @@ body.valetec-app-body {
 }
 
 .brand-slogan {
-  font-size: 9px;
+  font-size: 8.5px;
   text-transform: uppercase;
   color: #94a3b8;
   letter-spacing: 0.5px;
-  font-weight: 700;
 }
 
-.role-selector-pill {
-  background-color: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(0, 212, 178, 0.4);
-  border-radius: var(--radius-md);
-  padding: 4px 10px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.role-selector-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.role-selector-info small {
-  font-size: 9px;
-  text-transform: uppercase;
-  color: #a5f3fc;
-  font-weight: 800;
-}
-
-.role-select {
-  background: transparent;
+.btn-sidebar-close {
+  display: none;
+  background: none;
   border: none;
-  color: var(--text-white);
-  font-size: 12px;
-  font-weight: 800;
-  font-family: inherit;
-  outline: none;
+  color: #94a3b8;
+  font-size: 18px;
   cursor: pointer;
-}
-
-.role-select option {
-  background-color: var(--valetec-navy);
-  color: var(--text-white);
-}
-
-.terminal-badge {
-  background-color: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: var(--radius-md);
-  padding: 5px 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11.5px;
-}
-
-.pulse-indicator {
-  background-color: rgba(0, 212, 178, 0.2);
-  border: 1px solid var(--valetec-teal);
-  color: #5eead4;
-  padding: 2px 7px;
-  border-radius: var(--radius-full);
-  font-size: 10px;
-  font-weight: 800;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.pulse-indicator i {
-  font-size: 6px;
-  animation: pulseLight 1.5s infinite;
-}
-
-@keyframes pulseLight {
-  0% { opacity: 0.3; }
-  50% { opacity: 1; }
-  100% { opacity: 0.3; }
-}
-
-.user-profile-badge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background-color: rgba(255, 255, 255, 0.08);
-  padding: 4px 10px;
-  border-radius: var(--radius-md);
-}
-
-.user-avatar {
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-full);
-  background: linear-gradient(135deg, var(--valetec-blue) 0%, #0369a1 100%);
-  color: var(--text-white);
-  font-size: 11px;
-  font-weight: 900;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.user-details {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.15;
-}
-
-.user-details strong {
-  font-size: 12px;
-  color: var(--text-white);
-}
-
-.user-details small {
-  font-size: 10px;
-  color: #a5f3fc;
-}
-
-.live-clock-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #cbd5e1;
-  background-color: rgba(0, 0, 0, 0.25);
-  padding: 5px 10px;
-  border-radius: var(--radius-sm);
-}
-
-.btn-shortcuts-modal {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: var(--text-white);
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-weight: 800;
-  font-size: 11px;
-}
-
-.btn-logout-header {
-  background: rgba(225, 29, 72, 0.2);
-  border: 1px solid rgba(225, 29, 72, 0.4);
-  color: #fecdd3;
-  padding: 5px 10px;
-  border-radius: var(--radius-md);
-  font-size: 11.5px;
-  font-weight: 800;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  padding: 4px 6px;
+  border-radius: 6px;
   transition: var(--transition-fast);
 }
 
-.btn-logout-header:hover {
-  background: rgba(225, 29, 72, 0.4);
+.btn-sidebar-close:hover {
   color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
 }
 
-/* -------------------------------------------------------------
-   2. BARRA DE NAVEGACIÓN ADAPTATIVA
-------------------------------------------------------------- */
-.app-nav-bar {
-  background-color: var(--valetec-navy);
-  border-bottom: 2px solid var(--valetec-teal);
-  position: sticky;
-  top: 57px;
-  z-index: 900;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+.sidebar-role-container {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.sidebar-role-container .role-selector-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 8px 12px;
   width: 100%;
-  max-width: 100vw;
   box-sizing: border-box;
-}
-
-.nav-container {
-  max-width: 1600px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 0 16px;
   display: flex;
   align-items: center;
-  gap: 4px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  box-sizing: border-box;
+  gap: 10px;
 }
-.nav-container::-webkit-scrollbar { display: none; }
+
+.sidebar-role-container .role-selector-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.sidebar-role-container .role-selector-info small {
+  font-size: 9.5px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.sidebar-role-container .role-select {
+  background: transparent;
+  color: #fff;
+  border: none;
+  outline: none;
+  font-weight: 700;
+  font-size: 11.5px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.sidebar-role-container .role-select option {
+  background: #0a2540;
+  color: #fff;
+}
+
+.sidebar-nav-menu {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+.sidebar-section-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #64748b;
+  text-transform: uppercase;
+  padding: 8px 10px 4px 10px;
+  user-select: none;
+}
 
 .nav-tab-btn {
+  width: 100%;
   background: none;
   border: none;
   color: #94a3b8;
   font-family: inherit;
   font-size: 13px;
-  font-weight: 800;
-  padding: 12px 16px;
+  font-weight: 700;
+  padding: 11px 14px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   cursor: pointer;
   position: relative;
-  transition: var(--transition-fast);
-  white-space: nowrap;
+  border-radius: 8px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  box-sizing: border-box;
+  user-select: none;
 }
 
 .nav-tab-btn:hover {
   color: var(--text-white);
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(255, 255, 255, 0.07);
+  transform: translateX(3px);
 }
 
 .nav-tab-btn.active {
   color: var(--text-white);
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(0, 212, 178, 0.14);
+  border-left: 4px solid var(--valetec-teal);
+  box-shadow: inset 0 0 16px rgba(0, 212, 178, 0.08);
+  font-weight: 800;
 }
 
 .nav-tab-btn.active::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background-color: var(--valetec-teal);
-  box-shadow: 0 0 10px rgba(0, 212, 178, 0.8);
+  display: none;
+}
+
+.tab-icon {
+  font-size: 18px;
+  width: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tab-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tab-kbd-hint {
-  background-color: rgba(255, 255, 255, 0.15);
+  background-color: rgba(255, 255, 255, 0.12);
   padding: 2px 6px;
   border-radius: var(--radius-xs);
   font-size: 10px;
   color: #cbd5e1;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 .badge-tab-notify {
@@ -686,11 +617,162 @@ body.valetec-app-body {
   font-weight: 800;
   padding: 2px 7px;
   border-radius: var(--radius-full);
+  flex-shrink: 0;
 }
 
 .badge-tab-notify.warn { background-color: var(--valetec-warning); color: #78350f; }
 .badge-tab-notify.info { background-color: var(--valetec-blue); color: var(--text-white); }
 .badge-tab-notify.live { background-color: var(--valetec-teal); color: var(--valetec-navy); }
+
+.sidebar-footer {
+  padding: 14px 14px 16px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.sidebar-footer .user-profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.btn-logout-sidebar {
+  width: 100%;
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: var(--transition-fast);
+}
+
+.btn-logout-sidebar:hover {
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #ef4444;
+}
+
+/* -------------------------------------------------------------
+   3. CONTENEDOR DE CONTENIDO & BARRA SUPERIOR
+------------------------------------------------------------- */
+.app-content-wrapper {
+  margin-left: 260px;
+  width: calc(100% - 260px);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-main);
+  transition: margin-left 0.3s ease, width 0.3s ease;
+  box-sizing: border-box;
+}
+
+.app-top-bar {
+  height: 58px;
+  min-height: 58px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 990;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.top-bar-left, .top-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-mobile-menu {
+  display: inline-flex;
+  background: none;
+  border: 1px solid #e2e8f0;
+  color: var(--valetec-navy);
+  font-size: 22px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-mobile-menu:hover {
+  background: #f1f5f9;
+}
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 37, 64, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1040;
+  transition: opacity 0.3s ease;
+}
+
+/* Estado de Sidebar Colapsado (v4.2 - Persistencia de Escritorio) */
+@media (min-width: 1025px) {
+  .app-sidebar.sidebar-collapsed {
+    width: 76px !important;
+    min-width: 76px !important;
+    max-width: 76px !important;
+  }
+  .app-sidebar.sidebar-collapsed .sidebar-header {
+    padding: 16px 10px;
+    justify-content: center;
+  }
+  .app-sidebar.sidebar-collapsed .brand-text-box,
+  .app-sidebar.sidebar-collapsed .sidebar-role-container,
+  .app-sidebar.sidebar-collapsed .sidebar-section-label,
+  .app-sidebar.sidebar-collapsed .tab-label,
+  .app-sidebar.sidebar-collapsed .tab-kbd-hint,
+  .app-sidebar.sidebar-collapsed .badge-tab-notify,
+  .app-sidebar.sidebar-collapsed .user-profile-details,
+  .app-sidebar.sidebar-collapsed .btn-sidebar-logout span {
+    display: none !important;
+  }
+  .app-sidebar.sidebar-collapsed .nav-tab-btn {
+    justify-content: center;
+    padding: 12px 0;
+  }
+  .app-sidebar.sidebar-collapsed .tab-icon {
+    font-size: 20px;
+    margin: 0;
+  }
+  .app-sidebar.sidebar-collapsed .sidebar-footer {
+    padding: 12px 8px;
+    align-items: center;
+  }
+  .app-sidebar.sidebar-collapsed .sidebar-user-card {
+    justify-content: center;
+    padding: 6px;
+  }
+  .app-content-wrapper.sidebar-collapsed {
+    margin-left: 76px !important;
+    width: calc(100% - 76px) !important;
+  }
+}
 
 /* -------------------------------------------------------------
    3. ESPACIO DE TRABAJO (WORKSPACE)
@@ -1718,6 +1800,45 @@ body.valetec-app-body {
   color: #0f766e;
 }
 
+/* Clases Corporativas de Cuadre y Diferencia en Tiempo Real (v4.1) */
+.cuadre-diff-exact {
+  background-color: #ecfdf5 !important;
+  border: 1px solid #10b981 !important;
+  color: #065f46 !important;
+}
+
+.cuadre-diff-surplus {
+  background-color: #fffbeb !important;
+  border: 1px solid #f59e0b !important;
+  color: #92400e !important;
+}
+
+.cuadre-diff-deficit {
+  background-color: #fef2f2 !important;
+  border: 1px solid #ef4444 !important;
+  color: #991b1b !important;
+}
+
+.z-audit-verification-box {
+  background: #ffffff;
+  border: 1px solid var(--border-strong, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.z-diff-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm, 6px);
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 10px;
+  transition: all 0.2s ease;
+}
+
 .auditor-meta-card {
   background-color: var(--bg-subtle);
   border-radius: var(--radius-sm);
@@ -2301,54 +2422,62 @@ textarea.form-control {
 
 .valetec-toast {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  top: 75px;
+  right: 24px;
   background-color: var(--valetec-navy);
   color: var(--text-white);
   padding: 10px 18px;
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 12.5px;
+  font-weight: 700;
   z-index: 6000;
-  transform: translateY(80px);
+  transform: translateY(-25px);
   opacity: 0;
+  pointer-events: none;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .valetec-toast.show {
   transform: translateY(0);
   opacity: 1;
+  pointer-events: auto;
 }
 
 /* -------------------------------------------------------------
-   WIDGET NATIVO DE ACCESIBILIDAD USERWAY
+   WIDGET NATIVO DE ACCESIBILIDAD USERWAY (INFERIOR DERECHO)
 ------------------------------------------------------------- */
 .userway-floating-btn {
   position: fixed;
   bottom: 24px;
-  left: 24px;
-  width: 50px;
-  height: 50px;
+  right: 24px;
+  left: auto;
+  width: 48px;
+  height: 48px;
   border-radius: var(--radius-full);
   background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
   color: var(--text-white);
   border: 2px solid #ffffff;
-  box-shadow: 0 4px 16px rgba(2, 132, 199, 0.4);
+  box-shadow: 0 4px 16px rgba(2, 132, 199, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 26px;
+  font-size: 24px;
   cursor: pointer;
-  z-index: 4000;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 6990;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+
+.userway-floating-btn span {
+  pointer-events: none;
 }
 
 .userway-floating-btn:hover {
-  transform: scale(1.1);
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(2, 132, 199, 0.55);
 }
 
 .userway-pulse-dot {
@@ -2361,24 +2490,30 @@ textarea.form-control {
   border: 2px solid var(--text-white);
   border-radius: var(--radius-full);
   animation: pulseLight 1.5s infinite;
+  pointer-events: none;
 }
 
 .userway-drawer-panel {
   position: fixed;
   bottom: 84px;
-  left: 24px;
-  width: 320px;
+  right: 24px;
+  left: auto;
+  width: 330px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 110px);
   background-color: var(--bg-surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  z-index: 4100;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  z-index: 7000;
   display: none;
+  flex-direction: column;
+  overflow: hidden;
   animation: modalScaleIn 0.2s ease-out;
 }
 
 .userway-drawer-panel.active {
-  display: block;
+  display: flex;
 }
 
 @keyframes modalScaleIn {
@@ -2392,6 +2527,7 @@ textarea.form-control {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .userway-title-wrap {
@@ -2417,10 +2553,22 @@ textarea.form-control {
   font-size: 16px;
   color: var(--text-muted);
   cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.btn-userway-close:hover {
+  background-color: var(--bg-hover);
+  color: var(--valetec-danger);
 }
 
 .userway-body {
   padding: 14px 16px;
+  overflow-y: auto;
+  max-height: calc(100vh - 180px);
 }
 
 .userway-widget-card {
@@ -2522,54 +2670,184 @@ textarea.form-control {
 }
 
 /* -------------------------------------------------------------
-   MODIFICADORES NATIVOS USERWAY EN EL BODY
+   MODIFICADORES NATIVOS USERWAY EN EL BODY (WCAG 2.1 COMPLIANT)
 ------------------------------------------------------------- */
-body.uw-font-lg { font-size: 16px; }
-body.uw-font-xl { font-size: 18px; }
+body.uw-font-lg {
+  zoom: 1.12;
+}
 
-/* Modo Oscuro Nativo */
+body.uw-font-xl {
+  zoom: 1.25;
+}
+
+body.uw-font-lg .userway-floating-btn,
+body.uw-font-xl .userway-floating-btn {
+  zoom: 0.9;
+}
+
+/* Modo Oscuro Profundo (Dark Theme Real) */
 body.uw-dark-mode {
-  --bg-app: #090e17;
-  --bg-surface: #111a28;
-  --bg-subtle: #172437;
-  --bg-hover: #20314a;
-  --text-main: #f1f5f9;
-  --text-muted: #94a3b8;
-  --border-subtle: #24354d;
-  --border-strong: #334968;
+  background-color: #0b1320 !important;
+  color: #f1f5f9 !important;
 }
 
-/* Alto Contraste */
-body.uw-high-contrast {
-  --bg-app: #000000;
-  --bg-surface: #0a0a0a;
-  --bg-subtle: #141414;
-  --text-main: #ffff00;
-  --text-muted: #ffffff;
-  --border-subtle: #ffff00;
-  --border-strong: #ffff00;
+body.uw-dark-mode .app-content-wrapper,
+body.uw-dark-mode .app-workspace-main {
+  background-color: #0b1320 !important;
+  color: #f1f5f9 !important;
 }
 
-/* Escala de Grises */
-body.uw-grayscale {
-  filter: grayscale(100%);
+body.uw-dark-mode .app-top-bar {
+  background-color: #111c2e !important;
+  border-bottom-color: #1e293b !important;
+  color: #f1f5f9 !important;
 }
 
+body.uw-dark-mode .valetec-card-box,
+body.uw-dark-mode .counter-catalog-pane,
+body.uw-dark-mode .product-staff-card,
+body.uw-dark-mode .dci-advisor-card,
+body.uw-dark-mode .search-bar-card,
+body.uw-dark-mode .table-responsive-container,
+body.uw-dark-mode .valetec-table,
+body.uw-dark-mode .valetec-table tbody tr,
+body.uw-dark-mode .san-card,
+body.uw-dark-mode .modal-dialog-valetec,
+body.uw-dark-mode .ticket-summary-card,
+body.uw-dark-mode .ticket-cart-card,
+body.uw-dark-mode .userway-drawer-panel,
+body.uw-dark-mode .z-audit-verification-box,
+body.uw-dark-mode .kpi-metric-card,
+body.uw-dark-mode .dashboard-card-wrap,
+body.uw-dark-mode .stat-widget-box {
+  background-color: #111c2e !important;
+  color: #f1f5f9 !important;
+  border-color: #1e293b !important;
+}
+
+body.uw-dark-mode .valetec-table th {
+  background-color: #1e293b !important;
+  color: #94a3b8 !important;
+  border-bottom-color: #334155 !important;
+}
+
+body.uw-dark-mode .valetec-table td {
+  border-bottom-color: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+
+body.uw-dark-mode input,
+body.uw-dark-mode select,
+body.uw-dark-mode textarea {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+body.uw-dark-mode .search-input-box input {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: #0284c7 !important;
+}
+
+body.uw-dark-mode .search-autocomplete-dropdown {
+  background-color: #111c2e !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+body.uw-dark-mode .cat-chip {
+  background-color: #1e293b !important;
+  color: #cbd5e1 !important;
+  border-color: #334155 !important;
+}
+
+body.uw-dark-mode .cat-chip.active {
+  background-color: #0284c7 !important;
+  color: #ffffff !important;
+}
+
+body.uw-dark-mode .shelf-tag {
+  background-color: #1e293b !important;
+  color: #94a3b8 !important;
+  border-color: #334155 !important;
+}
+
+body.uw-dark-mode .userway-widget-card {
+  background-color: #172437 !important;
+  border-color: #24354d !important;
+}
+
+body.uw-dark-mode .uw-widget-label {
+  color: #cbd5e1 !important;
+}
+
+body.uw-dark-mode .btn-uw-ctrl {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+body.uw-dark-mode .btn-uw-ctrl.active {
+  background-color: #0284c7 !important;
+  color: #ffffff !important;
+}
+
+body.uw-dark-mode .btn-uw-feature {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+body.uw-dark-mode .btn-uw-feature.active {
+  background-color: #0d9488 !important;
+  color: #ffffff !important;
+  border-color: #14b8a6 !important;
+}
+
+body.uw-dark-mode .btn-userway-reset {
+  background-color: #1e293b !important;
+  color: #94a3b8 !important;
+  border-color: #334155 !important;
+}
+
+body.uw-dark-mode .view-heading,
+body.uw-dark-mode strong,
+body.uw-dark-mode h1,
+body.uw-dark-mode h2,
+body.uw-dark-mode h3,
+body.uw-dark-mode h4 {
+  color: #f8fafc !important;
+}
+
+body.uw-dark-mode .view-subheading,
+body.uw-dark-mode .prod-dci,
+body.uw-dark-mode small,
+body.uw-dark-mode .text-muted {
+  color: #94a3b8 !important;
+}
 /* Tipografía de Lectura Fácil */
-body.uw-dyslexia {
-  font-family: Arial, 'Trebuchet MS', Verdana, sans-serif !important;
+body.uw-dyslexia,
+body.uw-dyslexia * {
+  font-family: 'Comic Sans MS', Arial, 'Trebuchet MS', Verdana, sans-serif !important;
+  letter-spacing: 0.6px !important;
+  line-height: 1.6 !important;
 }
 
-/* Espaciamiento de Texto */
-body.uw-spaced-text {
-  letter-spacing: 0.8px !important;
-  word-spacing: 2px !important;
-  line-height: 1.8 !important;
+/* Espaciado de Texto */
+body.uw-spaced-text,
+body.uw-spaced-text * {
+  letter-spacing: 1.2px !important;
+  word-spacing: 3px !important;
 }
 
 /* Resaltar Botones */
-body.uw-highlight-links button, body.uw-highlight-links a {
-  outline: 2px solid #eab308 !important;
+body.uw-highlight-links button,
+body.uw-highlight-links a,
+body.uw-highlight-links input[type="button"],
+body.uw-highlight-links input[type="submit"] {
+  outline: 3px solid #eab308 !important;
+  outline-offset: 2px !important;
   text-decoration: underline !important;
 }
 
@@ -2584,20 +2862,37 @@ body.uw-highlight-links button, body.uw-highlight-links a {
   .sanitary-metrics-grid { grid-template-columns: 1fr; }
 }
 
+@media (max-width: 1024px) {
+  .app-sidebar {
+    transform: translateX(-100%);
+  }
+  .app-sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: 12px 0 40px rgba(0, 0, 0, 0.5);
+  }
+  .sidebar-backdrop.active {
+    display: block;
+  }
+  .app-content-wrapper {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+  .btn-mobile-menu {
+    display: inline-flex !important;
+  }
+  .btn-sidebar-close {
+    display: inline-flex !important;
+  }
+}
+
 @media (max-width: 768px) {
-  .btn-mobile-menu { display: block; }
-  .role-selector-pill { display: none; }
   .tables-dual-col { grid-template-columns: 1fr; }
-  .header-left, .header-right { gap: 8px; }
-  .app-nav-bar { padding: 0 8px; }
-  .nav-container { padding: 0; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
-  .nav-tab-btn { padding: 10px 12px; font-size: 12px; white-space: nowrap; flex-shrink: 0; }
   .app-workspace-main { padding: 10px 12px; }
   .valetec-card-box { padding: 16px 14px; }
   .header-actions-group { width: 100%; flex-wrap: wrap; gap: 6px; }
   .header-actions-group button { font-size: 11.5px; padding: 6px 10px; }
-  .userway-drawer-panel { left: 12px; width: calc(100vw - 24px); }
-  .userway-floating-btn { bottom: 16px; left: 16px; }
+  .userway-drawer-panel { right: 12px; left: auto; width: calc(100vw - 24px); }
+  .userway-floating-btn { bottom: 16px; right: 16px; left: auto; }
   .modal-dialog-valetec { width: 96% !important; max-width: 96% !important; }
 }
 

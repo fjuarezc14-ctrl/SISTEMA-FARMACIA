@@ -14,6 +14,7 @@ const clientRoutes = require('./client.routes');
 const dashboardRoutes = require('./dashboard.routes');
 const settingsRoutes = require('./settings.routes');
 const systemRoutes = require('./system.routes');
+const webhookRoutes = require('./webhook.routes');
 
 const router = express.Router();
 
@@ -31,6 +32,7 @@ router.use('/system', systemRoutes);
 router.use('/categories', categoryRoutes);
 router.use('/laboratories', laboratoryRoutes);
 router.use('/clients', clientRoutes);
+router.use('/webhooks', webhookRoutes);
 router.use('/test', testRoutes);
 
 module.exports = router;

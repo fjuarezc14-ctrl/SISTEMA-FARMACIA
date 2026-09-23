@@ -191,7 +191,7 @@ let mockStaffProfiles = {
     roleLabel: "Química Farmacéutica (Regente)",
     avatar: "🔬",
     email: "regencia@valetec.pe",
-    allowedViews: ["viewCounter", "viewWarehouse", "viewDigemid"],
+    allowedViews: ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement"],
     defaultView: "viewDigemid"
   },
   tech: {
@@ -199,7 +199,7 @@ let mockStaffProfiles = {
     roleLabel: "Técnico de Mostrador",
     avatar: "🩺",
     email: "mostrador@valetec.pe",
-    allowedViews: ["viewCounter"],
+    allowedViews: ["viewCounter", "viewWarehouse", "viewDigemid"],
     defaultView: "viewCounter"
   },
   cashier: {
@@ -207,7 +207,7 @@ let mockStaffProfiles = {
     roleLabel: "Cajero de Turno",
     avatar: "💵",
     email: "caja@valetec.pe",
-    allowedViews: ["viewCounter", "viewCash"],
+    allowedViews: ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid"],
     defaultView: "viewCash"
   }
 };
@@ -420,23 +420,35 @@ class AccessibilityEngine {
     this.drawer = document.getElementById('userwayDrawer');
     this.btnOpen = document.getElementById('btnOpenUserway');
     this.btnClose = document.getElementById('btnCloseUserway');
-    this.body = document.getElementById('appBody');
+    this.body = document.getElementById('appBody') || document.body;
 
     this.fontSize = 'normal';
     this.isDark = false;
-    this.isContrast = false;
-    this.isGrayscale = false;
     this.isDyslexia = false;
     this.isSpaced = false;
     this.isLinksHighlight = false;
 
     this.init();
+    this.loadSavedSettings();
   }
 
   init() {
-    if (this.btnOpen) this.btnOpen.addEventListener('click', () => this.toggleDrawer());
-    if (this.btnClose) this.btnClose.addEventListener('click', () => this.closeDrawer());
+    if (this.btnOpen) {
+      this.btnOpen.addEventListener('click', (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        this.toggleDrawer();
+      });
+    }
 
+    if (this.btnClose) {
+      this.btnClose.addEventListener('click', (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        e.stopPropagation();
+        this.closeDrawer();
+      });
+    }
+
+    // Cerrar al hacer clic fuera del panel
     document.addEventListener('click', (e) => {
       if (this.drawer && this.btnOpen) {
         if (!this.drawer.contains(e.target) && !this.btnOpen.contains(e.target)) {
@@ -444,81 +456,129 @@ class AccessibilityEngine {
         }
       }
     });
+
+    // Cerrar al presionar tecla Escape
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.drawer?.classList.contains('active')) {
+        this.closeDrawer();
+      }
+    });
+  }
+
+  loadSavedSettings() {
+    try {
+      const saved = localStorage.getItem('valetec_accessibility_settings');
+      if (saved) {
+        const cfg = JSON.parse(saved);
+        if (cfg.fontSize && cfg.fontSize !== 'normal') {
+          this.setFontSize(cfg.fontSize);
+        }
+        if (cfg.isDark) this.toggleDarkMode(true);
+        if (cfg.isDyslexia) this.toggleDyslexia(true);
+        if (cfg.isSpaced) this.toggleSpacedText(true);
+        if (cfg.isLinksHighlight) this.toggleHighlightLinks(true);
+      }
+    } catch (e) {
+      console.warn("Error cargando configuración de accesibilidad:", e);
+    }
+  }
+
+  saveSettings() {
+    try {
+      const cfg = {
+        fontSize: this.fontSize,
+        isDark: this.isDark,
+        isDyslexia: this.isDyslexia,
+        isSpaced: this.isSpaced,
+        isLinksHighlight: this.isLinksHighlight
+      };
+      localStorage.setItem('valetec_accessibility_settings', JSON.stringify(cfg));
+    } catch (e) {
+      console.warn("Error guardando configuración de accesibilidad:", e);
+    }
   }
 
   toggleDrawer() {
-    this.drawer?.classList.toggle('active');
+    if (!this.drawer) return;
+    const isActive = this.drawer.classList.toggle('active');
+    if (this.btnOpen) {
+      this.btnOpen.setAttribute('aria-expanded', isActive ? 'true' : 'false');
+    }
   }
 
   closeDrawer() {
-    this.drawer?.classList.remove('active');
-  }
-
-  setFontSize(size) {
-    this.fontSize = size;
-    this.body.classList.remove('uw-font-lg', 'uw-font-xl');
-    document.querySelectorAll('.btn-uw-ctrl').forEach(b => b.classList.remove('active'));
-
-    if (size === 'lg') {
-      this.body.classList.add('uw-font-lg');
-      event.target.classList.add('active');
-    } else if (size === 'xl') {
-      this.body.classList.add('uw-font-xl');
-      event.target.classList.add('active');
-    } else {
-      document.querySelector('.btn-uw-ctrl:first-child')?.classList.add('active');
+    if (!this.drawer) return;
+    this.drawer.classList.remove('active');
+    if (this.btnOpen) {
+      this.btnOpen.setAttribute('aria-expanded', 'false');
     }
-    showValetecToast(`Tamaño de texto ajustado a: ${size.toUpperCase()}`, "info");
   }
 
-  toggleDarkMode() {
-    this.isDark = !this.isDark;
+  setFontSize(size, el) {
+    this.fontSize = size || 'normal';
+    this.body.classList.remove('uw-font-lg', 'uw-font-xl');
+    const btns = document.querySelectorAll('.btn-uw-ctrl');
+    btns.forEach(b => b.classList.remove('active'));
+
+    if (this.fontSize === 'lg') {
+      this.body.classList.add('uw-font-lg');
+      if (el) el.classList.add('active');
+      else btns[1]?.classList.add('active');
+    } else if (this.fontSize === 'xl') {
+      this.body.classList.add('uw-font-xl');
+      if (el) el.classList.add('active');
+      else btns[2]?.classList.add('active');
+    } else {
+      if (el) el.classList.add('active');
+      else btns[0]?.classList.add('active');
+    }
+    this.saveSettings();
+    showValetecToast(`Tamaño de texto: ${this.fontSize.toUpperCase()}`, "info");
+  }
+
+  toggleDarkMode(forceState) {
+    this.isDark = typeof forceState === 'boolean' ? forceState : !this.isDark;
     this.body.classList.toggle('uw-dark-mode', this.isDark);
     document.getElementById('btnToggleDarkMode')?.classList.toggle('active', this.isDark);
+    this.saveSettings();
     showValetecToast(`Modo Oscuro ${this.isDark ? 'Activado' : 'Desactivado'}`, "info");
   }
 
-  toggleHighContrast() {
-    this.isContrast = !this.isContrast;
-    this.body.classList.toggle('uw-high-contrast', this.isContrast);
-    document.getElementById('btnToggleHighContrast')?.classList.toggle('active', this.isContrast);
-    showValetecToast(`Alto Contraste ${this.isContrast ? 'Activado' : 'Desactivado'}`, "info");
-  }
-
-  toggleGrayscale() {
-    this.isGrayscale = !this.isGrayscale;
-    this.body.classList.toggle('uw-grayscale', this.isGrayscale);
-    document.getElementById('btnToggleGrayscale')?.classList.toggle('active', this.isGrayscale);
-    showValetecToast(`Escala de Grises ${this.isGrayscale ? 'Activada' : 'Desactivada'}`, "info");
-  }
-
-  toggleDyslexia() {
-    this.isDyslexia = !this.isDyslexia;
+  toggleDyslexia(forceState) {
+    this.isDyslexia = typeof forceState === 'boolean' ? forceState : !this.isDyslexia;
     this.body.classList.toggle('uw-dyslexia', this.isDyslexia);
     document.getElementById('btnToggleDyslexia')?.classList.toggle('active', this.isDyslexia);
-    showValetecToast(`Fuente de Lectura Fácil ${this.isDyslexia ? 'Activada' : 'Desactivada'}`, "info");
+    this.saveSettings();
+    showValetecToast(`Lectura Fácil ${this.isDyslexia ? 'Activada' : 'Desactivada'}`, "info");
   }
 
-  toggleSpacedText() {
-    this.isSpaced = !this.isSpaced;
+  toggleSpacedText(forceState) {
+    this.isSpaced = typeof forceState === 'boolean' ? forceState : !this.isSpaced;
     this.body.classList.toggle('uw-spaced-text', this.isSpaced);
     document.getElementById('btnToggleSpacedText')?.classList.toggle('active', this.isSpaced);
+    this.saveSettings();
     showValetecToast(`Espaciado de Texto ${this.isSpaced ? 'Activado' : 'Desactivado'}`, "info");
   }
 
-  toggleHighlightLinks() {
-    this.isLinksHighlight = !this.isLinksHighlight;
+  toggleHighlightLinks(forceState) {
+    this.isLinksHighlight = typeof forceState === 'boolean' ? forceState : !this.isLinksHighlight;
     this.body.classList.toggle('uw-highlight-links', this.isLinksHighlight);
     document.getElementById('btnToggleHighlightLinks')?.classList.toggle('active', this.isLinksHighlight);
+    this.saveSettings();
     showValetecToast(`Resaltado de Botones ${this.isLinksHighlight ? 'Activado' : 'Desactivado'}`, "info");
   }
 
   resetAll() {
-    this.body.className = 'valetec-app-body';
+    this.body.classList.remove(
+      'uw-font-lg',
+      'uw-font-xl',
+      'uw-dark-mode',
+      'uw-dyslexia',
+      'uw-spaced-text',
+      'uw-highlight-links'
+    );
     this.fontSize = 'normal';
     this.isDark = false;
-    this.isContrast = false;
-    this.isGrayscale = false;
     this.isDyslexia = false;
     this.isSpaced = false;
     this.isLinksHighlight = false;
@@ -526,7 +586,11 @@ class AccessibilityEngine {
     document.querySelectorAll('.btn-uw-feature').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.btn-uw-ctrl').forEach((b, i) => b.classList.toggle('active', i === 0));
 
-    showValetecToast("Configuración de accesibilidad restablecida.", "success");
+    try {
+      localStorage.removeItem('valetec_accessibility_settings');
+    } catch (e) {}
+
+    showValetecToast("Accesibilidad restablecida a modo estándar.", "success");
   }
 }
 
@@ -538,11 +602,36 @@ class NavigationController {
     this.tabs = document.querySelectorAll('.nav-tab-btn');
     this.views = document.querySelectorAll('.app-view-panel');
     this.roleSelect = document.getElementById('appRoleSelector');
-    this.currentRole = 'admin';
+    this.currentRole = this.roleSelect?.value || 'admin';
     this.currentViewId = 'viewManagement';
 
+    this.initSidebarState();
     this.initEvents();
     this.startClock();
+
+    if (this.roleSelect) {
+      this.applyRolePermissions(this.currentRole);
+    }
+  }
+
+  initSidebarState() {
+    const isCollapsed = localStorage.getItem('valetec_sidebar_collapsed') === 'true';
+    if (window.innerWidth > 1024 && isCollapsed) {
+      document.getElementById('appNavBar')?.classList.add('sidebar-collapsed');
+      document.querySelector('.app-content-wrapper')?.classList.add('sidebar-collapsed');
+    }
+  }
+
+  toggleSidebarDesktop() {
+    const navBar = document.getElementById('appNavBar');
+    const contentWrapper = document.querySelector('.app-content-wrapper');
+    if (!navBar) return;
+    const isNowCollapsed = navBar.classList.toggle('sidebar-collapsed');
+    if (contentWrapper) {
+      contentWrapper.classList.toggle('sidebar-collapsed', isNowCollapsed);
+    }
+    localStorage.setItem('valetec_sidebar_collapsed', isNowCollapsed ? 'true' : 'false');
+    showValetecToast(isNowCollapsed ? "Menú lateral compactado (76px)" : "Menú lateral expandido (260px)", "info");
   }
 
   initEvents() {
@@ -561,34 +650,98 @@ class NavigationController {
     }
 
     const btnMobile = document.getElementById('btnMobileMenuToggle');
+    const btnSidebarClose = document.getElementById('btnSidebarClose');
     const navBar = document.getElementById('appNavBar');
-    if (btnMobile && navBar) {
-      btnMobile.addEventListener('click', () => {
-        navBar.classList.toggle('mobile-open');
-      });
-    }
+    const backdrop = document.getElementById('sidebarBackdrop');
+
+    const toggleSidebar = (open) => {
+      if (window.innerWidth > 1024) {
+        this.toggleSidebarDesktop();
+        return;
+      }
+
+      if (!navBar) return;
+      if (typeof open === 'boolean') {
+        if (open) {
+          navBar.classList.add('mobile-open');
+          backdrop?.classList.add('active');
+        } else {
+          navBar.classList.remove('mobile-open');
+          backdrop?.classList.remove('active');
+        }
+      } else {
+        const isOpen = navBar.classList.toggle('mobile-open');
+        if (isOpen) backdrop?.classList.add('active');
+        else backdrop?.classList.remove('active');
+      }
+    };
+
+    if (btnMobile) btnMobile.addEventListener('click', (e) => {
+      if (e && e.preventDefault) e.preventDefault();
+      toggleSidebar();
+    });
+    if (btnSidebarClose) btnSidebarClose.addEventListener('click', (e) => {
+      if (e && e.preventDefault) e.preventDefault();
+      toggleSidebar(false);
+    });
+    if (backdrop) backdrop.addEventListener('click', (e) => {
+      if (e && e.preventDefault) e.preventDefault();
+      toggleSidebar(false);
+    });
 
     window.addEventListener('keydown', (e) => {
+      // Guarda de protección estricta: No interceptar atajos si el usuario está escribiendo en campos de formulario
+      const activeEl = document.activeElement;
+      const tag = activeEl ? activeEl.tagName.toLowerCase() : '';
+      const isEditable = tag === 'input' || tag === 'textarea' || tag === 'select' || (activeEl && activeEl.isContentEditable);
+      if (isEditable) return;
+
       if (e.key === 'F1') {
         e.preventDefault();
-        alert("ATAJOS DE TECLADO VALETEC PHARMA:\n\n[F1] Manual de atajos\n[F2] Buscar en Mostrador\n[F4] Cobrar y emitir comprobante\n[F7] Historial de Ventas & Anulación\n[F8] Limpiar orden actual\n[F9] Abrir Caja y Arqueo");
+        showValetecToast("⌨️ Atajos: [F1] Ayuda | [F2] Mostrador | [F3] Almacén | [F4] Cobrar / DIGEMID | [F6] Torre Control | [F7] Ventas / Personal | [F8] Limpiar Pedido | [F9] Caja", "info");
       }
       if (e.key === 'F2') {
         e.preventDefault();
         this.navigateTo('viewCounter');
-        document.getElementById('fastProductSearch')?.focus();
+        setTimeout(() => { document.getElementById('fastProductSearch')?.focus(); }, 100);
+      }
+      if (e.key === 'F3') {
+        e.preventDefault();
+        if (this.canAccessView('viewWarehouse')) {
+          this.navigateTo('viewWarehouse');
+        } else {
+          showValetecToast("Tu rol actual no tiene permiso para ingresar a Almacén.", "warning");
+        }
       }
       if (e.key === 'F4') {
         e.preventDefault();
         if (this.currentViewId === 'viewCounter') {
           document.getElementById('btnCheckoutOrder')?.click();
+        } else if (this.canAccessView('viewDigemid')) {
+          this.navigateTo('viewDigemid');
+        } else {
+          showValetecToast("Tu rol actual no tiene permiso para ingresar a DIGEMID.", "warning");
+        }
+      }
+      if (e.key === 'F6') {
+        e.preventDefault();
+        if (this.canAccessView('viewManagement')) {
+          this.navigateTo('viewManagement');
+        } else {
+          showValetecToast("Acceso restringido: Solo Gerencia y Regencia tienen acceso a Torre de Control.", "warning");
         }
       }
       if (e.key === 'F7') {
         e.preventDefault();
-        if (typeof counterApp !== 'undefined' && counterApp) {
-          counterApp.toggleSalesHistoryModal(true);
-          counterApp.loadSalesHistory();
+        if (this.currentViewId === 'viewCounter') {
+          if (typeof counterApp !== 'undefined' && counterApp) {
+            counterApp.toggleSalesHistoryModal(true);
+            counterApp.loadSalesHistory();
+          }
+        } else if (this.canAccessView('viewStaff')) {
+          this.navigateTo('viewStaff');
+        } else {
+          showValetecToast("Acceso restringido: Solo Gerencia y Regencia tienen acceso a Gestión de Personal.", "warning");
         }
       }
       if (e.key === 'F8') {
@@ -608,7 +761,7 @@ class NavigationController {
     });
 
     document.getElementById('btnOpenShortcuts')?.addEventListener('click', () => {
-      alert("ATAJOS RÁPIDOS:\n\n[F1] Ayuda\n[F2] Buscar Medicamento\n[F4] Cobrar y Facturar\n[F7] Historial de Ventas\n[F8] Limpiar Mostrador\n[F9] Arqueo de Caja");
+      showValetecToast("⌨️ Atajos: [F1] Ayuda | [F2] Mostrador | [F3] Almacén | [F4] Cobrar / DIGEMID | [F6] Torre Control | [F7] Ventas / Personal | [F8] Limpiar Pedido | [F9] Caja", "info");
     });
   }
 
@@ -619,8 +772,16 @@ class NavigationController {
 
   applyRolePermissions(roleKey) {
     this.currentRole = roleKey;
-    const profile = mockStaffProfiles[roleKey];
+    let profile = mockStaffProfiles[roleKey];
     if (!profile) return;
+
+    if (roleKey === 'admin' || roleKey === 'qf') {
+      profile.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement"];
+    } else if (roleKey === 'cashier') {
+      profile.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid"];
+    } else if (roleKey === 'tech') {
+      profile.allowedViews = ["viewCounter", "viewWarehouse", "viewDigemid"];
+    }
 
     const avatarEl = document.getElementById('activeUserAvatar');
     const nameEl = document.getElementById('activeUserName');
@@ -634,18 +795,32 @@ class NavigationController {
       const viewId = tab.dataset.view;
       if (profile.allowedViews.includes(viewId)) {
         tab.classList.remove('d-none');
+        tab.removeAttribute('disabled');
       } else {
         tab.classList.add('d-none');
+        tab.setAttribute('disabled', 'true');
       }
     });
 
-    this.navigateTo(profile.defaultView);
+    // Auto-redirección si la vista actual no está permitida para el nuevo rol
+    if (!profile.allowedViews.includes(this.currentViewId)) {
+      this.navigateTo(profile.defaultView);
+      showValetecToast(`Acceso restringido para ${profile.roleLabel}. Vista redirigida.`, "warning");
+    } else {
+      showValetecToast(`Perfil activo: ${profile.roleLabel}`, "info");
+    }
   }
 
   navigateTo(viewId) {
     if (!this.canAccessView(viewId)) {
       showValetecToast("Tu rol actual no tiene permiso para ingresar a esta sección.", "warning");
       return;
+    }
+
+    // Cerrar sidebar en dispositivos móviles al navegar
+    if (window.innerWidth <= 1024) {
+      document.getElementById('appNavBar')?.classList.remove('mobile-open');
+      document.getElementById('sidebarBackdrop')?.classList.remove('active');
     }
 
     const targetElement = document.getElementById(viewId);
@@ -700,7 +875,37 @@ class CounterModule {
 
     this.cacheDom();
     this.initEvents();
+    this.loadCartFromStorage();
     this.renderProducts();
+    this.updateUi();
+  }
+
+  saveCartToStorage() {
+    try {
+      if (!this.order || this.order.length === 0) {
+        localStorage.removeItem('valetec_active_cart');
+      } else {
+        localStorage.setItem('valetec_active_cart', JSON.stringify(this.order));
+      }
+    } catch (e) {
+      console.warn("Error guardando carrito en localStorage:", e);
+    }
+  }
+
+  loadCartFromStorage() {
+    try {
+      const saved = localStorage.getItem('valetec_active_cart');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          this.order = parsed;
+          return true;
+        }
+      }
+    } catch (e) {
+      console.warn("Error cargando carrito de localStorage:", e);
+    }
+    return false;
   }
 
   cacheDom() {
@@ -1199,6 +1404,7 @@ class CounterModule {
   }
 
   updateUi() {
+    this.saveCartToStorage();
     if (!this.itemsScroll) return;
 
     if (this.order.length === 0) {
@@ -1447,7 +1653,7 @@ class CounterModule {
     if (needsRx) {
       const cmp = this.docCmpInput?.value.trim();
       if (!cmp) {
-        alert("⚠️ ATENCIÓN MÉDICA:\nEsta orden contiene medicamentos bajo receta.\nEscribe el CMP del médico tratante antes de continuar.");
+        showValetecToast("⚠️ ATENCIÓN: Esta orden contiene medicamentos bajo receta. Escribe el CMP médico.", "warning");
         this.docCmpInput?.focus();
         return;
       }
@@ -1461,7 +1667,7 @@ class CounterModule {
     if (paymentMethod === 'cash') {
       const rec = parseFloat(this.cashInput?.value || 0);
       if (rec > 0 && rec < total) {
-        alert(`⚠️ Dinero insuficiente. Total: S/ ${total.toFixed(2)}, Recibido: S/ ${rec.toFixed(2)}. Faltan S/ ${(total - rec).toFixed(2)}.`);
+        showValetecToast(`⚠️ Dinero insuficiente. Total: S/ ${total.toFixed(2)}, Recibido: S/ ${rec.toFixed(2)}. Faltan S/ ${(total - rec).toFixed(2)}.`, "warning");
         return;
       }
       amountPaid = rec > 0 ? rec : total;
@@ -1544,6 +1750,47 @@ class CounterModule {
         };
       }
 
+      // Descontar inmediatamente del catálogo en memoria (Optimistic UI update - Fase 90%)
+      if (Array.isArray(testPharmacyCatalog) && Array.isArray(this.order)) {
+        this.order.forEach(item => {
+          const p = testPharmacyCatalog.find(prod => prod.id === item.product.id || prod.name === item.product.name);
+          if (p) {
+            if (item.frac === 'box') {
+              p.stockBoxes = Math.max(0, (p.stockBoxes || 0) - item.qty);
+              p.stockUnits = Math.max(0, (p.stockUnits || 0) - (item.qty * (p.unitsPerBox || 20)));
+            } else if (item.frac === 'blister') {
+              const unitsPerBli = (p.unitsPerBox || 20) / (p.blistersPerBox || 2);
+              p.stockUnits = Math.max(0, (p.stockUnits || 0) - Math.round(item.qty * unitsPerBli));
+              p.stockBoxes = Math.floor(p.stockUnits / (p.unitsPerBox || 20));
+            } else {
+              p.stockUnits = Math.max(0, (p.stockUnits || 0) - item.qty);
+              p.stockBoxes = Math.floor(p.stockUnits / (p.unitsPerBox || 20));
+            }
+          }
+        });
+      }
+
+      // Actualizar inmediatamente Almacén y Mostrador en la interfaz
+      if (window.warehouseApp) {
+        window.warehouseApp.render();
+        window.warehouseApp.loadFefoAlerts();
+      }
+
+      // Actualizar Módulo de Caja (Efectivo y Auditoría)
+      if (window.cashApp) {
+        if (paymentMethod === 'cash') {
+          cashApp.cashSales = (cashApp.cashSales || 0) + total;
+        } else {
+          cashApp.digitalSales = (cashApp.digitalSales || 0) + total;
+        }
+        cashApp.calculateAudit();
+      }
+
+      // Actualizar Torre de Control Gerencial (Canvas y KPIs en tiempo real)
+      if (window.managementApp) {
+        window.managementApp.registerLocalSale(saleData);
+      }
+
       // 1. Mostrar comprobante térmico en pantalla
       this.showReceiptModal(saleData);
 
@@ -1574,7 +1821,7 @@ class CounterModule {
 
       showValetecToast(`¡Venta ${saleData.correlative} emitida con éxito!`, "success");
     } catch (err) {
-      alert(`🚨 ERROR EN LA VENTA:\n\n${err.message}`);
+      showValetecToast(`🚨 Error en la venta: ${err.message}`, "error");
       showValetecToast(err.message, "danger");
     } finally {
       btn.disabled = false;
@@ -1735,7 +1982,7 @@ class CounterModule {
       }
       this.showReceiptModal(saleData);
     } catch (err) {
-      alert("Error al cargar comprobante: " + err.message);
+      showValetecToast("Error al cargar comprobante: " + err.message, "error");
     }
   }
 
@@ -1758,10 +2005,10 @@ class CounterModule {
           throw new Error(res?.message || "No se pudo anular la venta.");
         }
       } else {
-        alert("Debes estar conectado a la API de PostgreSQL para anular ventas con deducción en almacén.");
+        showValetecToast("Debes estar conectado a la API de PostgreSQL para anular ventas con deducción.", "warning");
       }
     } catch (err) {
-      alert(`🚨 ERROR AL ANULAR LA VENTA:\n\n${err.message}`);
+      showValetecToast(`🚨 Error al anular la venta: ${err.message}`, "error");
     }
   }
 }
@@ -1820,6 +2067,17 @@ class CashModule {
     this.btnCloseZReportModal = document.getElementById('btnCloseZReportModal');
     this.btnCloseZReportBtn = document.getElementById('btnCloseZReportBtn');
     this.btnPrintZReportBtn = document.getElementById('btnPrintZReportBtn');
+
+    // Panel Interactivo de Auditoría y Verificación de Cierre Z (v4.1)
+    this.zAuditBox = document.getElementById('zAuditVerificationBox');
+    this.zExpectedDisplay = document.getElementById('zExpectedCashDisplay');
+    this.zCountedInput = document.getElementById('zCountedCashInput');
+    this.zDiffBanner = document.getElementById('zLiveDiffBanner');
+    this.zDiffIcon = document.getElementById('zLiveDiffIcon');
+    this.zDiffTitle = document.getElementById('zLiveDiffTitle');
+    this.zDiffDesc = document.getElementById('zLiveDiffDesc');
+    this.btnConfirmZAction = document.getElementById('btnConfirmZCloseAction');
+    this.zPrintableContainer = document.getElementById('zPrintableContainer');
   }
 
   initEvents() {
@@ -1836,7 +2094,7 @@ class CashModule {
       this.btnConfirmOpenShift.addEventListener('click', async () => {
         const val = parseFloat(this.openShiftBalanceInput?.value || 0);
         if (isNaN(val) || val < 0) {
-          alert("Ingresa un monto válido para el fondo de apertura (mayor o igual a S/ 0.00).");
+          showValetecToast("Ingresa un monto válido para el fondo de apertura (mayor o igual a S/ 0.00).", "warning");
           return;
         }
         const terminal = this.openShiftTerminalInput?.value || 'Caja 01';
@@ -1869,7 +2127,7 @@ class CashModule {
             showValetecToast(`Turno local abierto con fondo S/ ${val.toFixed(2)}.`, "info");
           }
         } catch (err) {
-          alert("Error al abrir turno de caja: " + err.message);
+          showValetecToast("Error al abrir turno de caja: " + err.message, "error");
         } finally {
           confirmBtn.disabled = false;
           confirmBtn.innerHTML = origText;
@@ -1885,7 +2143,7 @@ class CashModule {
       this.btnSaveExp.addEventListener('click', async () => {
         const val = parseFloat(this.expAmountInput?.value || 0);
         if (val <= 0) {
-          alert("Ingresa un monto válido mayor a S/ 0.00.");
+          showValetecToast("Ingresa un monto válido mayor a S/ 0.00.", "warning");
           return;
         }
 
@@ -1913,91 +2171,46 @@ class CashModule {
           this.toggleModal(false);
           showValetecToast(`Salida de S/ ${val.toFixed(2)} registrada en PostgreSQL.`, "warning");
         } catch (err) {
-          alert("Error guardando salida de caja: " + err.message);
+          showValetecToast("Error guardando salida de caja: " + err.message, "error");
         }
       });
     }
 
-    // Botón de Cierre Z Oficial
-    document.getElementById('btnTriggerZClose')?.addEventListener('click', async () => {
+    // Botón de Cierre Z Oficial (v4.1 - Auditoría Interactiva)
+    document.getElementById('btnTriggerZClose')?.addEventListener('click', () => {
       const physical = this.calcPhysicalTotal();
       const expected = (this.openingBalance + this.cashSales) - this.expenses;
-      const diff = Math.round((physical - expected) * 100) / 100;
-
-      let diffNotice = "✅ Cuadre Exacto (S/ 0.00)";
-      if (diff > 0) diffNotice = `⚠️ Sobrante de +S/ ${diff.toFixed(2)}`;
-      if (diff < 0) diffNotice = `❌ Faltante de -S/ ${Math.abs(diff).toFixed(2)}`;
-
-      const confirmed = confirm(
-        `🔒 CIERRE Z DE CAJA DEFINITIVO\n\n` +
-        `• Dinero en Gaveta Contado: S/ ${physical.toFixed(2)}\n` +
-        `• Saldo Teórico del Sistema: S/ ${expected.toFixed(2)}\n` +
-        `• Resultado de Auditoría: ${diffNotice}\n\n` +
-        `¿Deseas sellar el turno actual en PostgreSQL y emitir el Reporte Z Oficial?`
-      );
-
-      if (!confirmed) return;
-
-      const triggerBtn = document.getElementById('btnTriggerZClose');
-      const origText = triggerBtn ? triggerBtn.innerHTML : '';
-      if (triggerBtn) {
-        triggerBtn.disabled = true;
-        triggerBtn.innerHTML = `<span><span class="spinner-border spinner-border-sm"></span> Sellando Cierre Z...</span>`;
+      
+      if (this.zExpectedDisplay) {
+        this.zExpectedDisplay.innerText = `S/ ${expected.toFixed(2)}`;
+      }
+      if (this.zCountedInput) {
+        this.zCountedInput.value = physical.toFixed(2);
+      }
+      if (this.zPrintableContainer) {
+        this.zPrintableContainer.innerHTML = '';
+      }
+      if (this.zAuditBox) {
+        this.zAuditBox.style.display = 'block';
+      }
+      if (this.btnConfirmZAction) {
+        this.btnConfirmZAction.disabled = false;
+        this.btnConfirmZAction.innerHTML = `<i class="bi bi-shield-lock-fill"></i> <span>🔒 Sellar Turno y Emitir Reporte Z</span>`;
       }
 
-      try {
-        if (window.api && window.api.isConnected) {
-          const res = await window.api.closeZShift({
-            countedBalance: physical,
-            denominations: this.getDenominationsObject()
-          });
-
-          if (res && res.success) {
-            this.showZReportModal(res.data);
-            await syncWithBackend();
-            showValetecToast("¡Cierre Z Oficial completado y sellado en PostgreSQL!", "success");
-          } else {
-            throw new Error(res?.message || "Error al procesar Cierre Z.");
-          }
-        } else {
-          // Modo contingencia local
-          const localReport = {
-            turnoId: 1,
-            terminal: 'Caja 01',
-            cashierName: mockStaffProfiles[appNav?.currentRole || 'cashier']?.name || 'Rodrigo Soto',
-            openedAt: new Date(Date.now() - 28800000).toISOString(),
-            closedAt: new Date().toISOString(),
-            openingBalance: this.openingBalance,
-            cashSales: this.cashSales,
-            digitalSales: this.digitalSales || 0,
-            expenses: this.expenses,
-            expectedBalance: expected,
-            countedBalance: physical,
-            difference: diff,
-            auditStatus: Math.abs(diff) < 0.1 ? 'exacto' : (diff > 0 ? 'sobrante' : 'faltante'),
-            vouchers: {
-              total: 142,
-              tickets: 98,
-              boletas: 36,
-              facturas: 8,
-              taxableBase: Math.round(((this.cashSales) / 1.18) * 100) / 100,
-              totalIgv: Math.round((this.cashSales - (this.cashSales / 1.18)) * 100) / 100,
-              grandTotal: this.cashSales
-            }
-          };
-          this.showZReportModal(localReport);
-          showValetecToast("Cierre Z simulado en modo desconectado.", "info");
-        }
-      } catch (err) {
-        alert("🚨 ERROR EN CIERRE Z:\n" + err.message);
-        showValetecToast(err.message, "danger");
-      } finally {
-        if (triggerBtn) {
-          triggerBtn.disabled = false;
-          triggerBtn.innerHTML = origText;
-        }
-      }
+      this.updateZLiveDiff();
+      this.toggleZModal(true);
     });
+
+    // Oyente en tiempo real para recálculo de diferencia en el modal de cierre
+    if (this.zCountedInput) {
+      this.zCountedInput.addEventListener('input', () => this.updateZLiveDiff());
+    }
+
+    // Botón de sellado final del Cierre Z en el modal
+    if (this.btnConfirmZAction) {
+      this.btnConfirmZAction.addEventListener('click', () => this.finalizeZClose());
+    }
 
     // Eventos del modal de Reporte Z
     if (this.btnCloseZReportModal) this.btnCloseZReportModal.addEventListener('click', () => this.toggleZModal(false));
@@ -2009,6 +2222,106 @@ class CashModule {
         this.toggleZModal(false);
       }
     });
+  }
+
+  updateZLiveDiff() {
+    const expected = (this.openingBalance + this.cashSales) - this.expenses;
+    const counted = parseFloat(this.zCountedInput?.value || 0);
+    const diff = Math.round((counted - expected) * 100) / 100;
+
+    if (this.zExpectedDisplay) {
+      this.zExpectedDisplay.innerText = `S/ ${expected.toFixed(2)}`;
+    }
+
+    if (this.zDiffBanner) {
+      if (Math.abs(diff) < 0.05) {
+        this.zDiffBanner.className = 'z-diff-indicator cuadre-diff-exact';
+        if (this.zDiffIcon) this.zDiffIcon.className = 'bi bi-check-circle-fill text-success';
+        if (this.zDiffTitle) this.zDiffTitle.innerText = `✅ CUADRE PERFECTO: S/ 0.00`;
+        if (this.zDiffDesc) this.zDiffDesc.innerText = `El efectivo ingresado coincide exactamente con las ventas registradas.`;
+      } else if (diff > 0) {
+        this.zDiffBanner.className = 'z-diff-indicator cuadre-diff-surplus';
+        if (this.zDiffIcon) this.zDiffIcon.className = 'bi bi-info-circle-fill text-warning';
+        if (this.zDiffTitle) this.zDiffTitle.innerText = `⚠️ SOBRANTE CONTROLADO: +S/ ${diff.toFixed(2)}`;
+        if (this.zDiffDesc) this.zDiffDesc.innerText = `Hay un excedente de efectivo en gaveta respecto al cálculo teórico.`;
+      } else {
+        this.zDiffBanner.className = 'z-diff-indicator cuadre-diff-deficit';
+        if (this.zDiffIcon) this.zDiffIcon.className = 'bi bi-exclamation-triangle-fill text-danger';
+        if (this.zDiffTitle) this.zDiffTitle.innerText = `🚨 FALTANTE EN CAJA: -S/ ${Math.abs(diff).toFixed(2)}`;
+        if (this.zDiffDesc) this.zDiffDesc.innerText = `Alerta: El dinero físico es menor al esperado por el total de ventas.`;
+      }
+    }
+
+    return { expected, counted, diff };
+  }
+
+  async finalizeZClose() {
+    const audit = this.updateZLiveDiff();
+    const physical = audit.counted;
+    const expected = audit.expected;
+    const diff = audit.diff;
+
+    const confirmBtn = this.btnConfirmZAction;
+    const origText = confirmBtn ? confirmBtn.innerHTML : '';
+    if (confirmBtn) {
+      confirmBtn.disabled = true;
+      confirmBtn.innerHTML = `<span><span class="spinner-border spinner-border-sm"></span> Sellando Cierre Z...</span>`;
+    }
+
+    try {
+      if (window.api && window.api.isConnected) {
+        const res = await window.api.closeZShift({
+          countedBalance: physical,
+          denominations: this.getDenominationsObject()
+        });
+
+        if (res && res.success) {
+          this.showZReportModal(res.data);
+          await syncWithBackend();
+          showValetecToast("¡Cierre Z Oficial sellado en PostgreSQL!", "success");
+        } else {
+          throw new Error(res?.message || "Error al procesar Cierre Z.");
+        }
+      } else {
+        const localReport = {
+          turnoId: this.currentShift?.id || 1,
+          terminal: this.currentShift?.terminal || 'Caja 01',
+          cashierName: mockStaffProfiles[appNav?.currentRole || 'cashier']?.name || 'Rodrigo Soto',
+          openedAt: this.currentShift?.openedAt || new Date(Date.now() - 28800000).toISOString(),
+          closedAt: new Date().toISOString(),
+          openingBalance: this.openingBalance,
+          cashSales: this.cashSales,
+          digitalSales: this.digitalSales || 0,
+          expenses: this.expenses,
+          expectedBalance: expected,
+          countedBalance: physical,
+          difference: diff,
+          auditStatus: Math.abs(diff) < 0.1 ? 'exacto' : (diff > 0 ? 'sobrante' : 'faltante'),
+          vouchers: {
+            total: 142,
+            tickets: 98,
+            boletas: 36,
+            facturas: 8,
+            taxableBase: Math.round(((this.cashSales) / 1.18) * 100) / 100,
+            totalIgv: Math.round((this.cashSales - (this.cashSales / 1.18)) * 100) / 100,
+            grandTotal: this.cashSales
+          }
+        };
+        this.showZReportModal(localReport);
+        showValetecToast("Cierre Z completado exitosamente.", "success");
+      }
+
+      if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = `<i class="bi bi-check-circle-fill"></i> <span>✅ Cierre Z Sellado Conforme</span>`;
+      }
+    } catch (err) {
+      showValetecToast("🚨 Error en cierre Z: " + err.message, "error");
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = origText;
+      }
+    }
   }
 
   toggleOpenShiftModal(open) {
@@ -2185,33 +2498,30 @@ class CashModule {
     const diff = Math.round((physical - expected) * 100) / 100;
     if (this.statusBanner) {
       if (Math.abs(diff) < 0.1) {
-        this.statusBanner.className = 'cuadre-status-banner perfect';
+        this.statusBanner.className = 'cuadre-status-banner cuadre-diff-exact';
+        this.statusBanner.removeAttribute('style');
         this.statusBanner.innerHTML = `
-          <i class="bi bi-check-circle-fill"></i>
+          <i class="bi bi-check-circle-fill text-success" style="font-size: 18px;"></i>
           <div>
             <strong>¡CUADRE PERFECTO!</strong>
             <p>Diferencia: S/ 0.00. La gaveta física coincide exactamente con las ventas.</p>
           </div>
         `;
       } else if (diff < 0) {
-        this.statusBanner.className = 'cuadre-status-banner';
-        this.statusBanner.style.backgroundColor = '#fef2f2';
-        this.statusBanner.style.borderColor = '#fca5a5';
-        this.statusBanner.style.color = '#991b1b';
+        this.statusBanner.className = 'cuadre-status-banner cuadre-diff-deficit';
+        this.statusBanner.removeAttribute('style');
         this.statusBanner.innerHTML = `
-          <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+          <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 18px;"></i>
           <div>
-            <strong class="text-danger">FALTANTE EN CAJA: S/ ${Math.abs(diff).toFixed(2)}</strong>
-            <p>Hay menos dinero en gaveta del registrado por el sistema.</p>
+            <strong class="text-danger">FALTANTE EN CAJA: -S/ ${Math.abs(diff).toFixed(2)}</strong>
+            <p>Alerta: Hay menos dinero en gaveta del registrado por el sistema.</p>
           </div>
         `;
       } else {
-        this.statusBanner.className = 'cuadre-status-banner';
-        this.statusBanner.style.backgroundColor = '#fffbeb';
-        this.statusBanner.style.borderColor = '#fde68a';
-        this.statusBanner.style.color = '#92400e';
+        this.statusBanner.className = 'cuadre-status-banner cuadre-diff-surplus';
+        this.statusBanner.removeAttribute('style');
         this.statusBanner.innerHTML = `
-          <i class="bi bi-info-circle-fill text-warning"></i>
+          <i class="bi bi-info-circle-fill text-warning" style="font-size: 18px;"></i>
           <div>
             <strong class="text-warning">SOBRANTE EN CAJA: +S/ ${diff.toFixed(2)}</strong>
             <p>Hay más dinero físico en gaveta del registrado.</p>
@@ -2280,7 +2590,8 @@ class CashModule {
 
     const totalRevenue = parseFloat((report.cashSales || 0) + (report.digitalSales || 0)).toFixed(2);
 
-    this.zReportModalBody.innerHTML = `
+    const targetContainer = this.zPrintableContainer || this.zReportModalBody;
+    targetContainer.innerHTML = `
       <div class="thermal-receipt" id="printableZReportReceipt">
         <div class="receipt-header">
           <div class="receipt-logo-title">🏥 VALETEC PHARMA S.A.C.</div>
@@ -2622,7 +2933,7 @@ class WarehouseModule {
       this.closeMedicineModal();
       await syncWithBackend();
     } catch (err) {
-      alert("Error al guardar medicamento: " + err.message);
+      showValetecToast("Error al guardar medicamento: " + err.message, "error");
     } finally {
       if (submitBtn) {
         submitBtn.disabled = false;
@@ -2639,7 +2950,7 @@ class WarehouseModule {
         await syncWithBackend();
       }
     } catch (err) {
-      alert("Error al cambiar estado: " + err.message);
+      showValetecToast("Error al cambiar estado: " + err.message, "error");
     }
   }
 
@@ -2764,17 +3075,17 @@ class WarehouseModule {
     const reason = document.getElementById('adjReason')?.value?.trim();
 
     if (!productId) {
-      alert("Por favor seleccione un medicamento.");
+      showValetecToast("Por favor seleccione un medicamento.", "warning");
       return;
     }
 
     if (!quantity || quantity <= 0) {
-      alert("La cantidad debe ser mayor a 0.");
+      showValetecToast("La cantidad debe ser mayor a 0.", "warning");
       return;
     }
 
     if (!reason || reason.length < 4) {
-      alert("Debe ingresar una justificación sanitaria obligatoria (mínimo 4 caracteres).");
+      showValetecToast("Debe ingresar una justificación sanitaria obligatoria.", "warning");
       return;
     }
 
@@ -2794,7 +3105,7 @@ class WarehouseModule {
         this.loadFefoAlerts();
       }
     } catch (err) {
-      alert("Error al aplicar ajuste: " + err.message);
+      showValetecToast("Error al aplicar ajuste: " + err.message, "error");
     }
   }
 
@@ -2871,29 +3182,60 @@ class WarehouseModule {
     }
   }
 
-  openExchangeModal(medName = 'Bio-Amoxil 500mg Cápsulas', lot = 'L-24115', supplier = 'Droguería Andina S.A.C. / MedPharma', qty = 15) {
+  openExchangeModal(e, medName, lot, supplier, qty) {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (typeof e === 'string') {
+      qty = supplier;
+      supplier = lot;
+      lot = medName;
+      medName = e;
+    }
+
+    const finalName = (typeof medName === 'string' && medName.trim()) ? medName : 'Bio-Amoxil 500mg Cápsulas';
+    const finalLot = (typeof lot === 'string' && lot.trim()) ? lot : 'L-24115';
+    const finalSupp = (typeof supplier === 'string' && supplier.trim()) ? supplier : 'Droguería Andina S.A.C. / MedPharma';
+    const finalQty = (typeof qty === 'number' || (typeof qty === 'string' && !isNaN(qty))) ? qty : 15;
+
+    // Cerrar cualquier modal activo previo para evitar cruce de vistas
+    document.querySelectorAll('.modal-backdrop-valetec.active').forEach(m => m.classList.remove('active'));
+
     const modal = document.getElementById('exchangeModal');
     const inName = document.getElementById('exchangeProductName');
     const inLot = document.getElementById('exchangeLotCode');
     const inSupp = document.getElementById('exchangeSupplier');
     const inQty = document.getElementById('exchangeQuantity');
-    if (inName) inName.value = medName;
-    if (inLot) inLot.value = lot;
-    if (inSupp) inSupp.value = supplier;
-    if (inQty) inQty.value = qty;
+    if (inName) inName.value = finalName;
+    if (inLot) inLot.value = finalLot;
+    if (inSupp) inSupp.value = finalSupp;
+    if (inQty) inQty.value = finalQty;
     if (modal) modal.classList.add('active');
   }
 
-  closeExchangeModal() {
+  closeExchangeModal(e) {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     const modal = document.getElementById('exchangeModal');
     if (modal) modal.classList.remove('active');
   }
 
-  printExchangeLetter() {
+  printExchangeLetter(e) {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     window.print();
   }
 
-  sendExchangeWhatsApp() {
+  sendExchangeWhatsApp(e) {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     const med = document.getElementById('exchangeProductName')?.value || 'Bio-Amoxil 500mg';
     const lot = document.getElementById('exchangeLotCode')?.value || 'L-24115';
     const supp = document.getElementById('exchangeSupplier')?.value || 'Droguería Proveedora';
@@ -2919,10 +3261,13 @@ class WarehouseModule {
   }
 
   submitExchange(e) {
-    if (e) e.preventDefault();
-    const med = document.getElementById('exchangeProductName')?.value;
-    const lot = document.getElementById('exchangeLotCode')?.value;
-    const qty = document.getElementById('exchangeQuantity')?.value;
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const med = document.getElementById('exchangeProductName')?.value || 'Bio-Amoxil 500mg';
+    const lot = document.getElementById('exchangeLotCode')?.value || 'L-24115';
+    const qty = document.getElementById('exchangeQuantity')?.value || '15';
     this.closeExchangeModal();
     showValetecToast(`✅ Acta de canje generada: ${qty} cajas de ${med} (Lote: ${lot}) pasadas a custodia.`, 'success');
   }
@@ -3003,7 +3348,7 @@ class WarehouseModule {
         if (this.kardexModal) this.kardexModal.classList.add('active');
       }
     } catch (err) {
-      alert("Error cargando Kardex: " + err.message);
+      showValetecToast("Error cargando Kardex: " + err.message, "error");
     }
   }
 
@@ -3059,7 +3404,7 @@ class WarehouseModule {
         if (this.valModal) this.valModal.classList.add('active');
       }
     } catch (err) {
-      alert("Error cargando inventario valorizado: " + err.message);
+      showValetecToast("Error cargando inventario valorizado: " + err.message, "error");
     }
   }
 
@@ -3249,27 +3594,27 @@ class DigemidModule {
     const notes = this.inNotes?.value.trim() || 'Receta retenida en custodia oficial de regencia.';
 
     if (!patientName || patientName.length < 3) {
-      alert("Por favor ingrese el nombre completo del paciente (mínimo 3 caracteres).");
+      showValetecToast("Por favor ingrese el nombre completo del paciente.", "warning");
       this.inPatientName?.focus();
       return;
     }
     if (!patientDni || patientDni.length < 8) {
-      alert("El DNI o documento del paciente debe tener al menos 8 dígitos.");
+      showValetecToast("El DNI del paciente debe tener al menos 8 dígitos.", "warning");
       this.inPatientDni?.focus();
       return;
     }
     if (!doctorCmp || doctorCmp.length < 4) {
-      alert("Por favor ingrese la colegiatura médica (CMP) del doctor.");
+      showValetecToast("Por favor ingrese la colegiatura médica (CMP) del doctor.", "warning");
       this.inDoctorCmp?.focus();
       return;
     }
     if (!doctorName || doctorName.length < 3) {
-      alert("Por favor ingrese el nombre del médico tratante.");
+      showValetecToast("Por favor ingrese el nombre del médico tratante.", "warning");
       this.inDoctorName?.focus();
       return;
     }
     if (!medication || medication.length < 3) {
-      alert("Por favor detalle la medicina prescrita y su posología.");
+      showValetecToast("Por favor detalle la medicina prescrita y su posología.", "warning");
       this.inMedication?.focus();
       return;
     }
@@ -3708,7 +4053,7 @@ class StaffManagementModule {
           </td>
           <td><strong>${m.target}</strong></td>
           <td>
-            <button type="button" class="btn-action-outline" style="padding: 4px 10px; font-size: 11px; font-weight: 700;" onclick="staffApp.openPermissionsModal(${index})">
+            <button type="button" class="btn-action-outline btn-staff-perm" data-index="${index}" style="padding: 4px 10px; font-size: 11px; font-weight: 700;" onclick="window.staffApp ? window.staffApp.openPermissionsModal(${index}, event) : window.openPermissionsModal(${index}, event)">
               <span>⚙️ Permisos</span>
             </button>
           </td>
@@ -3717,12 +4062,44 @@ class StaffManagementModule {
     }).join('');
   }
 
-  openNewStaffModal() {
+  openNewStaffModal(e) {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    // Cerrar cualquier modal activo para evitar cruces
+    document.querySelectorAll('.modal-backdrop-valetec.active').forEach(m => m.classList.remove('active'));
+
     if (!this.newStaffModal) this.newStaffModal = document.getElementById('newStaffModal');
+
+    // Limpiar formulario y asegurar estado limpio
+    const form = document.getElementById('newStaffForm');
+    if (form) form.reset();
+    const nameEl = document.getElementById('staffNewName');
+    if (nameEl) nameEl.value = '';
+    const dniEl = document.getElementById('staffNewDni');
+    if (dniEl) dniEl.value = '';
+    const roleEl = document.getElementById('staffNewRole');
+    if (roleEl) roleEl.value = 'tech';
+    const termEl = document.getElementById('staffNewTerminal');
+    if (termEl) termEl.value = 'Terminal 01';
+    const shiftEl = document.getElementById('staffNewShift');
+    if (shiftEl) shiftEl.value = 'Mañana (08:00 - 16:00)';
+    const targetEl = document.getElementById('staffNewTarget');
+    if (targetEl) targetEl.value = 'S/ 1,500.00';
+    const pinEl = document.getElementById('staffNewPin');
+    if (pinEl) pinEl.value = '1234';
+    const statusEl = document.getElementById('staffNewStatus');
+    if (statusEl) statusEl.value = 'active';
+
     if (this.newStaffModal) this.newStaffModal.classList.add('active');
   }
 
-  closeNewStaffModal() {
+  closeNewStaffModal(e) {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (!this.newStaffModal) this.newStaffModal = document.getElementById('newStaffModal');
     if (this.newStaffModal) this.newStaffModal.classList.remove('active');
   }
@@ -3748,12 +4125,15 @@ class StaffManagementModule {
   }
 
   saveNewStaff(e) {
-    if (e) e.preventDefault();
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     const name = document.getElementById('staffNewName')?.value?.trim();
     const dni = document.getElementById('staffNewDni')?.value?.trim();
-    const roleKey = document.getElementById('staffNewRole')?.value;
-    const terminal = document.getElementById('staffNewTerminal')?.value;
-    const shift = document.getElementById('staffNewShift')?.value;
+    const roleKey = document.getElementById('staffNewRole')?.value || 'tech';
+    const terminal = document.getElementById('staffNewTerminal')?.value || 'Terminal 01';
+    const shift = document.getElementById('staffNewShift')?.value || 'Mañana (08:00 - 16:00)';
     const target = document.getElementById('staffNewTarget')?.value || 'S/ 1,500.00';
     const status = document.getElementById('staffNewStatus')?.value || 'active';
 
@@ -3799,14 +4179,23 @@ class StaffManagementModule {
     document.getElementById('newStaffForm')?.reset();
   }
 
-  openPermissionsModal(index) {
-    if (!this.permModal) this.permModal = document.getElementById('staffPermissionsModal');
-    const member = staffMembersList[index];
-    if (!member) return;
+  openPermissionsModal(index, e) {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const idx = parseInt(index, 10);
+    if (isNaN(idx) || !staffMembersList[idx]) return;
 
-    this.currentStaffIndex = index;
+    // Cerrar cualquier modal activo previo
+    document.querySelectorAll('.modal-backdrop-valetec.active').forEach(m => m.classList.remove('active'));
+
+    if (!this.permModal) this.permModal = document.getElementById('staffPermissionsModal');
+    const member = staffMembersList[idx];
+
+    this.currentStaffIndex = idx;
     const idxInput = document.getElementById('permStaffIndex');
-    if (idxInput) idxInput.value = index;
+    if (idxInput) idxInput.value = idx;
 
     const nameEl = document.getElementById('permStaffName');
     const roleEl = document.getElementById('permStaffRole');
@@ -3821,7 +4210,7 @@ class StaffManagementModule {
     if (termSelect) termSelect.value = member.terminal;
 
     const pStr = (member.permissions || '').toLowerCase();
-    const isOwner = member.role.toLowerCase().includes('gerente') || member.role.toLowerCase().includes('dueño');
+    const isOwner = member.role.toLowerCase().includes('gerente') || member.role.toLowerCase().includes('dueño') || member.role.toLowerCase().includes('admin');
     const isQf = member.role.toLowerCase().includes('regente') || member.role.toLowerCase().includes('químico');
     const isCashier = member.role.toLowerCase().includes('cajero');
 
@@ -3833,22 +4222,29 @@ class StaffManagementModule {
     const cbMgmt = document.getElementById('permModuleManagement');
 
     if (cbCounter) cbCounter.checked = true;
-    if (cbCash) cbCash.checked = isOwner || isCashier || pStr.includes('arqueo') || pStr.includes('cobro');
-    if (cbWh) cbWh.checked = isOwner || isQf || pStr.includes('lotes') || pStr.includes('stock');
+    if (cbCash) cbCash.checked = isOwner || isCashier || pStr.includes('arqueo') || pStr.includes('cobro') || pStr.includes('caja');
+    if (cbWh) cbWh.checked = isOwner || isQf || pStr.includes('lotes') || pStr.includes('stock') || pStr.includes('almacén');
     if (cbDig) cbDig.checked = isOwner || isQf || pStr.includes('digemid') || pStr.includes('recetas');
-    if (cbStaff) cbStaff.checked = isOwner || pStr.includes('control total');
-    if (cbMgmt) cbMgmt.checked = isOwner || pStr.includes('finanzas');
+    if (cbStaff) cbStaff.checked = isOwner || pStr.includes('control total') || pStr.includes('personal');
+    if (cbMgmt) cbMgmt.checked = isOwner || pStr.includes('finanzas') || pStr.includes('gerencia');
 
     if (this.permModal) this.permModal.classList.add('active');
   }
 
-  closePermissionsModal() {
+  closePermissionsModal(e) {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (!this.permModal) this.permModal = document.getElementById('staffPermissionsModal');
     if (this.permModal) this.permModal.classList.remove('active');
   }
 
   savePermissions(e) {
-    if (e) e.preventDefault();
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     const idxInput = document.getElementById('permStaffIndex');
     const index = parseInt(idxInput?.value ?? this.currentStaffIndex, 10);
     if (isNaN(index) || !staffMembersList[index]) return;
@@ -3873,9 +4269,10 @@ class StaffManagementModule {
     this.closePermissionsModal();
     showValetecToast(`Permisos y horarios de ${member.name} actualizados exitosamente.`, 'success');
   }
-}
 
 // =============================================================
+}
+
 // 10. MÓDULO DE CLASIFICACIÓN (CATEGORÍAS Y LABORATORIOS) - MÓDULO 2
 // =============================================================
 class ClassificationModule {
@@ -4036,7 +4433,7 @@ class ClassificationModule {
         await this.loadCategories();
       }
     } catch (err) {
-      alert("Error al crear categoría: " + err.message);
+      showValetecToast("Error al crear categoría: " + err.message, "error");
     }
   }
 
@@ -4056,7 +4453,7 @@ class ClassificationModule {
         await this.loadLaboratories();
       }
     } catch (err) {
-      alert("Error al registrar laboratorio: " + err.message);
+      showValetecToast("Error al registrar laboratorio: " + err.message, "error");
     }
   }
 
@@ -4071,7 +4468,7 @@ class ClassificationModule {
         await this.loadCategories();
       }
     } catch (err) {
-      alert("Error al editar categoría: " + err.message);
+      showValetecToast("Error al editar categoría: " + err.message, "error");
     }
   }
 
@@ -4089,13 +4486,13 @@ class ClassificationModule {
         await syncWithBackend();
       }
     } catch (err) {
-      alert("Error al editar laboratorio: " + err.message);
+      showValetecToast("Error al editar laboratorio: " + err.message, "error");
     }
   }
 
   async deleteCategory(id, count, name) {
     if (count > 0) {
-      alert(`⚠️ Operación Denegada:\nLa categoría "${name}" tiene ${count} medicamentos asociados.\n\nPor seguridad referencial, primero debe reasignar esos medicamentos a otra categoría con el botón [🔄 Reasignar].`);
+      showValetecToast(`⚠️ Operación denegada: La categoría "${name}" tiene ${count} fármacos asociados.`, "warning");
       return;
     }
 
@@ -4108,13 +4505,13 @@ class ClassificationModule {
         await this.loadCategories();
       }
     } catch (err) {
-      alert("Error al eliminar categoría: " + err.message);
+      showValetecToast("Error al eliminar categoría: " + err.message, "error");
     }
   }
 
   async deleteLaboratory(id, count, name) {
     if (count > 0) {
-      alert(`⚠️ Operación Denegada:\nEl laboratorio "${name}" tiene ${count} medicamentos asociados.\n\nPor seguridad, primero debe reasignar los fármacos a otro laboratorio con el botón [🔄 Reasignar].`);
+      showValetecToast(`⚠️ Operación denegada: El laboratorio "${name}" tiene ${count} fármacos asociados.`, "warning");
       return;
     }
 
@@ -4127,7 +4524,7 @@ class ClassificationModule {
         await this.loadLaboratories();
       }
     } catch (err) {
-      alert("Error al eliminar laboratorio: " + err.message);
+      showValetecToast("Error al eliminar laboratorio: " + err.message, "error");
     }
   }
 
@@ -4138,7 +4535,7 @@ class ClassificationModule {
       .join('\n');
 
     if (!options) {
-      alert("No hay otras categorías disponibles para reasignar.");
+      showValetecToast("No hay otras categorías disponibles para reasignar.", "warning");
       return;
     }
 
@@ -4147,7 +4544,7 @@ class ClassificationModule {
 
     const targetId = parseInt(input.replace(/[^\d]/g, ''), 10);
     if (!targetId || targetId === sourceId) {
-      alert("ID de categoría destino inválido.");
+      showValetecToast("ID de categoría destino inválido.", "warning");
       return;
     }
 
@@ -4159,7 +4556,7 @@ class ClassificationModule {
         await syncWithBackend();
       }
     } catch (err) {
-      alert("Error al reasignar: " + err.message);
+      showValetecToast("Error al reasignar: " + err.message, "error");
     }
   }
 
@@ -4170,7 +4567,7 @@ class ClassificationModule {
       .join('\n• ');
 
     if (!otherLabs) {
-      alert("No hay otros laboratorios registrados para reasignar.");
+      showValetecToast("No hay otros laboratorios registrados para reasignar.", "warning");
       return;
     }
 
@@ -4185,7 +4582,7 @@ class ClassificationModule {
         await syncWithBackend();
       }
     } catch (err) {
-      alert("Error al reasignar: " + err.message);
+      showValetecToast("Error al reasignar: " + err.message, "error");
     }
   }
 }
@@ -4271,7 +4668,7 @@ class ClientsModule {
       this.alertMsg.innerText = msg;
       this.alertBox.style.display = 'block';
     } else {
-      alert(msg);
+      showValetecToast(msg, "warning");
     }
   }
 
@@ -4719,10 +5116,98 @@ class ManagementDashboardModule {
     this.btnHourly = document.getElementById('btnChartHourly');
     this.topCountLabel = document.getElementById('topProductsCountLabel');
     this.salesMode = 'daily';
-    this.chartData = null;
-    this.topProductsData = null;
+
+    // Datos iniciales seguros para renderizado reactivo instantáneo (Fase 90%)
+    this.chartData = {
+      daily: [
+        { date: '2026-09-19', dayName: 'Sáb', cashSales: 350.00, digitalSales: 815.00, totalSales: 1165.00 },
+        { date: '2026-09-20', dayName: 'Dom', cashSales: 0.00, digitalSales: 0.00, totalSales: 0.00 },
+        { date: '2026-09-21', dayName: 'Lun', cashSales: 420.00, digitalSales: 649.00, totalSales: 1069.00 },
+        { date: '2026-09-22', dayName: 'Mar', cashSales: 0.00, digitalSales: 4.55, totalSales: 4.55 },
+        { date: '2026-09-23', dayName: 'Mié', cashSales: 1840.50, digitalSales: 3052.00, totalSales: 4892.50 }
+      ],
+      hourlyToday: [
+        { hour: 8, label: '08:00', totalSales: 250.00 },
+        { hour: 10, label: '10:00', totalSales: 680.00 },
+        { hour: 12, label: '12:00', totalSales: 1240.00 },
+        { hour: 14, label: '14:00', totalSales: 890.00 },
+        { hour: 16, label: '16:00', totalSales: 1832.50 }
+      ]
+    };
+    this.topProductsData = [
+      { name: "Gastro-Bismut 262mg Masticables", unitsSold: 193, revenue: 84.40 },
+      { name: "Valetec-Dol Forte 500mg", unitsSold: 82, revenue: 117.30 },
+      { name: "Farma-Naprox 550mg Tabletas", unitsSold: 39, revenue: 2021.90 },
+      { name: "Paracetamol 500mg DCI Genérico", unitsSold: 11, revenue: 14.30 },
+      { name: "Sedafarma 2mg Ranuradas", unitsSold: 1, revenue: 0.65 }
+    ];
 
     this.initEvents();
+    this.renderSales();
+    this.renderTopProducts();
+  }
+
+  registerLocalSale(saleData) {
+    if (!saleData) return;
+    const saleTotal = parseFloat(saleData.total || 0);
+
+    // 1. Actualizar KPIs del Cockpit Gerencial
+    const todaySalesEl = document.getElementById('mgmtTodaySales');
+    const grossProfitEl = document.getElementById('mgmtGrossProfit');
+    const patientsEl = document.getElementById('mgmtPatientsCount');
+
+    if (todaySalesEl) {
+      const current = parseFloat((todaySalesEl.innerText || '').replace(/[^0-9.]/g, '')) || 0;
+      todaySalesEl.innerText = `S/ ${(current + saleTotal).toFixed(2)}`;
+    }
+    if (grossProfitEl) {
+      const current = parseFloat((grossProfitEl.innerText || '').replace(/[^0-9.]/g, '')) || 0;
+      grossProfitEl.innerText = `S/ ${(current + (saleTotal * 0.35)).toFixed(2)}`;
+    }
+    if (patientsEl) {
+      const current = parseInt((patientsEl.innerText || '').replace(/[^0-9]/g, ''), 10) || 0;
+      patientsEl.innerText = `${current + 1} Comprobantes`;
+    }
+
+    // 2. Actualizar Top Productos Más Vendidos
+    if (Array.isArray(saleData.items) && Array.isArray(this.topProductsData)) {
+      saleData.items.forEach(item => {
+        const pName = item.productName || '';
+        let existing = this.topProductsData.find(tp => tp.name.toLowerCase() === pName.toLowerCase());
+        const qty = parseInt(item.quantity || 1, 10);
+        const rev = parseFloat(item.subtotal || (item.unitPrice * qty) || 0);
+
+        if (existing) {
+          existing.unitsSold = (existing.unitsSold || 0) + qty;
+          existing.revenue = (existing.revenue || 0) + rev;
+        } else {
+          this.topProductsData.push({
+            name: pName,
+            unitsSold: qty,
+            revenue: rev
+          });
+        }
+      });
+
+      this.topProductsData.sort((a, b) => (b.unitsSold || 0) - (a.unitsSold || 0));
+      this.renderTopProducts();
+    }
+
+    // 3. Actualizar Gráfico de Ventas en Canvas
+    if (this.chartData) {
+      const isCash = saleData.paymentMethod === 'cash';
+      if (Array.isArray(this.chartData.daily) && this.chartData.daily.length > 0) {
+        const lastDay = this.chartData.daily[this.chartData.daily.length - 1];
+        lastDay.totalSales = (lastDay.totalSales || 0) + saleTotal;
+        if (isCash) lastDay.cashSales = (lastDay.cashSales || 0) + saleTotal;
+        else lastDay.digitalSales = (lastDay.digitalSales || 0) + saleTotal;
+      }
+      if (Array.isArray(this.chartData.hourlyToday) && this.chartData.hourlyToday.length > 0) {
+        const lastHour = this.chartData.hourlyToday[this.chartData.hourlyToday.length - 1];
+        lastHour.totalSales = (lastHour.totalSales || 0) + saleTotal;
+      }
+      this.renderSales();
+    }
   }
 
   initEvents() {
@@ -4802,27 +5287,53 @@ class ManagementDashboardModule {
     }
   }
 
-  openWhatsAppOrderModal() {
+  openWhatsAppOrderModal(e) {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    // Cerrar cualquier otro modal activo para evitar cruces
+    document.querySelectorAll('.modal-backdrop-valetec.active').forEach(m => m.classList.remove('active'));
+
     this.whatsAppModal = document.getElementById('whatsappOrderModal');
     this.updateWhatsAppMessage();
     if (this.whatsAppModal) this.whatsAppModal.classList.add('active');
   }
 
-  closeWhatsAppModal() {
+  closeWhatsAppModal(e) {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (!this.whatsAppModal) this.whatsAppModal = document.getElementById('whatsappOrderModal');
     if (this.whatsAppModal) this.whatsAppModal.classList.remove('active');
   }
 
   getSuggestedItemsText(supplierFilter = 'all') {
-    const items = [
-      { name: "Bio-Amoxil 500mg Cápsulas", supplier: "MedPharma Labs", boxes: 15, units: 600, estCost: 315.00 },
-      { name: "Valetec-Dol Forte 500mg", supplier: "Laboratorios Farmatec S.A.", boxes: 20, units: 2000, estCost: 480.00 },
-      { name: "Farma-Naprox 550mg Tabletas", supplier: "BioFarma Perú", boxes: 10, units: 1000, estCost: 345.00 }
-    ];
+    let items = [];
+    if (typeof testPharmacyCatalog !== 'undefined' && Array.isArray(testPharmacyCatalog)) {
+      const lowStock = testPharmacyCatalog.filter(p => (p.stockBoxes || 0) <= 20);
+      if (lowStock.length > 0) {
+        items = lowStock.map(p => ({
+          name: p.name,
+          supplier: p.laboratory || "Droguería Distribuidora",
+          boxes: Math.max(10, 30 - (p.stockBoxes || 0)),
+          units: (Math.max(10, 30 - (p.stockBoxes || 0))) * (p.unitsPerBox || 20),
+          estCost: Math.max(10, 30 - (p.stockBoxes || 0)) * (p.purchaseCost || (p.priceBox ? p.priceBox * 0.7 : 20))
+        }));
+      }
+    }
+    if (items.length === 0) {
+      items = [
+        { name: "Bio-Amoxil 500mg Cápsulas", supplier: "MedPharma Labs", boxes: 15, units: 600, estCost: 315.00 },
+        { name: "Valetec-Dol Forte 500mg", supplier: "Laboratorios Farmatec S.A.", boxes: 20, units: 2000, estCost: 480.00 },
+        { name: "Farma-Naprox 550mg Tabletas", supplier: "BioFarma Perú", boxes: 10, units: 1000, estCost: 345.00 }
+      ];
+    }
 
     const filtered = (supplierFilter === 'all')
       ? items
-      : items.filter(i => i.supplier.toLowerCase().includes(supplierFilter.toLowerCase()));
+      : items.filter(i => (i.supplier || '').toLowerCase().includes(supplierFilter.toLowerCase()));
 
     let total = 0;
     const lines = filtered.map((item, idx) => {
@@ -4855,7 +5366,11 @@ class ManagementDashboardModule {
     previewEl.value = msg;
   }
 
-  copyWhatsAppMessage() {
+  copyWhatsAppMessage(e) {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     const previewEl = document.getElementById('whatsappMessagePreview');
     if (previewEl) {
       previewEl.select();
@@ -4867,11 +5382,19 @@ class ManagementDashboardModule {
     }
   }
 
-  printOrderSheet() {
+  printOrderSheet(e) {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     window.print();
   }
 
-  sendWhatsAppDirect() {
+  sendWhatsAppDirect(e) {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     const previewEl = document.getElementById('whatsappMessagePreview');
     const phoneInput = document.getElementById('whatsappPhoneInput');
     let phone = phoneInput?.value?.replace(/[^0-9]/g, '') || '';
@@ -4881,7 +5404,7 @@ class ManagementDashboardModule {
     const text = encodeURIComponent(previewEl?.value || '');
     const url = phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
     window.open(url, '_blank');
-    showValetecToast("📲 Abriendo WhatsApp con la orden de compra lista...", "success");
+    showValetecToast("Abriendo WhatsApp con la orden de compra urgente...", "info");
   }
 }
 
@@ -5024,19 +5547,19 @@ class SettingsModule {
 
     // 1. Validaciones frontales estrictas
     if (!companyName || companyName.length < 3) {
-      alert("La Razón Social es obligatoria y debe tener al menos 3 caracteres.");
+      showValetecToast("La Razón Social es obligatoria (mínimo 3 caracteres).", "warning");
       this.inCompanyName?.focus();
       return;
     }
 
     if (!ruc || !/^\d{11}$/.test(ruc)) {
-      alert("El RUC debe tener exactamente 11 dígitos numéricos.");
+      showValetecToast("El RUC debe tener exactamente 11 dígitos numéricos.", "warning");
       this.inRuc?.focus();
       return;
     }
 
     if (isNaN(igvPercent) || igvPercent < 0 || igvPercent > 100) {
-      alert("El porcentaje de IGV debe ser un valor numérico entre 0 y 100.");
+      showValetecToast("El porcentaje de IGV debe ser un valor numérico entre 0 y 100.", "warning");
       this.inIgvPercent?.focus();
       return;
     }
@@ -5146,7 +5669,17 @@ async function syncWithBackend() {
     if (userRes && userRes.data) {
       if (userRes.data.profiles) {
         mockStaffProfiles = userRes.data.profiles;
+        if (mockStaffProfiles.qf) {
+          mockStaffProfiles.qf.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement"];
+        }
+        if (mockStaffProfiles.tech) {
+          mockStaffProfiles.tech.allowedViews = ["viewCounter", "viewWarehouse", "viewDigemid"];
+        }
+        if (mockStaffProfiles.cashier) {
+          mockStaffProfiles.cashier.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid"];
+        }
         if (authManager) authManager.updateQuickProfileCards(userRes.data.profiles);
+        if (appNav) appNav.applyRolePermissions(appNav.currentRole);
       }
       if (userRes.data.staffList && userRes.data.staffList.length > 0) {
         staffMembersList = userRes.data.staffList.map(u => ({
@@ -5189,6 +5722,51 @@ async function syncWithBackend() {
   }
 }
 
+
+// =============================================================
+// PUENTE DE COMPATIBILIDAD GLOBAL EN WINDOW (V3.1)
+// =============================================================
+window.openExchangeModal = function(e, medName, lot, supplier, qty) {
+  if (window.warehouseApp) return window.warehouseApp.openExchangeModal(e, medName, lot, supplier, qty);
+  const m = document.getElementById('exchangeModal');
+  if (m) m.classList.add('active');
+};
+window.closeExchangeModal = function(e) {
+  if (window.warehouseApp) return window.warehouseApp.closeExchangeModal(e);
+  const m = document.getElementById('exchangeModal');
+  if (m) m.classList.remove('active');
+};
+window.openNewStaffModal = function(e) {
+  if (window.staffApp) return window.staffApp.openNewStaffModal(e);
+  const m = document.getElementById('newStaffModal');
+  if (m) m.classList.add('active');
+};
+window.closeNewStaffModal = function(e) {
+  if (window.staffApp) return window.staffApp.closeNewStaffModal(e);
+  const m = document.getElementById('newStaffModal');
+  if (m) m.classList.remove('active');
+};
+window.openPermissionsModal = function(index, e) {
+  if (window.staffApp) return window.staffApp.openPermissionsModal(index, e);
+  const m = document.getElementById('staffPermissionsModal');
+  if (m) m.classList.add('active');
+};
+window.closePermissionsModal = function(e) {
+  if (window.staffApp) return window.staffApp.closePermissionsModal(e);
+  const m = document.getElementById('staffPermissionsModal');
+  if (m) m.classList.remove('active');
+};
+window.openWhatsAppOrderModal = function(e) {
+  if (window.managementApp) return window.managementApp.openWhatsAppOrderModal(e);
+  const m = document.getElementById('whatsappOrderModal');
+  if (m) m.classList.add('active');
+};
+window.closeWhatsAppModal = function(e) {
+  if (window.managementApp) return window.managementApp.closeWhatsAppModal(e);
+  const m = document.getElementById('whatsappOrderModal');
+  if (m) m.classList.remove('active');
+};
+
 document.addEventListener('DOMContentLoaded', () => {
   authManager = new AuthManager();
   window.authManager = authManager;
@@ -5212,6 +5790,32 @@ document.addEventListener('DOMContentLoaded', () => {
   window.managementApp = managementApp;
   settingsApp = new SettingsModule();
   window.settingsApp = settingsApp;
+
+  // Enlace directo e independiente de eventos click (V3.1)
+  const btnExchange = document.getElementById('btnExchangeFefoAction');
+  if (btnExchange) {
+    btnExchange.addEventListener('click', (e) => {
+      if (e && e.preventDefault) { e.preventDefault(); e.stopPropagation(); }
+      window.warehouseApp ? window.warehouseApp.openExchangeModal(e) : window.openExchangeModal(e);
+    });
+  }
+
+  const btnStaff = document.getElementById('btnRegisterStaffAction');
+  if (btnStaff) {
+    btnStaff.addEventListener('click', (e) => {
+      if (e && e.preventDefault) { e.preventDefault(); e.stopPropagation(); }
+      window.staffApp ? window.staffApp.openNewStaffModal(e) : window.openNewStaffModal(e);
+    });
+  }
+
+  const btnWhatsApp = document.getElementById('btnSendWhatsAppOrderAction');
+  if (btnWhatsApp) {
+    btnWhatsApp.addEventListener('click', (e) => {
+      if (e && e.preventDefault) { e.preventDefault(); e.stopPropagation(); }
+      window.managementApp ? window.managementApp.openWhatsAppOrderModal(e) : window.openWhatsAppOrderModal(e);
+    });
+  }
+
 
   // Sincronización activa con Backend y Base de Datos
   syncWithBackend();

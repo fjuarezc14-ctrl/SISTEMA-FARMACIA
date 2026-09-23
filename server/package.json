@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
+    "build:prod": "node ../scripts/build_prod.js",
     "db:migrate": "node src/db/migrate.js",
     "db:seed": "node src/db/seed.js",
     "test": "node test/verify.js && node test/auth.test.js && node test/sale.test.js && node test/cash.test.js && node test/recipe.test.js && node test/product.test.js",
