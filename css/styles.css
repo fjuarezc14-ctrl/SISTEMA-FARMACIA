@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap');
+
 /**
  * VALETEC PHARMA - SISTEMA DE GESTIÓN FARMACÉUTICA V2
  * Identidad Visual Oficial: VALETEC Deep Navy (#0a2540, #0f2942), Electric Teal (#00d4b2, #00a884), Medical Blue (#0066cc)
@@ -5,55 +7,74 @@
  */
 
 :root {
-  /* Paleta Corporativa VALETEC */
-  --valetec-navy: #0a2540;
-  --valetec-navy-dark: #061729;
-  --valetec-navy-light: #133a63;
-
-  --valetec-teal: #00d4b2;
-  --valetec-teal-dark: #00a884;
-  --valetec-teal-light: #e6faf6;
-
-  --valetec-blue: #0066cc;
-  --valetec-blue-light: #e0f0ff;
-  --valetec-sky: #0284c7;
-
-  --valetec-warning: #f59e0b;
-  --valetec-warning-light: #fffbeb;
-  --valetec-danger: #e11d48;
-  --valetec-danger-light: #ffe4e6;
-
-  /* Superficies de Alto Rendimiento */
-  --bg-app: #f4f7fb;
+  /* =============================================================
+     VALETEC GOURMET / CLEAN SAAS DESIGN SYSTEM
+     Superficies limpias, contraste sutil y cero ruido visual
+     ============================================================= */
+  --bg-app: #f8fafc;
+  --bg-main: #f8fafc;
   --bg-surface: #ffffff;
   --bg-subtle: #f8fafc;
-  --bg-hover: #eaf0f8;
+  --bg-card: #ffffff;
+  --bg-hover: #f1f5f9;
 
-  --border-subtle: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --border-focus: #0066cc;
+  /* Bordes ultra sutiles y aireados */
+  --border-subtle: #f1f5f9;
+  --border-card: rgba(0, 0, 0, 0.04);
+  --border-strong: #e2e8f0;
+  --border-focus: #0d9488;
 
-  /* Textos */
-  --text-main: #0f172a;
+  /* Jerarquía Tipográfica de Alto Contraste */
+  --text-main: #1e293b;
+  --text-dark: #0f172a;
   --text-muted: #64748b;
   --text-light: #94a3b8;
   --text-white: #ffffff;
 
-  /* Sombras y Elevaciones */
-  --shadow-xs: 0 1px 3px rgba(10, 37, 64, 0.05);
-  --shadow-sm: 0 2px 6px rgba(10, 37, 64, 0.08);
-  --shadow-md: 0 6px 16px -2px rgba(10, 37, 64, 0.08);
-  --shadow-lg: 0 16px 32px -4px rgba(10, 37, 64, 0.16);
-  --shadow-drawer: -6px 0 28px rgba(10, 37, 64, 0.22);
+  /* Paleta Corporativa Limpia */
+  --valetec-navy: #0f172a;
+  --valetec-navy-dark: #0b1320;
+  --valetec-navy-light: #1e293b;
 
-  --radius-xs: 4px;
+  --valetec-teal: #00d4b2;
+  --valetec-teal-dark: #00a884;
+  --valetec-teal-light: #f0fdfa;
+  --valetec-teal-rgb: 13, 148, 136;
+
+  --valetec-emerald: #059669;
+  --valetec-emerald-light: #ecfdf5;
+
+  --valetec-blue: #0284c7;
+  --valetec-blue-light: #f0f9ff;
+  --valetec-sky: #38bdf8;
+
+  --valetec-warning: #f59e0b;
+  --valetec-warning-light: #fffbeb;
+  --valetec-danger: #ef4444;
+  --valetec-danger-light: #fef2f2;
+
+  /* Sombras Ultra Sutiles y Difusas (Clean SaaS) */
+  --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.02), 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-card: 0 4px 14px rgba(0, 0, 0, 0.03);
+  --shadow-card-hover: 0 10px 25px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 14px 34px rgba(0, 0, 0, 0.07);
+  --shadow-modal: 0 20px 50px rgba(0, 0, 0, 0.10);
+  --shadow-drawer: -4px 0 24px rgba(0, 0, 0, 0.08);
+
+  /* Formas Orgánicas */
+  --radius-xs: 6px;
   --radius-sm: 8px;
   --radius-md: 12px;
+  --radius-card: 16px;
   --radius-lg: 16px;
-  --radius-full: 9999px;
+  --radius-modal: 20px;
+  --radius-full: 100px;
 
-  --font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --transition-fast: 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  --font-family: 'Inter', 'Poppins', system-ui, -apple-system, sans-serif;
+  --transition-fast: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-smooth: 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
 
 /* Reset y Base */
@@ -74,7 +95,7 @@ body.valetec-app-body {
   font-family: var(--font-family);
   background-color: var(--bg-app);
   color: var(--text-main);
-  line-height: 1.45;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
   width: 100% !important;
@@ -112,11 +133,11 @@ body.valetec-app-body {
   width: 100%;
   max-width: 980px;
   background-color: var(--bg-surface);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-modal);
   display: grid;
   grid-template-columns: 1.1fr 1.3fr;
   overflow: hidden;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-modal);
 }
 
 .login-brand-side {
@@ -296,19 +317,22 @@ body.valetec-app-body {
 
 .login-field {
   width: 100%;
-  height: 40px;
-  padding: 0 12px;
+  height: 42px;
+  padding: 0 14px;
   font-size: 13.5px;
   font-family: inherit;
-  border: 1.5px solid var(--border-strong);
-  border-radius: var(--radius-sm);
+  border: 1.5px solid transparent;
+  border-radius: 10px;
+  background-color: #e8eaed;
   outline: none;
-  transition: var(--transition-fast);
+  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+  box-sizing: border-box;
 }
 
 .login-field:focus {
-  border-color: var(--valetec-blue);
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.15);
+  background-color: #ffffff;
+  border-color: var(--valetec-teal);
+  box-shadow: 0 0 0 3px rgba(var(--valetec-teal-rgb), 0.2);
 }
 
 .login-options-row {
@@ -334,27 +358,28 @@ body.valetec-app-body {
 
 .btn-login-submit {
   width: 100%;
-  height: 50px;
-  background: linear-gradient(135deg, #009e73 0%, #00d4b2 100%);
+  height: 48px;
+  background: var(--valetec-teal);
   color: #ffffff;
   border: none;
-  border-radius: var(--radius-md);
-  font-size: 15px;
-  font-weight: 900;
-  letter-spacing: 0.3px;
+  border-radius: var(--radius-full);
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
   margin-top: 18px;
-  box-shadow: 0 4px 14px rgba(0, 168, 132, 0.4);
-  transition: var(--transition-fast);
+  box-shadow: var(--shadow-xs);
+  transition: all var(--transition-fast);
 }
 
 .btn-login-submit:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 168, 132, 0.5);
+  background: #00525d;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .btn-login-submit:active {
@@ -380,7 +405,7 @@ body.valetec-app-body {
   min-height: 100vh;
   width: 100%;
   position: relative;
-  background: var(--bg-main);
+  background: var(--bg-app);
   overflow-x: hidden;
 }
 
@@ -548,38 +573,39 @@ body.valetec-app-body {
 }
 
 .nav-tab-btn {
-  width: 100%;
+  width: calc(100% - 16px);
+  margin: 2px 8px;
   background: none;
   border: none;
-  color: #94a3b8;
+  color: #c4c7c5;
   font-family: inherit;
   font-size: 13px;
-  font-weight: 700;
-  padding: 11px 14px;
+  font-weight: 600;
+  padding: 11px 16px;
   display: flex;
   align-items: center;
   gap: 12px;
   cursor: pointer;
   position: relative;
-  border-radius: 8px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: var(--radius-full);
+  transition: all var(--transition-fast);
   text-align: left;
   box-sizing: border-box;
   user-select: none;
 }
 
 .nav-tab-btn:hover {
-  color: var(--text-white);
-  background-color: rgba(255, 255, 255, 0.07);
-  transform: translateX(3px);
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.10);
+  transform: none;
 }
 
 .nav-tab-btn.active {
-  color: var(--text-white);
-  background-color: rgba(0, 212, 178, 0.14);
-  border-left: 4px solid var(--valetec-teal);
-  box-shadow: inset 0 0 16px rgba(0, 212, 178, 0.08);
-  font-weight: 800;
+  color: #ffffff;
+  background-color: rgba(0, 212, 178, 0.22);
+  border-left: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  font-weight: 700;
 }
 
 .nav-tab-btn.active::after {
@@ -676,31 +702,110 @@ body.valetec-app-body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--bg-main);
+  background: var(--bg-app);
   transition: margin-left 0.3s ease, width 0.3s ease;
   box-sizing: border-box;
 }
 
+/* -------------------------------------------------------------
+   HEADER & TOPBAR (VALETEC GOURMET PILL BADGES)
+------------------------------------------------------------- */
 .app-top-bar {
-  height: 58px;
-  min-height: 58px;
+  height: 60px;
+  min-height: 60px;
   background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #f1f5f9;
   position: sticky;
   top: 0;
   z-index: 990;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 24px;
   box-sizing: border-box;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .top-bar-left, .top-bar-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+}
+
+/* Botones Superiores Pill Badge (Empresa, Atajos F1) */
+.btn-shortcuts-modal {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  padding: 7px 16px;
+  border-radius: 50px;
+  font-family: var(--font-family);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+  text-decoration: none;
+  user-select: none;
+}
+
+.btn-shortcuts-modal:hover {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #1e293b;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.btn-shortcuts-modal:active {
+  transform: translateY(0);
+  background-color: #e2e8f0;
+}
+
+.btn-shortcuts-modal kbd {
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+/* Badges de Reloj y Terminal en Header */
+.live-clock-badge,
+.terminal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  padding: 6px 14px;
+  border-radius: 50px;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.terminal-badge span strong {
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.terminal-badge .pulse-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #059669;
+  font-weight: 600;
+  margin-left: 4px;
 }
 
 .btn-mobile-menu {
@@ -781,10 +886,11 @@ body.valetec-app-body {
   max-width: 1600px;
   width: 100%;
   margin: 0 auto;
-  padding: 12px 16px;
+  padding: 16px 20px;
   flex: 1;
   box-sizing: border-box;
   overflow-x: hidden;
+  background: var(--bg-app);
 }
 
 .app-view-panel {
@@ -802,11 +908,12 @@ body.valetec-app-body {
 }
 
 .valetec-card-box {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  padding: 22px;
-  box-shadow: var(--shadow-sm);
+  background-color: #ffffff;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-card);
+  padding: 24px 28px;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--transition-fast);
 }
 
 .card-header-flex {
@@ -820,16 +927,16 @@ body.valetec-app-body {
 
 .view-heading {
   font-size: 18.5px;
-  font-weight: 900;
-  color: var(--valetec-navy);
+  font-weight: 700;
+  color: #1e293b;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 .view-subheading {
-  font-size: 12px;
-  color: var(--text-muted);
+  font-size: 0.85rem;
+  color: #64748b;
   margin-top: 2px;
 }
 
@@ -839,43 +946,59 @@ body.valetec-app-body {
 }
 
 .btn-action-solid {
-  background: linear-gradient(135deg, var(--valetec-navy) 0%, var(--valetec-navy-light) 100%);
+  background: var(--valetec-teal);
   border: none;
   color: var(--text-white);
-  padding: 8px 18px;
-  border-radius: var(--radius-md);
-  font-size: 12.5px;
-  font-weight: 800;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  box-shadow: var(--shadow-sm);
-  transition: var(--transition-fast);
-}
-
-.btn-action-solid:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.btn-action-outline {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-strong);
-  color: var(--text-main);
-  padding: 8px 14px;
-  border-radius: var(--radius-md);
-  font-size: 12.5px;
+  padding: 10px 22px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
-  transition: var(--transition-fast);
+  gap: 8px;
+  box-shadow: var(--shadow-xs);
+  transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-action-solid:hover {
+  background: #00525d;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-action-solid:active {
+  transform: scale(0.98);
+}
+
+.btn-action-outline {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  padding: 9px 18px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+  position: relative;
+  overflow: hidden;
 }
 
 .btn-action-outline:hover {
-  background-color: var(--bg-hover);
+  background-color: var(--valetec-teal-light);
+  border-color: var(--valetec-teal);
+  color: var(--valetec-teal);
+  transform: translateY(-1px);
+}
+
+.btn-action-outline:active {
+  transform: scale(0.98);
 }
 
 /* -------------------------------------------------------------
@@ -902,6 +1025,11 @@ body.valetec-app-body {
 
 .search-bar-card {
   position: relative;
+  background: #ffffff;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-card);
 }
 
 .search-input-box {
@@ -919,20 +1047,24 @@ body.valetec-app-body {
 
 .search-input-box input {
   width: 100%;
-  height: 48px;
-  padding: 0 130px 0 44px;
+  height: 46px;
+  padding: 0 130px 0 46px;
   font-size: 13.5px;
   font-family: inherit;
-  font-weight: 600;
-  border: 2px solid var(--valetec-blue);
-  border-radius: var(--radius-md);
-  background-color: var(--bg-surface);
+  font-weight: 500;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  background-color: #ffffff;
   outline: none;
-  transition: var(--transition-fast);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: all var(--transition-smooth);
+  color: var(--text-main);
 }
 
 .search-input-box input:focus {
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.2);
+  background-color: #ffffff;
+  border-color: var(--valetec-teal);
+  box-shadow: 0 0 0 3px rgba(var(--valetec-teal-rgb), 0.12);
 }
 
 .search-enter-tag {
@@ -997,33 +1129,34 @@ body.valetec-app-body {
 }
 
 .cat-chip {
-  background-color: var(--bg-surface);
-  border: 1.5px solid var(--border-strong);
-  color: var(--text-main);
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: var(--text-muted);
   font-family: inherit;
   font-size: 12.5px;
-  font-weight: 700;
-  padding: 8px 16px;
+  font-weight: 500;
+  padding: 7px 16px;
   border-radius: var(--radius-full);
   cursor: pointer;
   white-space: nowrap;
-  transition: var(--transition-fast);
+  transition: all var(--transition-fast);
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
 .cat-chip:hover {
-  background-color: var(--valetec-blue-light);
-  border-color: var(--valetec-blue);
-  color: var(--valetec-blue);
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+  color: var(--text-main);
 }
 
 .cat-chip.active {
-  background-color: var(--valetec-navy);
-  color: var(--text-white);
-  border-color: var(--valetec-navy);
-  box-shadow: 0 2px 8px rgba(10, 37, 64, 0.2);
+  background-color: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+  box-shadow: var(--shadow-xs);
+  font-weight: 600;
 }
 
 .dci-advisor-card {
@@ -1050,37 +1183,39 @@ body.valetec-app-body {
 }
 
 .product-staff-card {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 14px;
+  background-color: #ffffff;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-card);
+  padding: 20px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  box-shadow: var(--shadow-xs);
-  transition: var(--transition-fast);
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+  gap: 12px;
 }
 
 .product-staff-card:hover {
-  border-color: var(--valetec-blue);
-  box-shadow: var(--shadow-md);
+  border-color: rgba(0, 212, 178, 0.35);
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-2px);
 }
 
 .card-top-badges {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
 }
 
 .shelf-tag {
-  background-color: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  color: var(--valetec-navy);
-  font-size: 10px;
-  font-weight: 800;
-  padding: 2px 7px;
-  border-radius: var(--radius-xs);
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 6px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -1088,106 +1223,117 @@ body.valetec-app-body {
 
 .rx-badge {
   font-size: 10px;
-  font-weight: 800;
-  padding: 2px 7px;
+  font-weight: 600;
+  padding: 3px 8px;
   border-radius: var(--radius-full);
 }
 
-.rx-badge.free { background-color: #ecfdf5; color: #047857; }
-.rx-badge.required { background-color: #fff1f2; color: #e11d48; }
-.rx-badge.retained { background-color: #fef2f2; color: #991b1b; border: 1px solid #f87171; }
+.rx-badge.free { background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.rx-badge.required { background-color: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+.rx-badge.retained { background-color: #fef2f2; color: #b91c1c; border: 1px solid #fee2e2; }
 
 .prod-name {
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--valetec-navy);
-  line-height: 1.25;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.35;
 }
 
 .prod-dci {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-top: 2px;
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 400;
+  margin-top: 3px;
 }
 
 .prod-stock-strip {
-  background-color: var(--bg-subtle);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xs);
-  padding: 6px 8px;
-  margin: 8px 0;
-  font-size: 11px;
+  background-color: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 6px 0;
+  font-size: 0.85rem;
+  color: #64748b;
   display: flex;
   justify-content: space-between;
 }
 
 .prod-stock-strip strong {
-  color: var(--valetec-navy);
+  color: #334155;
+  font-weight: 600;
 }
 
+/* Suavizado de Botones de Opciones (Caja, Blíster, Pastilla) */
 .fraction-pick-row {
   display: flex;
-  gap: 3px;
-  margin-bottom: 10px;
+  gap: 6px;
+  margin-bottom: 6px;
 }
 
 .btn-frac-pick {
   flex: 1;
-  background-color: var(--bg-subtle);
-  border: 1.5px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  padding: 6px 4px;
-  font-size: 11.5px;
-  font-weight: 800;
-  color: var(--text-main);
+  background-color: #f1f5f9;
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  border-radius: 8px;
+  padding: 7px 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #475569;
   cursor: pointer;
   text-align: center;
-  transition: var(--transition-fast);
+  transition: all var(--transition-fast);
 }
 
 .btn-frac-pick:hover {
-  background-color: var(--valetec-blue-light);
-  border-color: var(--valetec-blue);
+  background-color: #e2e8f0;
+  border-color: #cbd5e1;
+  color: #1e293b;
 }
 
 .btn-frac-pick.active {
-  background-color: var(--valetec-navy);
-  color: var(--text-white);
-  border-color: var(--valetec-navy);
-  box-shadow: 0 1px 4px rgba(10, 37, 64, 0.2);
+  background-color: #e0f2fe;
+  color: #0284c7;
+  border-color: #bae6fd;
+  font-weight: 600;
+  box-shadow: none;
 }
 
 .price-dispense-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-top: 6px;
 }
 
+/* Precios Destacados */
 .price-tag {
-  font-size: 18px;
-  font-weight: 900;
-  color: var(--valetec-navy);
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.5px;
 }
 
+/* Botón de Agregar Electric Teal Moderno */
 .btn-dispense {
-  background: linear-gradient(135deg, #009e73 0%, #00d4b2 100%);
+  background: linear-gradient(135deg, #00d4b2 0%, #00bfa5 100%);
   border: none;
-  color: var(--text-white);
+  color: #042f2e;
   padding: 9px 18px;
-  border-radius: var(--radius-md);
-  font-size: 13.5px;
-  font-weight: 800;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
-  box-shadow: 0 3px 10px rgba(0, 168, 132, 0.35);
-  transition: var(--transition-fast);
+  box-shadow: 0 4px 14px rgba(0, 212, 178, 0.35);
+  transition: all var(--transition-fast);
 }
 
 .btn-dispense:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 14px rgba(0, 168, 132, 0.45);
+  background: linear-gradient(135deg, #00e5bf 0%, #00d4b2 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 212, 178, 0.45);
 }
 
 .btn-dispense:active:not(:disabled) {
@@ -1195,7 +1341,8 @@ body.valetec-app-body {
 }
 
 .btn-dispense:disabled {
-  background: var(--border-strong);
+  background: #e2e8f0;
+  color: #94a3b8;
   cursor: not-allowed;
   box-shadow: none;
 }
@@ -1203,34 +1350,33 @@ body.valetec-app-body {
 .btn-alt-generic {
   width: 100%;
   background-color: #fffbeb;
-  border: 1.5px dashed #f59e0b;
-  color: #92400e;
+  border: 1px solid #fef3c7;
+  color: #b45309;
   font-size: 11.5px;
-  font-weight: 800;
+  font-weight: 600;
   padding: 7px 10px;
-  border-radius: var(--radius-sm);
+  border-radius: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  margin-top: 8px;
+  margin-top: 6px;
   transition: var(--transition-fast);
 }
 
 .btn-alt-generic:hover {
   background-color: #fef3c7;
-  border-color: #d97706;
   transform: translateY(-1px);
 }
 
 /* Panel Derecho: Ticket Mostrador */
 .counter-ticket-pane {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  padding: 12px;
-  box-shadow: var(--shadow-sm);
+  background-color: #ffffff;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
   width: 340px;
   max-width: 100%;
   box-sizing: border-box;
@@ -1238,37 +1384,38 @@ body.valetec-app-body {
 }
 
 .ticket-header-card {
-  padding-bottom: 12px;
-  border-bottom: 1px dashed var(--border-strong);
-  margin-bottom: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 14px;
 }
 
 .ticket-title-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .ticket-title {
-  font-size: 14.5px;
-  font-weight: 900;
-  color: var(--valetec-navy);
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
 }
 
 .ticket-id-tag {
-  font-size: 10.5px;
-  font-weight: 800;
-  color: var(--valetec-blue);
-  background-color: var(--valetec-blue-light);
-  padding: 2px 6px;
-  border-radius: var(--radius-xs);
+  font-size: 11px;
+  font-weight: 600;
+  color: #0369a1;
+  background-color: #f0f9ff;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid #e0f2fe;
 }
 
 .patient-lookup-box {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .input-doc-wrap {
@@ -1279,97 +1426,69 @@ body.valetec-app-body {
 
 .input-doc-wrap i {
   position: absolute;
-  left: 8px;
+  left: 10px;
   font-size: 14px;
+  color: var(--text-light);
 }
 
 .input-doc-wrap input {
   width: 100%;
-  height: 32px;
-  padding: 0 32px 0 28px;
+  height: 36px;
+  padding: 0 34px 0 32px;
   font-size: 12px;
   font-family: inherit;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-xs);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background-color: #f8fafc;
   outline: none;
+  transition: all var(--transition-fast);
+}
+
+.input-doc-wrap input:focus {
+  background-color: #ffffff;
+  border-color: var(--valetec-teal);
+  box-shadow: 0 0 0 2px rgba(var(--valetec-teal-rgb), 0.12);
 }
 
 .input-doc-wrap button {
   position: absolute;
-  right: 4px;
+  right: 6px;
   background: none;
   border: none;
-  color: var(--valetec-blue);
+  color: var(--valetec-teal);
   cursor: pointer;
-}
-
-.patient-status-line {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-}
-
-.patient-status-line .p-name {
-  font-weight: 800;
-  color: var(--valetec-navy);
-}
-
-.patient-status-line .p-points {
-  color: #b45309;
-}
-
-.ticket-items-scroll {
-  min-height: 160px;
-  max-height: 240px;
-  overflow-y: auto;
-  padding: 4px 0;
-}
-
-.empty-ticket-view {
-  text-align: center;
-  padding: 30px 10px;
-  color: var(--text-light);
-}
-
-.empty-ticket-view i {
-  font-size: 34px;
-  display: block;
-  margin-bottom: 4px;
+  padding: 4px;
 }
 
 .ticket-item-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 10px 0;
+  border-bottom: 1px solid #f8fafc;
 }
 
 .item-left-desc .i-name {
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--text-main);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1e293b;
 }
 
 .item-left-desc .i-sub {
-  font-size: 10px;
-  color: var(--text-muted);
-}
-
-.item-qty-wrap {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  font-size: 10.5px;
+  color: #64748b;
+  margin-top: 1px;
 }
 
 .btn-item-qty {
-  width: 32px;
-  height: 32px;
-  border: 1.5px solid var(--border-strong);
-  background-color: var(--bg-surface);
-  border-radius: var(--radius-sm);
-  font-weight: 900;
-  font-size: 13px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 12px;
+  color: #475569;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1378,157 +1497,115 @@ body.valetec-app-body {
 }
 
 .btn-item-qty:hover {
-  background-color: var(--valetec-blue-light);
-  border-color: var(--valetec-blue);
-  color: var(--valetec-blue);
-  transform: scale(1.08);
-}
-
-.btn-item-qty:active {
-  transform: scale(0.95);
+  background-color: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
 }
 
 .item-qty-val {
-  font-size: 11.5px;
-  font-weight: 800;
-  min-width: 16px;
+  font-size: 12px;
+  font-weight: 700;
+  min-width: 18px;
   text-align: center;
+  color: #1e293b;
 }
 
 .item-subtotal-val {
-  font-size: 12.5px;
-  font-weight: 900;
-  color: var(--valetec-navy);
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
   margin-left: 8px;
 }
 
-.prescription-alert-box {
-  background-color: #fff1f2;
-  border-left: 3px solid var(--valetec-danger);
-  border-radius: var(--radius-xs);
-  padding: 8px 10px;
-  font-size: 11px;
-  display: flex;
-  gap: 8px;
-  margin: 8px 0;
-}
-
-.cmp-row {
-  display: flex;
-  gap: 4px;
-  margin-top: 4px;
-}
-
-.cmp-row input {
-  height: 26px;
-  padding: 0 6px;
-  font-size: 11px;
-  border: 1px solid #fda4af;
-  border-radius: var(--radius-xs);
-  outline: none;
-}
-
-.btn-check-cmp {
-  background-color: var(--valetec-navy);
-  color: var(--text-white);
-  border: none;
-  border-radius: var(--radius-xs);
-  font-size: 10px;
-  font-weight: 800;
-  padding: 0 8px;
-  cursor: pointer;
-}
-
 .ticket-totals-card {
-  background-color: var(--bg-subtle);
-  border-radius: var(--radius-md);
-  padding: 10px;
-  margin-top: 8px;
+  background-color: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-top: 14px;
 }
 
 .tot-row {
   display: flex;
   justify-content: space-between;
-  font-size: 11.5px;
-  color: var(--text-muted);
-  margin-bottom: 3px;
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 5px;
 }
 
 .tot-row.final-total {
-  border-top: 1px dashed var(--border-strong);
-  padding-top: 6px;
-  margin-top: 5px;
-  font-size: 14px;
-  font-weight: 900;
-  color: var(--valetec-navy);
+  border-top: 1px solid #e2e8f0;
+  padding-top: 10px;
+  margin-top: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
 }
 
 .total-val {
-  font-size: 18px;
-  color: var(--valetec-teal-dark);
+  font-size: 20px;
+  font-weight: 800;
+  color: #059669;
 }
 
 .payment-controls-card {
-  margin-top: 10px;
+  margin-top: 14px;
 }
 
 .voucher-switch-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  margin-bottom: 8px;
+  gap: 6px;
+  margin-bottom: 10px;
 }
 
 .v-opt {
-  background-color: var(--bg-subtle);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-xs);
-  padding: 5px;
-  font-size: 11px;
-  font-weight: 800;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 7px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #475569;
   text-align: center;
   cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.v-opt:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
 }
 
 .v-opt:has(input:checked) {
-  background-color: var(--valetec-navy);
-  color: var(--text-white);
-  border-color: var(--valetec-navy);
+  background-color: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+  font-weight: 600;
 }
-
-.v-opt input { display: none; }
 
 .cash-calc-wrapper {
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: 8px;
-  background-color: #fafbfc;
-}
-
-.calc-label-tag {
-  font-size: 10px;
-  font-weight: 800;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  display: block;
-  margin-bottom: 4px;
+  border: 1px solid #f1f5f9;
+  border-radius: 10px;
+  padding: 10px;
+  background-color: #f8fafc;
 }
 
 .bills-fast-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  margin-bottom: 6px;
+  gap: 6px;
+  margin-bottom: 8px;
 }
 
 .btn-cash-bill {
-  background-color: #f0fdf4;
-  border: 1.5px solid #86efac;
-  border-radius: var(--radius-sm);
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   padding: 8px 4px;
   font-size: 11.5px;
-  font-weight: 800;
-  color: #166534;
+  font-weight: 600;
+  color: #334155;
   cursor: pointer;
   white-space: nowrap;
   text-align: center;
@@ -1536,96 +1613,49 @@ body.valetec-app-body {
 }
 
 .btn-cash-bill:hover {
-  background-color: #dcfce7;
-  border-color: #4ade80;
-  transform: translateY(-1px);
-}
-
-.btn-cash-bill:active {
-  transform: scale(0.96);
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
 }
 
 .btn-cash-bill.exact {
-  background: linear-gradient(135deg, #0284c7 0%, #0066cc 100%);
+  background: #0284c7;
   border-color: #0284c7;
   color: #ffffff;
-  font-size: 11px;
-}
-
-.change-display-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 6px;
-}
-
-.c-field {
-  background-color: var(--bg-surface);
-  border: 1.5px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  padding: 5px 8px;
-}
-
-.c-field small {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text-muted);
-  display: block;
-}
-
-.c-field input {
-  width: 100%;
-  border: none;
-  outline: none;
-  font-size: 14px;
-  font-weight: 800;
-  font-family: inherit;
-  color: var(--valetec-navy);
-}
-
-.c-field.highlight {
-  background-color: var(--valetec-teal-light);
-  border-color: #00d4b2;
-}
-
-.c-field.highlight strong {
-  font-size: 15px;
-  font-weight: 900;
-  color: #0f766e;
 }
 
 .ticket-action-btns {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 14px;
   width: 100%;
   box-sizing: border-box;
 }
 
 .btn-order-checkout {
   width: 100%;
-  background: linear-gradient(135deg, #009e73 0%, #00d4b2 100%);
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
   border: none;
-  color: var(--text-white);
-  border-radius: var(--radius-md);
-  padding: 12px 14px;
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: 0.3px;
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  box-shadow: 0 4px 14px rgba(0, 168, 132, 0.35);
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.28);
   box-sizing: border-box;
-  transition: var(--transition-fast);
+  transition: all var(--transition-fast);
 }
 
 .btn-order-checkout:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0, 168, 132, 0.45);
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.38);
 }
 
 .btn-order-checkout:active {
@@ -1634,29 +1664,26 @@ body.valetec-app-body {
 
 .btn-order-cancel {
   width: 100%;
-  background-color: #fee2e2;
-  border: 1.5px solid #fca5a5;
-  color: #dc2626;
-  border-radius: var(--radius-md);
-  padding: 8px 10px;
-  font-size: 11.5px;
-  font-weight: 800;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   box-sizing: border-box;
-  transition: var(--transition-fast);
+  transition: all var(--transition-fast);
 }
 
 .btn-order-cancel:hover {
-  background-color: #fecdd3;
-  transform: translateY(-1px);
-}
-
-.btn-order-cancel:active {
-  transform: scale(0.99);
+  background-color: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
 }
 
 /* -------------------------------------------------------------
@@ -1670,10 +1697,11 @@ body.valetec-app-body {
 }
 
 .cash-stat-card {
-  background-color: var(--bg-subtle);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 14px;
+  background-color: #ffffff;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
 }
 
 .cash-stat-card.expected-highlight {
@@ -1707,10 +1735,11 @@ body.valetec-app-body {
 }
 
 .audit-matrix-box, .audit-verdict-box {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  padding: 16px;
+  background-color: #ffffff;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
 }
 
 .box-title-row {
@@ -1821,10 +1850,11 @@ body.valetec-app-body {
 
 .z-audit-verification-box {
   background: #ffffff;
-  border: 1px solid var(--border-strong, #e2e8f0);
-  border-radius: var(--radius-md, 8px);
-  padding: 14px 16px;
-  margin-bottom: 14px;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-card);
+  padding: 18px 22px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-card);
 }
 
 .z-diff-indicator {
@@ -1958,7 +1988,7 @@ body.valetec-app-body {
   -webkit-overflow-scrolling: touch;
   background-color: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-xs);
   margin-top: 10px;
   position: relative;
@@ -1971,7 +2001,7 @@ table.table {
   min-width: 700px;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-main);
   text-align: left;
 }
@@ -1982,11 +2012,13 @@ table.table th {
   background-color: #f8fafc;
   color: #475569;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
-  padding: 11px 14px;
-  border-bottom: 2px solid #e2e8f0;
+  letter-spacing: 0.5px;
+  padding: 13px 18px;
+  border-bottom: 1px solid #e2e8f0;
+  border-left: none;
+  border-right: none;
   white-space: nowrap;
   user-select: none;
   position: sticky;
@@ -1997,16 +2029,18 @@ table.table th {
 .valetec-table td,
 .valetec-data-table td,
 table.table td {
-  padding: 11px 14px;
+  padding: 14px 18px;
   border-bottom: 1px solid #f1f5f9;
+  border-left: none;
+  border-right: none;
   vertical-align: middle;
-  transition: background-color 0.12s ease;
+  transition: background-color var(--transition-fast);
 }
 
 .valetec-table tbody tr:hover td,
 .valetec-data-table tbody tr:hover td,
 table.table tbody tr:hover td {
-  background-color: #f8fafc;
+  background-color: #f8fafc !important;
 }
 
 .valetec-table tbody tr:last-child td,
@@ -2018,14 +2052,14 @@ table.table tbody tr:last-child td {
 .valetec-table code,
 .valetec-data-table code,
 table.table code {
-  background-color: #f1f5f9;
+  background-color: #e8eaed;
   color: var(--valetec-navy);
-  padding: 2px 7px;
-  border-radius: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 700;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-subtle);
 }
 
 .fefo-chip {
@@ -2053,13 +2087,14 @@ table.table code {
 }
 
 .san-card {
-  background-color: var(--bg-subtle);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 14px;
+  background-color: #ffffff;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-card);
+  padding: 18px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
+  box-shadow: var(--shadow-card);
 }
 
 .san-card i {
@@ -2118,10 +2153,11 @@ table.table code {
 }
 
 .mgmt-metric-card {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  padding: 16px;
+  background-color: #ffffff;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
 }
 
 .m-card-head {
@@ -2221,12 +2257,13 @@ table.table code {
 }
 
 .modal-dialog-valetec {
-  background-color: var(--bg-surface);
-  border-radius: var(--radius-md);
+  background-color: #ffffff;
+  border-radius: 20px;
   width: 100%;
   max-width: 560px;
   max-height: min(90vh, 850px);
-  box-shadow: 0 24px 48px -12px rgba(10, 37, 64, 0.28), 0 0 0 1px rgba(10, 37, 64, 0.08);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.10);
+  border: none;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -2256,12 +2293,14 @@ table.table code {
 }
 
 .modal-header-valetec {
-  padding: 14px 22px;
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 18px 24px;
+  border-bottom: 1px solid #f1f5f9;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: var(--bg-surface);
+  background-color: #ffffff;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
   flex-shrink: 0;
   gap: 12px;
 }
@@ -2360,24 +2399,24 @@ table.table code {
 .form-group-valetec select,
 .form-group-valetec textarea {
   width: 100%;
-  height: 38px;
-  padding: 0 12px;
-  font-size: 12.5px;
+  height: 40px;
+  padding: 0 14px;
+  font-size: 13px;
   font-family: var(--font-family);
   color: var(--text-main);
-  background-color: var(--bg-surface);
-  border: 1.5px solid var(--border-strong);
-  border-radius: var(--radius-sm);
+  background-color: #e8eaed;
+  border: 1.5px solid transparent;
+  border-radius: 10px;
   outline: none;
-  transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease;
+  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
   box-sizing: border-box;
 }
 
 .form-group-valetec textarea,
 textarea.form-control {
   height: auto;
-  min-height: 64px;
-  padding: 10px 12px;
+  min-height: 72px;
+  padding: 12px 14px;
   line-height: 1.45;
   resize: vertical;
 }
@@ -2387,8 +2426,8 @@ textarea.form-control {
 .form-group-valetec input:focus,
 .form-group-valetec select:focus,
 .form-group-valetec textarea:focus {
-  border-color: var(--valetec-blue);
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.15);
+  border-color: var(--valetec-teal);
+  box-shadow: 0 0 0 3px rgba(var(--valetec-teal-rgb), 0.2);
   background-color: #ffffff;
 }
 
@@ -2403,20 +2442,22 @@ textarea.form-control {
 .form-group-valetec input[readonly],
 .form-control[disabled],
 .form-group-valetec select[disabled] {
-  background-color: #f1f5f9;
-  color: #64748b;
+  background-color: #f1f3f4;
+  color: #80868b;
   border-color: var(--border-subtle);
   cursor: not-allowed;
 }
 
 .modal-footer-valetec {
-  padding: 12px 22px;
-  border-top: 1px solid var(--border-subtle);
+  padding: 16px 24px;
+  border-top: 1px solid #f1f5f9;
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 10px;
-  background-color: var(--bg-subtle);
+  background-color: #fafbfc;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
   flex-shrink: 0;
 }
 
@@ -2424,16 +2465,16 @@ textarea.form-control {
   position: fixed;
   top: 75px;
   right: 24px;
-  background-color: var(--valetec-navy);
+  background-color: #1f1f1f;
   color: var(--text-white);
-  padding: 10px 18px;
-  border-radius: var(--radius-md);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.15);
+  padding: 10px 20px;
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-md);
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  font-weight: 700;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
   z-index: 6000;
   transform: translateY(-25px);
   opacity: 0;
