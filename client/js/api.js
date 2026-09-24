@@ -6,7 +6,7 @@
 
 class ValetecApiClient {
   constructor() {
-    this.baseUrl = window.VALETEC_API_URL || 'http://localhost:4000/api';
+    this.baseUrl = window.VALETEC_API_URL || (window.location.protocol.startsWith('http') ? '/api' : 'http://localhost:4000/api');
     this.token = localStorage.getItem('valetec_token') || null;
     this.currentUser = JSON.parse(localStorage.getItem('valetec_user') || 'null');
     this.isConnected = false;

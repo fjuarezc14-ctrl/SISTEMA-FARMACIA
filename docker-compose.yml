@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: valetec_secure_password_2026
       POSTGRES_DB: valetec_pharma
     ports:
-      - "5434:5432"
+      - "${BD_PUERTO:-5442}:5432"
     volumes:
       - valetec_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -26,7 +26,7 @@ services:
     container_name: valetec_pharma_backend
     restart: unless-stopped
     ports:
-      - "4000:4000"
+      - "${PUERTO:-4030}:4000"
     environment:
       PORT: 4000
       NODE_ENV: production
@@ -52,7 +52,7 @@ services:
     container_name: valetec_pharma_frontend
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "${FRONTEND_PUERTO:-5186}:80"
     volumes:
       - ./client:/usr/share/nginx/html
     depends_on:
