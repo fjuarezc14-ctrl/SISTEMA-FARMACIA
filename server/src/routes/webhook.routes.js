@@ -8,7 +8,14 @@ const router = express.Router();
  * Compatible con cabeceras de Niubiz (x-signature) e Izipay (x-webhook-token / Authorization)
  */
 function verifyWebhookSignature(req, res, next) {
-  const secretKey = process.env.POS_WEBHOOK_SECRET || 'valetec_pos_webhook_secret_key_2026_xyz';
+  const secretKey = process.env.POS_WEBHOOK_SECRET;
+  if (!secretKey) {
+    return res.status(500).json({
+      success: false,
+      error: 'SERVER_CONFIG_ERROR',
+      message: 'Fallo de configuración: POS_WEBHOOK_SECRET no está definido en las variables de entorno.'
+    });
+  }
   
   // Extraer token de firma de las cabeceras comunes
   const incomingSignature = req.headers['x-signature'] || 
@@ -109,11 +116,14 @@ router.post('/payment', verifyWebhookSignature, (req, res) => {
   });
 });
 
+const { authenticateToken } = require('../middlewares/auth.middleware');
+const { requireRoles } = require('../middlewares/role.middleware');
+
 /**
  * GET /api/webhooks/payment/status
- * Ruta de comprobación de salud para el sistema de webhooks
+ * Ruta de comprobación de salud para el sistema de webhooks (Estricto: Solo Administrador)
  */
-router.get('/payment/status', (req, res) => {
+router.get('/payment/status', authenticateToken, requireRoles('admin'), (req, res) => {
   res.status(200).json({
     service: 'VALETEC POS Webhook Gateway',
     status: 'ACTIVE',

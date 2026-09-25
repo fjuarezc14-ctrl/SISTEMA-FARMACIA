@@ -6,13 +6,15 @@ const {
   deleteCategory,
   reassignCategory
 } = require('../controllers/category.controller');
+const { authenticateToken } = require('../middlewares/auth.middleware');
+const { requireRoles } = require('../middlewares/role.middleware');
 
 const router = express.Router();
 
-router.get('/', getAllCategories);
-router.post('/', createCategory);
-router.post('/reassign', reassignCategory);
-router.put('/:id', updateCategory);
-router.delete('/:id', deleteCategory);
+router.get('/', authenticateToken, requireRoles('cashier', 'qf', 'admin'), getAllCategories);
+router.post('/', authenticateToken, requireRoles('qf', 'admin'), createCategory);
+router.post('/reassign', authenticateToken, requireRoles('qf', 'admin'), reassignCategory);
+router.put('/:id', authenticateToken, requireRoles('qf', 'admin'), updateCategory);
+router.delete('/:id', authenticateToken, requireRoles('admin'), deleteCategory);
 
 module.exports = router;

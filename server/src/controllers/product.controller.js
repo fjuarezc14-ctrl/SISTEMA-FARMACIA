@@ -27,17 +27,43 @@ async function getAllProducts(req, res, next) {
         alt.id AS "genericAltId",
         alt.name AS "genericAltName",
         CAST(alt.box_price AS FLOAT) AS "genericAltBoxPrice",
-        l.id AS "lotId",
-        l.lot_number AS "lotNumber",
-        TO_CHAR(l.expire_date, 'YYYY-MM-DD') AS "expireDate",
-        l.stock_boxes AS "stockBoxes",
-        l.stock_blisters AS "stockBlisters",
-        l.stock_units AS "stockUnits",
-        l.fefo_status AS "fefoStatus"
+        fefo.id AS "lotId",
+        COALESCE(fefo.lot_number, 'N/A') AS "lotNumber",
+        COALESCE(TO_CHAR(fefo.expire_date, 'YYYY-MM-DD'), 'N/A') AS "expireDate",
+        COALESCE(tot.total_boxes, 0)::int AS "stockBoxes",
+        COALESCE(tot.total_blisters, 0)::int AS "stockBlisters",
+        COALESCE(tot.total_units, 0)::int AS "stockUnits",
+        COALESCE(fefo.fefo_status, 'good') AS "fefoStatus",
+        COALESCE(tot.lots_json, '[]'::json) AS "lots"
       FROM productos p
       JOIN categorias c ON p.category_id = c.id
       LEFT JOIN productos alt ON p.generic_alt_id = alt.id
-      LEFT JOIN lotes_fefo l ON p.id = l.product_id
+      LEFT JOIN LATERAL (
+        SELECT 
+          SUM(stock_boxes) AS total_boxes,
+          SUM(stock_blisters) AS total_blisters,
+          SUM(stock_units) AS total_units,
+          JSON_AGG(
+            JSON_BUILD_OBJECT(
+              'id', l.id,
+              'lotNumber', l.lot_number,
+              'expireDate', TO_CHAR(l.expire_date, 'YYYY-MM-DD'),
+              'stockBoxes', l.stock_boxes,
+              'stockBlisters', l.stock_blisters,
+              'stockUnits', l.stock_units,
+              'fefoStatus', l.fefo_status
+            ) ORDER BY l.expire_date ASC
+          ) AS lots_json
+        FROM lotes_fefo l
+        WHERE l.product_id = p.id
+      ) tot ON true
+      LEFT JOIN LATERAL (
+        SELECT id, lot_number, expire_date, fefo_status
+        FROM lotes_fefo
+        WHERE product_id = p.id AND stock_units > 0
+        ORDER BY expire_date ASC, id ASC
+        LIMIT 1
+      ) fefo ON true
       ORDER BY p.id ASC;
     `);
 
@@ -65,6 +91,7 @@ async function getAllProducts(req, res, next) {
       lotNumber: p.lotNumber || 'N/A',
       expireDate: p.expireDate || 'N/A',
       fefoStatus: p.fefoStatus || 'good',
+      lots: p.lots || [],
       genericAlt: p.genericAltName ? {
         id: p.genericAltId,
         name: p.genericAltName,

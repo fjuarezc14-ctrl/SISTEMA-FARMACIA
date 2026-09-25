@@ -147,6 +147,64 @@ CREATE TABLE IF NOT EXISTS ventas_detalles (
   subtotal NUMERIC(10, 2) NOT NULL CHECK(subtotal >= 0)
 );
 
+-- 11. Padrón de Clientes y Clientes Frecuentes
+CREATE TABLE IF NOT EXISTS clientes (
+  id SERIAL PRIMARY KEY,
+  document_type VARCHAR(10) NOT NULL CHECK(document_type IN ('DNI', 'RUC', 'CE', 'PASAPORTE')),
+  document_number VARCHAR(20) NOT NULL UNIQUE,
+  full_name VARCHAR(200) NOT NULL,
+  address TEXT,
+  phone VARCHAR(50),
+  email VARCHAR(150),
+  points_balance INTEGER NOT NULL DEFAULT 0 CHECK(points_balance >= 0),
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 12. Laboratorios Farmacéuticos Registrados
+CREATE TABLE IF NOT EXISTS laboratorios (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(150) NOT NULL UNIQUE,
+  country VARCHAR(100) DEFAULT 'Perú',
+  contact TEXT,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 13. Parámetros de Configuración de la Botica
+CREATE TABLE IF NOT EXISTS configuraciones (
+  id SERIAL PRIMARY KEY,
+  company_name VARCHAR(200) NOT NULL,
+  commercial_name VARCHAR(200),
+  ruc VARCHAR(20) NOT NULL,
+  address TEXT,
+  phone VARCHAR(50),
+  email VARCHAR(150),
+  currency_symbol VARCHAR(10) DEFAULT 'S/',
+  currency_code VARCHAR(10) DEFAULT 'PEN',
+  igv_percent NUMERIC(5, 2) DEFAULT 18.00,
+  sanitary_license VARCHAR(100),
+  technical_director VARCHAR(150),
+  invoice_footer_text TEXT,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 14. Kardex Físico y Trazabilidad de Movimientos
+CREATE TABLE IF NOT EXISTS kardex (
+  id SERIAL PRIMARY KEY,
+  product_id INTEGER NOT NULL REFERENCES productos(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  lot_id INTEGER REFERENCES lotes_fefo(id) ON UPDATE CASCADE ON DELETE SET NULL,
+  movement_type VARCHAR(50) NOT NULL,
+  reference_type VARCHAR(50),
+  reference_id VARCHAR(50),
+  quantity INTEGER NOT NULL,
+  unit_type VARCHAR(20) DEFAULT 'unit',
+  previous_stock INTEGER NOT NULL DEFAULT 0,
+  new_stock INTEGER NOT NULL DEFAULT 0,
+  reason TEXT,
+  user_name VARCHAR(150),
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Índices de Alto Rendimiento para Búsqueda Instantánea
 CREATE INDEX IF NOT EXISTS idx_productos_barcode ON productos(barcode);
 CREATE INDEX IF NOT EXISTS idx_productos_name ON productos(name);
@@ -154,3 +212,8 @@ CREATE INDEX IF NOT EXISTS idx_productos_dci ON productos(generic_dci);
 CREATE INDEX IF NOT EXISTS idx_lotes_fefo_expire ON lotes_fefo(expire_date);
 CREATE INDEX IF NOT EXISTS idx_recetas_folio ON recetas_digemid(folio);
 CREATE INDEX IF NOT EXISTS idx_ventas_created ON ventas(created_at);
+CREATE INDEX IF NOT EXISTS idx_clientes_doc ON clientes(document_number);
+CREATE INDEX IF NOT EXISTS idx_clientes_name ON clientes(full_name);
+CREATE INDEX IF NOT EXISTS idx_kardex_product ON kardex(product_id);
+CREATE INDEX IF NOT EXISTS idx_kardex_lot ON kardex(lot_id);
+

@@ -10,18 +10,20 @@ const {
   getExpiringLots,
   createProductLot
 } = require('../controllers/product.controller');
+const { authenticateToken } = require('../middlewares/auth.middleware');
+const { requireRoles } = require('../middlewares/role.middleware');
 
 const router = express.Router();
 
-router.get('/', getAllProducts);
-router.get('/lots/expiring', getExpiringLots);
-router.post('/adjust-stock', adjustStock);
-router.post('/receive', addStock);
-router.post('/', createProduct);
-router.get('/:id', getProductById);
-router.put('/:id', updateProduct);
-router.patch('/:id/toggle', toggleProductStatus);
-router.post('/:id/lots', createProductLot);
+router.get('/', authenticateToken, requireRoles('cashier', 'qf', 'admin'), getAllProducts);
+router.get('/lots/expiring', authenticateToken, requireRoles('qf', 'admin'), getExpiringLots);
+router.post('/adjust-stock', authenticateToken, requireRoles('qf', 'admin'), adjustStock);
+router.post('/receive', authenticateToken, requireRoles('qf', 'admin'), addStock);
+router.post('/', authenticateToken, requireRoles('qf', 'admin'), createProduct);
+router.get('/:id', authenticateToken, requireRoles('cashier', 'qf', 'admin'), getProductById);
+router.put('/:id', authenticateToken, requireRoles('qf', 'admin'), updateProduct);
+router.patch('/:id/toggle', authenticateToken, requireRoles('admin'), toggleProductStatus);
+router.post('/:id/lots', authenticateToken, requireRoles('qf', 'admin'), createProductLot);
 
 module.exports = router;
 

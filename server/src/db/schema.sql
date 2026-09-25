@@ -160,6 +160,66 @@ CREATE TABLE IF NOT EXISTS ventas_detalles (
   FOREIGN KEY (lot_id) REFERENCES lotes_fefo(id) ON UPDATE CASCADE ON DELETE SET NULL
 );
 
+-- 11. Padrón de Clientes y Clientes Frecuentes
+CREATE TABLE IF NOT EXISTS clientes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  document_type TEXT NOT NULL CHECK(document_type IN ('DNI', 'RUC', 'CE', 'PASAPORTE')),
+  document_number TEXT NOT NULL UNIQUE,
+  full_name TEXT NOT NULL,
+  address TEXT,
+  phone TEXT,
+  email TEXT,
+  points_balance INTEGER NOT NULL DEFAULT 0 CHECK(points_balance >= 0),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 12. Laboratorios Farmacéuticos Registrados
+CREATE TABLE IF NOT EXISTS laboratorios (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  country TEXT DEFAULT 'Perú',
+  contact TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 13. Parámetros de Configuración de la Botica
+CREATE TABLE IF NOT EXISTS configuraciones (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  company_name TEXT NOT NULL,
+  commercial_name TEXT,
+  ruc TEXT NOT NULL,
+  address TEXT,
+  phone TEXT,
+  email TEXT,
+  currency_symbol TEXT DEFAULT 'S/',
+  currency_code TEXT DEFAULT 'PEN',
+  igv_percent REAL DEFAULT 18.00,
+  sanitary_license TEXT,
+  technical_director TEXT,
+  invoice_footer_text TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 14. Kardex Físico y Trazabilidad de Movimientos
+CREATE TABLE IF NOT EXISTS kardex (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER NOT NULL,
+  lot_id INTEGER,
+  movement_type TEXT NOT NULL,
+  reference_type TEXT,
+  reference_id TEXT,
+  quantity INTEGER NOT NULL,
+  unit_type TEXT DEFAULT 'unit',
+  previous_stock INTEGER NOT NULL DEFAULT 0,
+  new_stock INTEGER NOT NULL DEFAULT 0,
+  reason TEXT,
+  user_name TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (product_id) REFERENCES productos(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  FOREIGN KEY (lot_id) REFERENCES lotes_fefo(id) ON UPDATE CASCADE ON DELETE SET NULL
+);
+
 -- Índices de Alto Rendimiento para Búsqueda Instantánea en Mostrador y Almacén
 CREATE INDEX IF NOT EXISTS idx_productos_barcode ON productos(barcode);
 CREATE INDEX IF NOT EXISTS idx_productos_name ON productos(name);
@@ -167,3 +227,8 @@ CREATE INDEX IF NOT EXISTS idx_productos_dci ON productos(generic_dci);
 CREATE INDEX IF NOT EXISTS idx_lotes_fefo_expire ON lotes_fefo(expire_date);
 CREATE INDEX IF NOT EXISTS idx_recetas_folio ON recetas_digemid(folio);
 CREATE INDEX IF NOT EXISTS idx_ventas_created ON ventas(created_at);
+CREATE INDEX IF NOT EXISTS idx_clientes_doc ON clientes(document_number);
+CREATE INDEX IF NOT EXISTS idx_clientes_name ON clientes(full_name);
+CREATE INDEX IF NOT EXISTS idx_kardex_product ON kardex(product_id);
+CREATE INDEX IF NOT EXISTS idx_kardex_lot ON kardex(lot_id);
+

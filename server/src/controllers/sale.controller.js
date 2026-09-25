@@ -58,8 +58,8 @@ async function createSale(req, res, next) {
 
     const sanitizedRef = paymentReference ? String(paymentReference).trim() : null;
 
-    // Identificar usuario autenticado o cajero dinámicamente en PostgreSQL
-    let activeUserId = (req.user && req.user.id) ? req.user.id : bodyUserId;
+    // Identificar usuario autenticado (prioridad estricta para prevenir suplantación de identidad)
+    let activeUserId = (req.user && req.user.id) ? req.user.id : null;
     if (!activeUserId) {
       const defaultCashier = await get("SELECT id FROM usuarios WHERE email = 'caja@valetec.pe' LIMIT 1");
       activeUserId = defaultCashier ? defaultCashier.id : null;
@@ -77,6 +77,11 @@ async function createSale(req, res, next) {
 
       // 2. Determinar serie y correlativo
       const series = SERIES_MAP[invoiceType];
+
+      // H-02 Candado atómico en PostgreSQL para serializar la generación de correlativos por serie
+      // Evita duplicidad de numeración bajo ráfagas de peticiones concurrentes
+      await run('SELECT pg_advisory_xact_lock(hashtext($1))', [`correlative_series_${series}`]);
+
       const maxNumRow = await get(
         'SELECT COALESCE(MAX(invoice_number), 0) AS max_num FROM ventas WHERE invoice_series = $1',
         [series]
@@ -116,18 +121,20 @@ async function createSale(req, res, next) {
         // Calcular pastillas base necesarias según la fracción
         let baseUnitsNeeded = qty;
         if (item.fractionType === 'box') {
-          baseUnitsNeeded = qty * parseInt(prod.units_per_box, 10);
+          baseUnitsNeeded = qty * (parseInt(prod.units_per_box, 10) || 100);
         } else if (item.fractionType === 'blister') {
-          const unitsPerBlister = parseInt(prod.units_per_box, 10) / parseInt(prod.units_per_blister, 10);
-          baseUnitsNeeded = Math.round(qty * unitsPerBlister);
+          const unitsPerBlister = parseInt(prod.units_per_blister, 10) || 10;
+          baseUnitsNeeded = qty * unitsPerBlister;
         }
 
-        // Consultar lotes activos del producto ordenados por vencimiento FEFO
+        // Consultar lotes activos del producto con bloqueo de fila transaccional (H-02: FOR UPDATE)
+        // Bloquea las filas en PostgreSQL hasta el COMMIT, impidiendo sobreventas e inventario fantasma
         const lots = await query(
           `SELECT id, lot_number, expire_date, stock_units, stock_boxes, stock_blisters 
            FROM lotes_fefo 
            WHERE product_id = $1 AND stock_units > 0 
-           ORDER BY expire_date ASC, id ASC`,
+           ORDER BY expire_date ASC, id ASC
+           FOR UPDATE`,
           [prod.id]
         );
 
@@ -223,9 +230,10 @@ async function createSale(req, res, next) {
           const deductFromThisLot = Math.min(remainingToDeduct, lotStock);
           const newUnits = lotStock - deductFromThisLot;
 
-          const newBoxes = Math.floor(newUnits / item.unitsPerBox);
-          const blistersPerBox = item.unitsPerBox / item.unitsPerBlister;
-          const newBlisters = Math.floor(newUnits / blistersPerBox);
+          const uPerBox = item.unitsPerBox || 100;
+          const uPerBlister = item.unitsPerBlister || 10;
+          const newBoxes = Math.floor(newUnits / uPerBox);
+          const newBlisters = Math.floor(newUnits / uPerBlister);
           const newStatus = newUnits === 0 ? 'expired' : 'good';
 
           // Actualizar lote en PostgreSQL
@@ -475,16 +483,14 @@ async function cancelSale(req, res, next) {
 
       // 3. Restituir stock lote por lote en lotes_fefo
       for (const item of items) {
-        const qty = parseInt(item.quantity, 10);
-        const unitsPerBox = parseInt(item.units_per_box, 10);
-        const unitsPerBlister = parseInt(item.units_per_blister, 10);
-        const blistersPerBox = unitsPerBox / unitsPerBlister;
+        const unitsPerBox = parseInt(item.units_per_box, 10) || 100;
+        const unitsPerBlister = parseInt(item.units_per_blister, 10) || 10;
 
         let baseUnitsToRestore = qty;
         if (item.fraction_type === 'box') {
           baseUnitsToRestore = qty * unitsPerBox;
         } else if (item.fraction_type === 'blister') {
-          baseUnitsToRestore = Math.round(qty * blistersPerBox);
+          baseUnitsToRestore = qty * unitsPerBlister;
         }
 
         if (item.lot_id) {
@@ -492,7 +498,7 @@ async function cancelSale(req, res, next) {
           if (lot) {
             const newUnits = parseInt(lot.stock_units, 10) + baseUnitsToRestore;
             const newBoxes = Math.floor(newUnits / unitsPerBox);
-            const newBlisters = Math.floor(newUnits / blistersPerBox);
+            const newBlisters = Math.floor(newUnits / unitsPerBlister);
 
             await run(
               `UPDATE lotes_fefo 

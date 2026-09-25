@@ -138,25 +138,29 @@ async function addMovement(req, res, next) {
         [shift.id, type, numAmount, concept.trim(), defaultResponsible]
       );
 
-      // 3. Recalcular balance del turno
-      let newExpenses = parseFloat(shift.expenses);
-      let newOpening = parseFloat(shift.opening_balance);
-      let newCashSales = parseFloat(shift.cash_sales);
+      // 3. Recalcular balance del turno protegiendo estrictamente opening_balance (fondo fijo inmutable)
+      const opening = parseFloat(shift.opening_balance); // INMUTABLE tras la apertura del turno
+      const cashSales = parseFloat(shift.cash_sales || 0);
 
-      if (type === 'egreso') {
-        newExpenses += numAmount;
-      } else {
-        // Ingreso extraordinario a fondo fijo
-        newOpening += numAmount;
-      }
+      const moveStats = await get(
+        `SELECT 
+           COALESCE(SUM(CASE WHEN type = 'egreso' THEN amount ELSE 0 END), 0) AS total_expenses,
+           COALESCE(SUM(CASE WHEN type = 'ingreso' THEN amount ELSE 0 END), 0) AS total_income
+         FROM caja_movimientos 
+         WHERE turno_id = $1`,
+        [shift.id]
+      );
 
-      const newExpected = Math.round(((newOpening + newCashSales) - newExpenses) * 100) / 100;
+      const totalExpenses = parseFloat(moveStats.total_expenses);
+      const totalIncome = parseFloat(moveStats.total_income);
+      const newExpected = Math.round(((opening + cashSales + totalIncome) - totalExpenses) * 100) / 100;
 
+      // Actualizar estrictamente expenses y expected_balance SIN tocar jamás opening_balance
       await run(
         `UPDATE caja_turnos 
-         SET expenses = $1, opening_balance = $2, expected_balance = $3 
-         WHERE id = $4`,
-        [newExpenses, newOpening, newExpected, shift.id]
+         SET expenses = $1, expected_balance = $2 
+         WHERE id = $3`,
+        [totalExpenses, newExpected, shift.id]
       );
 
       return {

@@ -5,6 +5,28 @@
  */
 
 // =============================================================
+// 0. UTILIDADES DE SEGURIDAD GLOBAL
+// =============================================================
+
+/**
+ * Escapa caracteres HTML peligrosos para prevenir ataques XSS (Stored & Reflected).
+ * Debe usarse en TODA interpolación de datos de usuario dentro de innerHTML.
+ * Hotfix: V-05, V-06, V-07 — QA Monkey Testing 2026-09-24
+ * @param {*} str - Valor a sanitizar (se convierte a string automáticamente)
+ * @returns {string} - String con caracteres HTML escapados de forma segura
+ */
+function escHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;');
+}
+
+// =============================================================
 // 1. DATASET DE PRUEBA: MEDICAMENTOS CON EQUIVALENCIAS DCI
 // =============================================================
 let testPharmacyCatalog = [
@@ -588,7 +610,7 @@ class AccessibilityEngine {
 
     try {
       localStorage.removeItem('valetec_accessibility_settings');
-    } catch (e) {}
+    } catch (e) { }
 
     showValetecToast("Accesibilidad restablecida a modo estándar.", "success");
   }
@@ -817,6 +839,38 @@ class NavigationController {
       return;
     }
 
+    // Hotfix V-04: Forzar cierre de todos los modales flotantes activos antes de cambiar de vista.
+    // Previene modales huérfanos con overlay bloqueante cuando el cajero usa atajos F-Key.
+    try {
+      if (typeof counterApp !== 'undefined' && counterApp) {
+        counterApp.toggleReceiptModal?.(false);
+        counterApp.toggleSalesHistoryModal?.(false);
+      }
+      if (typeof cashApp !== 'undefined' && cashApp) {
+        cashApp.toggleZModal?.(false);
+        cashApp.toggleModal?.(false);
+        cashApp.toggleOpenShiftModal?.(false);
+      }
+      if (typeof digemidApp !== 'undefined' && digemidApp) {
+        digemidApp.toggleModal?.(false);
+        digemidApp.toggleNewRecipeModal?.(false);
+        digemidApp.toggleBalanceModal?.(false);
+      }
+      if (typeof warehouseApp !== 'undefined' && warehouseApp) {
+        warehouseApp.toggleModal?.(false);
+        warehouseApp.closeAdjustmentModal?.();
+        warehouseApp.closeKardexModal?.();
+        warehouseApp.closeMedicineModal?.();
+      }
+      if (typeof window.clientsApp !== 'undefined' && window.clientsApp) {
+        window.clientsApp.closeQuickModal?.();
+        window.clientsApp.closeDirectoryModal?.();
+      }
+    } catch (modalErr) {
+      // No interrumpir la navegación si algún modal ya no existe en el DOM
+      console.warn('[V-04 Fix] Error cerrando modal al navegar:', modalErr.message);
+    }
+
     // Cerrar sidebar en dispositivos móviles al navegar
     if (window.innerWidth <= 1024) {
       document.getElementById('appNavBar')?.classList.remove('mobile-open');
@@ -857,7 +911,7 @@ class NavigationController {
     setInterval(() => {
       const now = new Date();
       const pad = (n) => n.toString().padStart(2, '0');
-      clock.innerText = `${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()} • ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+      clock.innerText = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} • ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
     }, 1000);
   }
 }
@@ -981,7 +1035,7 @@ class CounterModule {
         if (e.key === 'Enter') {
           e.preventDefault();
           if (this.searchQuery) {
-            const match = testPharmacyCatalog.find(p => 
+            const match = testPharmacyCatalog.find(p =>
               p.barcode === this.searchQuery ||
               p.name.toLowerCase().includes(this.searchQuery) ||
               p.genericDci.toLowerCase().includes(this.searchQuery)
@@ -1103,7 +1157,7 @@ class CounterModule {
           this.renderSalesHistoryRows(this.cachedSalesList);
           return;
         }
-        const filtered = this.cachedSalesList.filter(s => 
+        const filtered = this.cachedSalesList.filter(s =>
           (s.correlative && s.correlative.toLowerCase().includes(q)) ||
           (s.customerName && s.customerName.toLowerCase().includes(q)) ||
           (s.customerDoc && s.customerDoc.includes(q)) ||
@@ -1174,7 +1228,7 @@ class CounterModule {
 
     const filtered = testPharmacyCatalog.filter(p => {
       const matchCat = (this.currentCat === 'all' || p.category === this.currentCat);
-      const matchSearch = (!this.searchQuery || 
+      const matchSearch = (!this.searchQuery ||
         p.name.toLowerCase().includes(this.searchQuery) ||
         p.genericDci.toLowerCase().includes(this.searchQuery) ||
         p.barcode.includes(this.searchQuery)
@@ -1275,7 +1329,7 @@ class CounterModule {
       return;
     }
 
-    const matches = testPharmacyCatalog.filter(p => 
+    const matches = testPharmacyCatalog.filter(p =>
       p.name.toLowerCase().includes(this.searchQuery) ||
       p.genericDci.toLowerCase().includes(this.searchQuery) ||
       p.barcode.includes(this.searchQuery)
@@ -1341,14 +1395,27 @@ class CounterModule {
 
     let price = prod.boxPrice;
     let label = "Caja";
-    if (frac === 'blister') { price = prod.blisterPrice; label = "Blíster"; }
-    else if (frac === 'unit') { price = prod.unitPrice; label = "Pastilla"; }
+    // Calcular el stock máximo disponible según la fracción seleccionada
+    let maxQty = prod.stockBoxes || 0;
+    if (frac === 'blister') { price = prod.blisterPrice; label = "Blíster"; maxQty = prod.stockBlisters || 0; }
+    else if (frac === 'unit') { price = prod.unitPrice; label = "Pastilla"; maxQty = prod.stockUnits || 0; }
+
+    // Hotfix V-01: Bloquear si el stock máximo es 0 para esta fracción
+    if (maxQty <= 0) {
+      showValetecToast(`Sin stock de ${label} disponible para ${prod.name}.`, "danger");
+      return;
+    }
 
     const exist = this.order.find(i => i.product.id === prodId && i.frac === frac);
     if (exist) {
+      // Hotfix V-01: Cap de cantidad contra el stock real disponible
+      if (exist.qty >= maxQty) {
+        showValetecToast(`⚠️ Stock máximo alcanzado: ${maxQty} ${label}(s) disponibles de ${prod.name}.`, "warning");
+        return;
+      }
       exist.qty += 1;
     } else {
-      this.order.push({ product: prod, frac: frac, label: label, price: price, qty: 1 });
+      this.order.push({ product: prod, frac: frac, label: label, price: price, qty: 1, maxQty: maxQty });
     }
 
     this.updateUi();
@@ -1357,10 +1424,18 @@ class CounterModule {
 
   updateQty(index, delta) {
     if (!this.order[index]) return;
-    this.order[index].qty += delta;
-    if (this.order[index].qty <= 0) this.order.splice(index, 1);
+    const item = this.order[index];
+    const newQty = item.qty + delta;
+    // Hotfix V-01: Bloquear incremento si supera el stock máximo de la fracción
+    if (delta > 0 && item.maxQty !== undefined && newQty > item.maxQty) {
+      showValetecToast(`⚠️ Stock máximo: ${item.maxQty} ${item.label}(s) disponibles.`, "warning");
+      return;
+    }
+    item.qty = newQty;
+    if (item.qty <= 0) this.order.splice(index, 1);
     this.updateUi();
   }
+
 
   calcTotal() {
     return this.order.reduce((s, i) => s + (i.price * i.qty), 0);
@@ -1644,7 +1719,15 @@ class CounterModule {
   }
 
   async checkout() {
+    // Hotfix V-02: Guard inmediato contra Double Submission (race condition con múltiples clics rápidos)
+    if (this._checkoutInProgress) {
+      showValetecToast("⚠️ Procesando venta... por favor espera.", "warning");
+      return;
+    }
+    this._checkoutInProgress = true;
+
     if (this.order.length === 0) {
+      this._checkoutInProgress = false;
       showValetecToast("El carrito está vacío. Agrega medicinas antes de cobrar.", "warning");
       return;
     }
@@ -1653,6 +1736,7 @@ class CounterModule {
     if (needsRx) {
       const cmp = this.docCmpInput?.value.trim();
       if (!cmp) {
+        this._checkoutInProgress = false;
         showValetecToast("⚠️ ATENCIÓN: Esta orden contiene medicamentos bajo receta. Escribe el CMP médico.", "warning");
         this.docCmpInput?.focus();
         return;
@@ -1667,6 +1751,7 @@ class CounterModule {
     if (paymentMethod === 'cash') {
       const rec = parseFloat(this.cashInput?.value || 0);
       if (rec > 0 && rec < total) {
+        this._checkoutInProgress = false;
         showValetecToast(`⚠️ Dinero insuficiente. Total: S/ ${total.toFixed(2)}, Recibido: S/ ${rec.toFixed(2)}. Faltan S/ ${(total - rec).toFixed(2)}.`, "warning");
         return;
       }
@@ -1675,6 +1760,7 @@ class CounterModule {
       paymentReference = this.digitalRefInput ? this.digitalRefInput.value.trim() : null;
       amountPaid = total;
     }
+
 
     const invoiceType = document.querySelector('input[name="orderVoucherType"]:checked')?.value || 'ticket';
     const customerDoc = this.patientInput?.value.trim() || '00000000';
@@ -1759,9 +1845,12 @@ class CounterModule {
               p.stockBoxes = Math.max(0, (p.stockBoxes || 0) - item.qty);
               p.stockUnits = Math.max(0, (p.stockUnits || 0) - (item.qty * (p.unitsPerBox || 20)));
             } else if (item.frac === 'blister') {
-              const unitsPerBli = (p.unitsPerBox || 20) / (p.blistersPerBox || 2);
+              // Hotfix V-03: Se usaba p.blistersPerBox (indefinido → fallback 2, error 5×).
+              // Correcto: usar p.unitsPerBlister que sí existe en el catálogo.
+              const unitsPerBli = p.unitsPerBlister || (p.unitsPerBox ? Math.round(p.unitsPerBox / 10) : 10);
               p.stockUnits = Math.max(0, (p.stockUnits || 0) - Math.round(item.qty * unitsPerBli));
-              p.stockBoxes = Math.floor(p.stockUnits / (p.unitsPerBox || 20));
+              p.stockBlisters = Math.floor(p.stockUnits / (p.unitsPerBlister || 10));
+              p.stockBoxes = Math.floor(p.stockUnits / (p.unitsPerBox || 100));
             } else {
               p.stockUnits = Math.max(0, (p.stockUnits || 0) - item.qty);
               p.stockBoxes = Math.floor(p.stockUnits / (p.unitsPerBox || 20));
@@ -1824,6 +1913,8 @@ class CounterModule {
       showValetecToast(`🚨 Error en la venta: ${err.message}`, "error");
       showValetecToast(err.message, "danger");
     } finally {
+      // Hotfix V-02: Liberar el flag de protección contra double-submit
+      this._checkoutInProgress = false;
       btn.disabled = false;
       btn.innerHTML = origHtml;
     }
@@ -1907,18 +1998,18 @@ class CounterModule {
       return `
         <tr style="border-bottom: 1px solid #f1f5f9; ${!isCompleted ? 'background: #fff5f5; color: #94a3b8;' : ''}">
           <td style="padding: 10px 12px;">
-            <strong style="${!isCompleted ? 'text-decoration: line-through;' : ''}">${correlativeStr}</strong>
-            <span style="font-size: 10.5px; display: block; color: #64748b; text-transform: uppercase;">${s.invoiceType}</span>
+            <strong style="${!isCompleted ? 'text-decoration: line-through;' : ''}">${escHtml(correlativeStr)}</strong>
+            <span style="font-size: 10.5px; display: block; color: #64748b; text-transform: uppercase;">${escHtml(s.invoiceType)}</span>
           </td>
           <td style="padding: 10px 8px; white-space: nowrap;">
-            <small>${s.createdAt || 'Hoy'}</small>
+            <small>${escHtml(s.createdAt || 'Hoy')}</small>
           </td>
           <td style="padding: 10px 8px;">
-            <div style="font-weight: 600; color: #1e293b;">${s.customerName || 'CLIENTE GENERAL'}</div>
-            <small class="text-muted">${s.customerDoc || '00000000'}</small>
+            <div style="font-weight: 600; color: #1e293b;">${escHtml(s.customerName || 'CLIENTE GENERAL')}</div>
+            <small class="text-muted">${escHtml(s.customerDoc || '00000000')}</small>
           </td>
           <td style="padding: 10px 8px;">
-            <span>${payIcon} ${payLabel}</span>
+            <span>${payIcon} ${escHtml(payLabel)}</span>
           </td>
           <td style="padding: 10px 12px; text-align: right;">
             <strong style="font-size: 13px; color: ${isCompleted ? '#0f172a' : '#94a3b8'}; ${!isCompleted ? 'text-decoration: line-through;' : ''}">
@@ -2142,8 +2233,11 @@ class CashModule {
     if (this.btnSaveExp) {
       this.btnSaveExp.addEventListener('click', async () => {
         const val = parseFloat(this.expAmountInput?.value || 0);
-        if (val <= 0) {
-          showValetecToast("Ingresa un monto válido mayor a S/ 0.00.", "warning");
+        // Hotfix V-09: Validar también NaN (ocurre si el usuario pega texto en el campo).
+        // Un NaN en expenses contaminaría todos los cálculos de cuadre con NaN.
+        if (isNaN(val) || val <= 0) {
+          showValetecToast("Ingresa un monto numérico válido mayor a S/ 0.00.", "warning");
+          this.expAmountInput?.focus();
           return;
         }
 
@@ -2180,7 +2274,7 @@ class CashModule {
     document.getElementById('btnTriggerZClose')?.addEventListener('click', () => {
       const physical = this.calcPhysicalTotal();
       const expected = (this.openingBalance + this.cashSales) - this.expenses;
-      
+
       if (this.zExpectedDisplay) {
         this.zExpectedDisplay.innerText = `S/ ${expected.toFixed(2)}`;
       }
@@ -2260,6 +2354,14 @@ class CashModule {
     const physical = audit.counted;
     const expected = audit.expected;
     const diff = audit.diff;
+
+    // Hotfix V-08: Rechazar valores inválidos (NaN o negativos) antes de sellar el turno.
+    // Previene Cierre Z sellado con datos matemáticamente corruptos.
+    if (isNaN(physical) || physical < 0) {
+      showValetecToast("⚠️ Ingresa un monto válido de efectivo físico (mayor o igual a S/ 0.00) antes de sellar el turno.", "warning");
+      this.zCountedInput?.focus();
+      return;
+    }
 
     const confirmBtn = this.btnConfirmZAction;
     const origText = confirmBtn ? confirmBtn.innerHTML : '';
@@ -2824,7 +2926,7 @@ class WarehouseModule {
     document.getElementById('medGenericDci').value = prod.genericDci || '';
     document.getElementById('medBarcode').value = prod.barcode || '';
     document.getElementById('medLaboratory').value = prod.laboratory || '';
-    
+
     // Categoría
     const catMap = { 'dolor': 1, 'antibioticos': 2, 'digestivos': 3, 'controlados': 4, 'vitaminas': 5, 'respiratorio': 6 };
     const catSelect = document.getElementById('medCategoryId');
@@ -3103,6 +3205,32 @@ class WarehouseModule {
         this.closeAdjustmentModal();
         await syncWithBackend();
         this.loadFefoAlerts();
+      } else {
+        // Hotfix V-10: Modo contingencia offline — aplicar ajuste al catálogo local en memoria.
+        // Antes, en modo offline el ajuste se ignoraba silenciosamente mostrando toast de éxito falso.
+        const prod = testPharmacyCatalog.find(p => p.id === productId);
+        if (prod) {
+          const unitsToAdjust = unitType === 'boxes'
+            ? quantity * (prod.unitsPerBox || 100)
+            : unitType === 'blisters'
+              ? quantity * (prod.unitsPerBlister || 10)
+              : quantity;
+
+          if (adjustmentType === 'out' || adjustmentType === 'spoilage' || adjustmentType === 'expired') {
+            prod.stockUnits = Math.max(0, prod.stockUnits - unitsToAdjust);
+          } else {
+            prod.stockUnits = prod.stockUnits + unitsToAdjust;
+          }
+          prod.stockBoxes = Math.floor(prod.stockUnits / (prod.unitsPerBox || 100));
+          prod.stockBlisters = Math.floor(prod.stockUnits / (prod.unitsPerBlister || 10));
+
+          this.closeAdjustmentModal();
+          this.render();
+          if (typeof counterApp !== 'undefined') counterApp.renderProducts();
+          showValetecToast(`⚠️ Ajuste local aplicado (modo contingencia): ${quantity} ${unitType} de "${prod.name}". Sincronizar con PostgreSQL al reconectar.`, "warning");
+        } else {
+          showValetecToast("Error: Medicamento no encontrado en el catálogo local.", "danger");
+        }
       }
     } catch (err) {
       showValetecToast("Error al aplicar ajuste: " + err.message, "error");
@@ -3509,8 +3637,8 @@ class DigemidModule {
             // 3. Cargar el medicamento recetado al carrito
             if (typeof counterApp !== 'undefined' && counterApp) {
               const medText = (r.medication || '').toLowerCase();
-              let matched = testPharmacyCatalog.find(p => 
-                medText.includes(p.name.toLowerCase()) || 
+              let matched = testPharmacyCatalog.find(p =>
+                medText.includes(p.name.toLowerCase()) ||
                 p.name.toLowerCase().includes(medText) ||
                 (p.genericDci && medText.includes(p.genericDci.toLowerCase()))
               );
@@ -3785,8 +3913,8 @@ class DigemidModule {
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div>
                 <strong style="color: #6b21a8; font-size: 11px;">🔒 Custodia en Caja Fuerte (Lista IV):</strong>
-                <div style="color: #4b5563; font-size: 10.5px;">${vault.productName} • <em>${vault.genericDci}</em></div>
-                <small style="color: #9333ea; font-weight: 600;">Ubicación: ${vault.location}</small>
+                <div style="color: #4b5563; font-size: 10.5px;">${escHtml(vault.productName)} • <em>${escHtml(vault.genericDci)}</em></div>
+                <small style="color: #9333ea; font-weight: 600;">Ubicación: ${escHtml(vault.location)}</small>
               </div>
               <div style="text-align: right;">
                 <span style="font-size: 16px; font-weight: 900; color: #7e22ce;">${vault.unitsInVault}</span>
@@ -3811,16 +3939,15 @@ class DigemidModule {
             <tbody>
               ${records.map((rec, i) => `
                 <tr style="border-bottom: 1px solid #f1f5f9; background: ${i % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                  <td style="padding: 5px 8px; font-family: monospace; font-weight: 700; color: #0369a1;">${rec.folio}</td>
-                  <td style="padding: 5px 8px;"><strong>${rec.patientName}</strong><br><span style="color: #64748b;">${rec.patientDni}</span></td>
-                  <td style="padding: 5px 8px;">${rec.doctorName}<br><span style="color: #0284c7; font-weight: 700;">${rec.doctorCmp}</span></td>
-                  <td style="padding: 5px 8px;">${rec.medication}</td>
+                  <td style="padding: 5px 8px; font-family: monospace; font-weight: 700; color: #0369a1;">${escHtml(rec.folio)}</td>
+                  <td style="padding: 5px 8px;"><strong>${escHtml(rec.patientName)}</strong><br><span style="color: #64748b;">${escHtml(rec.patientDni)}</span></td>
+                  <td style="padding: 5px 8px;">${escHtml(rec.doctorName)}<br><span style="color: #0284c7; font-weight: 700;">${escHtml(rec.doctorCmp)}</span></td>
+                  <td style="padding: 5px 8px;">${escHtml(rec.medication)}</td>
                   <td style="padding: 5px 8px; text-align: center;">
-                    <span style="display: inline-block; padding: 2px 6px; border-radius: 10px; font-size: 9px; font-weight: 800; ${
-                      rec.status === 'dispensed' ? 'background: #dbeafe; color: #1d4ed8;' :
-                      rec.status === 'approved' ? 'background: #dcfce7; color: #15803d;' :
-                      'background: #fef9c3; color: #854d0e;'
-                    }">
+                    <span style="display: inline-block; padding: 2px 6px; border-radius: 10px; font-size: 9px; font-weight: 800; ${rec.status === 'dispensed' ? 'background: #dbeafe; color: #1d4ed8;' :
+        rec.status === 'approved' ? 'background: #dcfce7; color: #15803d;' :
+          'background: #fef9c3; color: #854d0e;'
+      }">
                       ${rec.status === 'dispensed' ? 'Dispensada' : rec.status === 'approved' ? 'Aprobada' : 'Retenida'}
                     </span>
                   </td>
@@ -3862,12 +3989,15 @@ class DigemidModule {
     const printContent = document.getElementById('printSanitaryBalanceArea');
     if (!printContent) return;
 
+    // Hotfix V-07: Sanitizado previo en openBalanceReport con escHtml() y CSP en ventana popup
     const printWin = window.open('', '_blank', 'width=780,height=800');
     if (printWin) {
       printWin.document.write(`
         <!DOCTYPE html>
         <html>
           <head>
+            <meta charset="UTF-8">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; img-src 'self' data:;">
             <title>Balance Sanitario Oficial DIGEMID - Valetec Pharma</title>
             <style>
               body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; color: #0f172a; }
@@ -3938,17 +4068,17 @@ class DigemidModule {
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">
           <div>
             <strong style="color: var(--valetec-navy); font-size: 13px;">EXPEDIENTE SANITARIO DE RECETA MÉDICA</strong><br>
-            <span style="color: var(--valetec-blue); font-family: monospace; font-size: 12px; font-weight: 800;">${r.folio}</span>
+            <span style="color: var(--valetec-blue); font-family: monospace; font-size: 12px; font-weight: 800;">${escHtml(r.folio)}</span>
           </div>
           ${statusChip}
         </div>
-        <p style="margin: 4px 0; font-size: 12px;"><strong>👤 Paciente:</strong> ${r.patientName} &nbsp;|&nbsp; <strong>DNI:</strong> <code>${r.patientDni}</code></p>
-        <p style="margin: 4px 0; font-size: 12px;"><strong>👨‍⚕️ Médico Prescriptor:</strong> ${r.doctorName} &nbsp;|&nbsp; <strong>Colegiatura:</strong> <span class="shelf-tag">${r.doctorCmp}</span></p>
-        <p style="margin: 4px 0; font-size: 12px;"><strong>📅 Fecha de Emisión:</strong> ${r.dateIssued}</p>
+        <p style="margin: 4px 0; font-size: 12px;"><strong>👤 Paciente:</strong> ${escHtml(r.patientName)} &nbsp;|&nbsp; <strong>DNI:</strong> <code>${escHtml(r.patientDni)}</code></p>
+        <p style="margin: 4px 0; font-size: 12px;"><strong>👨‍⚕️ Médico Prescriptor:</strong> ${escHtml(r.doctorName)} &nbsp;|&nbsp; <strong>Colegiatura:</strong> <span class="shelf-tag">${escHtml(r.doctorCmp)}</span></p>
+        <p style="margin: 4px 0; font-size: 12px;"><strong>📅 Fecha de Emisión:</strong> ${escHtml(r.dateIssued)}</p>
         <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:10px; margin:10px 0;">
           <strong style="color: var(--valetec-navy); font-size: 12px;">Rp. Medicamento Controlado &amp; Posología:</strong>
-          <p style="font-size: 13.5px; font-weight: 800; color: #0066cc; margin: 4px 0;">${r.medication}</p>
-          <small style="color: var(--text-muted);"><strong>📌 Custodia:</strong> ${r.notes || 'En archivo de regencia'}</small>
+          <p style="font-size: 13.5px; font-weight: 800; color: #0066cc; margin: 4px 0;">${escHtml(r.medication)}</p>
+          <small style="color: var(--text-muted);"><strong>📌 Custodia:</strong> ${escHtml(r.notes) || 'En archivo de regencia'}</small>
         </div>
         <div style="font-size: 11px; color: #64748b; background: #f1f5f9; padding: 6px 10px; border-radius: 4px;">
           ⚖️ Cumplimiento estricto D.S. 023-2001-SA (Reglamento de Estupefacientes y Psicotrópicos).
@@ -3997,16 +4127,16 @@ class DigemidModule {
 
       return `
         <tr>
-          <td><strong>${r.folio}</strong></td>
-          <td><strong>${r.patientName}</strong></td>
-          <td><code>${r.patientDni}</code></td>
-          <td>${r.doctorName}</td>
-          <td><span class="shelf-tag">${r.doctorCmp}</span></td>
-          <td><strong>${r.medication}</strong></td>
-          <td>${r.dateIssued}</td>
+          <td><strong>${escHtml(r.folio)}</strong></td>
+          <td><strong>${escHtml(r.patientName)}</strong></td>
+          <td><code>${escHtml(r.patientDni)}</code></td>
+          <td>${escHtml(r.doctorName)}</td>
+          <td><span class="shelf-tag">${escHtml(r.doctorCmp)}</span></td>
+          <td><strong>${escHtml(r.medication)}</strong></td>
+          <td>${escHtml(r.dateIssued)}</td>
           <td>${badge}</td>
           <td>
-            <button type="button" class="btn-action-outline" style="padding: 4px 10px; font-size: 11px; font-weight: 700;" onclick="digemidApp.viewRecord('${r.folio}')">
+            <button type="button" class="btn-action-outline" style="padding: 4px 10px; font-size: 11px; font-weight: 700;" onclick="digemidApp.viewRecord('${escHtml(r.folio)}')">
               <span>👁️ Ver Receta</span>
             </button>
           </td>
@@ -4270,7 +4400,7 @@ class StaffManagementModule {
     showValetecToast(`Permisos y horarios de ${member.name} actualizados exitosamente.`, 'success');
   }
 
-// =============================================================
+  // =============================================================
 }
 
 // 10. MÓDULO DE CLASIFICACIÓN (CATEGORÍAS Y LABORATORIOS) - MÓDULO 2
@@ -4769,12 +4899,13 @@ class ClientsModule {
 
     if (docInput) docInput.value = client.documentNumber;
     if (statusLine) {
+      // Hotfix V-06: Escapar fullName contra XSS Stored desde backend/formulario de clientes
       statusLine.innerHTML = `
-        <span class="p-name">👤 ${client.fullName}</span>
-        <span class="p-points"><i class="bi bi-star-fill text-warning"></i> ${client.pointsBalance || 0} Puntos</span>
+        <span class="p-name">👤 ${escHtml(client.fullName)}</span>
+        <span class="p-points"><i class="bi bi-star-fill text-warning"></i> ${parseInt(client.pointsBalance, 10) || 0} Puntos</span>
       `;
     }
-    showValetecToast(`Cliente "${client.fullName}" asignado a la venta en curso.`, "success");
+    showValetecToast(`Cliente "${escHtml(client.fullName)}" asignado a la venta en curso.`, "success");
   }
 
   openDirectoryModal() {
@@ -4830,32 +4961,33 @@ class ClientsModule {
 
     this.tableBody.innerHTML = clients.map(c => {
       const isRuc = c.documentType === 'RUC';
-      const badgeStyle = isRuc 
-        ? 'background: #f3e8ff; color: #7e22ce;' 
+      const badgeStyle = isRuc
+        ? 'background: #f3e8ff; color: #7e22ce;'
         : (c.documentType === 'DNI' ? 'background: #e0f2fe; color: #0369a1;' : 'background: #f1f5f9; color: #475569;');
-      const clientJson = JSON.stringify({
+      const clientSafeData = {
         id: c.id,
         documentType: c.documentType,
         documentNumber: c.documentNumber,
         fullName: c.fullName,
         pointsBalance: c.pointsBalance || 0
-      }).replace(/"/g, '&quot;');
+      };
+      const clientJson = encodeURIComponent(JSON.stringify(clientSafeData));
 
       return `
         <tr>
           <td>
             <span class="badge" style="${badgeStyle} font-weight: 800; padding: 3px 6px; border-radius: 4px; font-size: 11px;">
-              ${c.documentType}
+              ${escHtml(c.documentType)}
             </span>
-            <strong style="margin-left: 6px; font-family: monospace;">${c.documentNumber}</strong>
+            <strong style="margin-left: 6px; font-family: monospace;">${escHtml(c.documentNumber)}</strong>
           </td>
-          <td><strong>${c.fullName}</strong></td>
-          <td><small>${c.phone || '—'}</small></td>
-          <td><small style="color: #64748b;">${c.email || '—'}</small></td>
-          <td><small style="color: #64748b;">${c.address || '—'}</small></td>
+          <td><strong>${escHtml(c.fullName)}</strong></td>
+          <td><small>${escHtml(c.phone) || '—'}</small></td>
+          <td><small style="color: #64748b;">${escHtml(c.email) || '—'}</small></td>
+          <td><small style="color: #64748b;">${escHtml(c.address) || '—'}</small></td>
           <td style="text-align: center;">
             <span class="badge" style="background: #fefce8; color: #a16207; font-weight: 700; padding: 4px 8px; border-radius: 6px;">
-              ⭐ ${c.pointsBalance || 0}
+              ⭐ ${parseInt(c.pointsBalance, 10) || 0}
             </span>
           </td>
           <td style="text-align: right; white-space: nowrap;">
@@ -4870,7 +5002,13 @@ class ClientsModule {
 
   selectAndAssign(clientJsonStr) {
     try {
-      const client = JSON.parse(clientJsonStr.replace(/&quot;/g, '"'));
+      let raw = clientJsonStr;
+      if (typeof raw === 'string' && raw.includes('%')) {
+        raw = decodeURIComponent(raw);
+      } else if (typeof raw === 'string') {
+        raw = raw.replace(/&quot;/g, '"');
+      }
+      const client = typeof raw === 'object' ? raw : JSON.parse(raw);
       this.assignClientToCounter(client);
       this.closeDirectoryModal();
     } catch (e) {
@@ -5714,7 +5852,7 @@ async function syncWithBackend() {
       if (settingsApp) {
         await settingsApp.loadSettings();
       }
-    } catch (_) {}
+    } catch (_) { }
 
     showValetecToast("Sincronizado con Backend Node.js y PostgreSQL 16.", "success");
   } catch (err) {
@@ -5726,42 +5864,42 @@ async function syncWithBackend() {
 // =============================================================
 // PUENTE DE COMPATIBILIDAD GLOBAL EN WINDOW (V3.1)
 // =============================================================
-window.openExchangeModal = function(e, medName, lot, supplier, qty) {
+window.openExchangeModal = function (e, medName, lot, supplier, qty) {
   if (window.warehouseApp) return window.warehouseApp.openExchangeModal(e, medName, lot, supplier, qty);
   const m = document.getElementById('exchangeModal');
   if (m) m.classList.add('active');
 };
-window.closeExchangeModal = function(e) {
+window.closeExchangeModal = function (e) {
   if (window.warehouseApp) return window.warehouseApp.closeExchangeModal(e);
   const m = document.getElementById('exchangeModal');
   if (m) m.classList.remove('active');
 };
-window.openNewStaffModal = function(e) {
+window.openNewStaffModal = function (e) {
   if (window.staffApp) return window.staffApp.openNewStaffModal(e);
   const m = document.getElementById('newStaffModal');
   if (m) m.classList.add('active');
 };
-window.closeNewStaffModal = function(e) {
+window.closeNewStaffModal = function (e) {
   if (window.staffApp) return window.staffApp.closeNewStaffModal(e);
   const m = document.getElementById('newStaffModal');
   if (m) m.classList.remove('active');
 };
-window.openPermissionsModal = function(index, e) {
+window.openPermissionsModal = function (index, e) {
   if (window.staffApp) return window.staffApp.openPermissionsModal(index, e);
   const m = document.getElementById('staffPermissionsModal');
   if (m) m.classList.add('active');
 };
-window.closePermissionsModal = function(e) {
+window.closePermissionsModal = function (e) {
   if (window.staffApp) return window.staffApp.closePermissionsModal(e);
   const m = document.getElementById('staffPermissionsModal');
   if (m) m.classList.remove('active');
 };
-window.openWhatsAppOrderModal = function(e) {
+window.openWhatsAppOrderModal = function (e) {
   if (window.managementApp) return window.managementApp.openWhatsAppOrderModal(e);
   const m = document.getElementById('whatsappOrderModal');
   if (m) m.classList.add('active');
 };
-window.closeWhatsAppModal = function(e) {
+window.closeWhatsAppModal = function (e) {
   if (window.managementApp) return window.managementApp.closeWhatsAppModal(e);
   const m = document.getElementById('whatsappOrderModal');
   if (m) m.classList.remove('active');
