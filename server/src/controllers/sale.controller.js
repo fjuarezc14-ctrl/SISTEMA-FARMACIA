@@ -483,6 +483,7 @@ async function cancelSale(req, res, next) {
 
       // 3. Restituir stock lote por lote en lotes_fefo
       for (const item of items) {
+        const qty = parseInt(item.quantity, 10) || 0;
         const unitsPerBox = parseInt(item.units_per_box, 10) || 100;
         const unitsPerBlister = parseInt(item.units_per_blister, 10) || 10;
 

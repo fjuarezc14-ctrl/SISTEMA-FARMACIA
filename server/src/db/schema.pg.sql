@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS productos (
   prescription_type VARCHAR(20) NOT NULL DEFAULT 'free' CHECK(prescription_type IN ('free', 'required', 'retained')),
   generic_alt_id INTEGER REFERENCES productos(id) ON UPDATE CASCADE ON DELETE SET NULL,
   generic_saving_percent INTEGER DEFAULT 0,
+  sanitary_registry VARCHAR(100),
+  status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'inactive')),
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -132,6 +134,8 @@ CREATE TABLE IF NOT EXISTS ventas (
   change_given NUMERIC(10, 2) NOT NULL DEFAULT 0.00 CHECK(change_given >= 0),
   payment_reference VARCHAR(100),
   status VARCHAR(20) NOT NULL DEFAULT 'completed' CHECK(status IN ('completed', 'cancelled')),
+  hash_cpe TEXT,
+  xml_ubl TEXT,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -187,6 +191,26 @@ CREATE TABLE IF NOT EXISTS configuraciones (
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Registro inicial de configuración empresarial (Fila ID = 1 para el módulo de Ajustes)
+INSERT INTO configuraciones (
+  id, company_name, commercial_name, ruc, address, phone, email, 
+  currency_symbol, currency_code, igv_percent, sanitary_license, technical_director, invoice_footer_text
+) VALUES (
+  1,
+  'BOTICA VALETEC PHARMA S.A.C.',
+  'VALETEC PHARMA',
+  '20601234567',
+  'Av. Aviación 2450, San Borja, Lima',
+  '(01) 480-1234',
+  'contacto@valetec.pe',
+  'S/',
+  'PEN',
+  18.00,
+  'AUT-DIGEMID-2026-904',
+  'Q.F. Carlos Mendoza Paredes (C.Q.F.P. 14208)',
+  'Gracias por su compra en Valetec Pharma. Conserve su comprobante.'
+) ON CONFLICT (id) DO NOTHING;
 
 -- 14. Kardex Físico y Trazabilidad de Movimientos
 CREATE TABLE IF NOT EXISTS kardex (

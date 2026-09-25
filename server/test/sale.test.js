@@ -26,6 +26,22 @@ async function runSaleTests() {
   const port = server.address().port;
   const baseUrl = `http://127.0.0.1:${port}/api/sales`;
 
+  const jwt = require('jsonwebtoken');
+  const config = require('../src/config/env');
+  const testToken = jwt.sign(
+    { id: 1, name: 'Admin Test', roleKey: 'admin', roleLabel: 'Administrador' },
+    config.jwtSecret,
+    { expiresIn: '2h' }
+  );
+  const _fetch = global.fetch;
+  const fetch = (url, options = {}) => {
+    const headers = {
+      'Authorization': `Bearer ${testToken}`,
+      ...(options.headers || {})
+    };
+    return _fetch(url, { ...options, headers });
+  };
+
   try {
     // 1. Rechazo de venta vacía
     await test('Rechaza venta sin medicamentos en el carrito (400 Bad Request)', async () => {
