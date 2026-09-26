@@ -5,14 +5,40 @@ const { transaction, query, get } = require('../db');
  */
 async function getCurrentShift(req, res, next) {
   try {
-    const shift = await get(
-      `SELECT t.*, u.name as cashier_name, u.email as cashier_email 
-       FROM caja_turnos t 
-       LEFT JOIN usuarios u ON t.user_id = u.id 
-       WHERE t.status = 'open' 
-       ORDER BY t.id DESC 
-       LIMIT 1`
-    );
+    const activeUserId = (req.user && req.user.id) ? req.user.id : null;
+    const requestedShiftId = req.query.shiftId ? parseInt(req.query.shiftId, 10) : null;
+
+    let shift = null;
+    if (requestedShiftId && !isNaN(requestedShiftId)) {
+      shift = await get(
+        `SELECT t.*, u.name as cashier_name, u.email as cashier_email 
+         FROM caja_turnos t 
+         LEFT JOIN usuarios u ON t.user_id = u.id 
+         WHERE t.id = $1 AND t.status = 'open'`,
+        [requestedShiftId]
+      );
+    } else if (activeUserId) {
+      shift = await get(
+        `SELECT t.*, u.name as cashier_name, u.email as cashier_email 
+         FROM caja_turnos t 
+         LEFT JOIN usuarios u ON t.user_id = u.id 
+         WHERE t.user_id = $1 AND t.status = 'open' 
+         ORDER BY t.id DESC 
+         LIMIT 1`,
+        [activeUserId]
+      );
+    }
+
+    if (!shift) {
+      shift = await get(
+        `SELECT t.*, u.name as cashier_name, u.email as cashier_email 
+         FROM caja_turnos t 
+         LEFT JOIN usuarios u ON t.user_id = u.id 
+         WHERE t.status = 'open' 
+         ORDER BY t.id DESC 
+         LIMIT 1`
+      );
+    }
 
     if (!shift) {
       return res.status(200).json({
@@ -92,7 +118,7 @@ async function getCurrentShift(req, res, next) {
  */
 async function addMovement(req, res, next) {
   try {
-    const { amount, concept, responsible, type = 'egreso' } = req.body;
+    const { amount, concept, responsible, type = 'egreso', shiftId } = req.body;
 
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
@@ -122,8 +148,21 @@ async function addMovement(req, res, next) {
     const defaultResponsible = (req.user && req.user.name) ? req.user.name : (responsible || 'Cajero de Turno');
 
     const result = await transaction(async ({ run, get }) => {
-      // 1. Obtener turno abierto
-      const shift = await get("SELECT * FROM caja_turnos WHERE status = 'open' ORDER BY id DESC LIMIT 1");
+      // 1. Obtener turno abierto (priorizar turno del cajero o shiftId solicitado)
+      const activeUserId = (req.user && req.user.id) ? req.user.id : null;
+      const targetShiftId = shiftId ? parseInt(shiftId, 10) : null;
+
+      let shift = null;
+      if (targetShiftId && !isNaN(targetShiftId)) {
+        shift = await get("SELECT * FROM caja_turnos WHERE id = $1 AND status = 'open'", [targetShiftId]);
+      } else if (activeUserId) {
+        shift = await get("SELECT * FROM caja_turnos WHERE user_id = $1 AND status = 'open' ORDER BY id DESC LIMIT 1", [activeUserId]);
+      }
+
+      if (!shift) {
+        shift = await get("SELECT * FROM caja_turnos WHERE status = 'open' ORDER BY id DESC LIMIT 1");
+      }
+
       if (!shift) {
         const err = new Error('No hay ningún turno de caja abierto para registrar movimientos.');
         err.statusCode = 400;
@@ -191,7 +230,7 @@ async function addMovement(req, res, next) {
  */
 async function closeZ(req, res, next) {
   try {
-    const { countedBalance, denominations = {} } = req.body;
+    const { countedBalance, denominations = {}, shiftId } = req.body;
 
     const counted = parseFloat(countedBalance);
     if (isNaN(counted) || counted < 0) {
@@ -203,15 +242,55 @@ async function closeZ(req, res, next) {
     }
 
     const report = await transaction(async ({ run, get, query }) => {
-      // 1. Obtener turno abierto
-      const shift = await get(
-        `SELECT t.*, u.name as cashier_name 
-         FROM caja_turnos t 
-         LEFT JOIN usuarios u ON t.user_id = u.id 
-         WHERE t.status = 'open' 
-         ORDER BY t.id DESC 
-         LIMIT 1`
-      );
+      // 1. Obtener turno abierto para el usuario autenticado o ID específico
+      const activeUserId = (req.user && req.user.id) ? req.user.id : null;
+      const targetShiftId = shiftId ? parseInt(shiftId, 10) : null;
+
+      let shift = null;
+      if (targetShiftId && !isNaN(targetShiftId)) {
+        if (activeUserId && req.user.roleKey !== 'admin') {
+          // Cajero cerrando turno específico: debe pertenecer a su usuario
+          shift = await get(
+            `SELECT t.*, u.name as cashier_name 
+             FROM caja_turnos t 
+             LEFT JOIN usuarios u ON t.user_id = u.id 
+             WHERE t.id = $1 AND t.user_id = $2 AND t.status = 'open'`,
+            [targetShiftId, activeUserId]
+          );
+        } else {
+          // Admin o sin restricción
+          shift = await get(
+            `SELECT t.*, u.name as cashier_name 
+             FROM caja_turnos t 
+             LEFT JOIN usuarios u ON t.user_id = u.id 
+             WHERE t.id = $1 AND t.status = 'open'`,
+            [targetShiftId]
+          );
+        }
+      } else if (activeUserId) {
+        // Filtrar por el user_id de la sesión activa
+        shift = await get(
+          `SELECT t.*, u.name as cashier_name 
+           FROM caja_turnos t 
+           LEFT JOIN usuarios u ON t.user_id = u.id 
+           WHERE t.user_id = $1 AND t.status = 'open' 
+           ORDER BY t.id DESC 
+           LIMIT 1`,
+          [activeUserId]
+        );
+      }
+
+      // Fallback si no se encontró turno específico para el cajero
+      if (!shift) {
+        shift = await get(
+          `SELECT t.*, u.name as cashier_name 
+           FROM caja_turnos t 
+           LEFT JOIN usuarios u ON t.user_id = u.id 
+           WHERE t.status = 'open' 
+           ORDER BY t.id DESC 
+           LIMIT 1`
+        );
+      }
 
       if (!shift) {
         const err = new Error('No hay ningún turno de caja abierto para realizar el Cierre Z.');
@@ -324,13 +403,19 @@ async function openShift(req, res, next) {
       userId = defaultUser ? defaultUser.id : 1;
     }
 
-    // Verificar que no haya un turno ya abierto
-    const existing = await get("SELECT id FROM caja_turnos WHERE status = 'open' LIMIT 1");
+    // Verificar que este cajero o terminal no tenga ya un turno abierto
+    const existing = await get(
+      "SELECT id, terminal, user_id FROM caja_turnos WHERE status = 'open' AND (user_id = $1 OR terminal = $2) LIMIT 1",
+      [userId, terminal]
+    );
     if (existing) {
+      const reason = existing.user_id === userId
+        ? `Ya tienes un turno de caja abierto (ID: ${existing.id}).`
+        : `La terminal "${terminal}" ya tiene un turno abierto (ID: ${existing.id}).`;
       return res.status(400).json({
         success: false,
         statusCode: 400,
-        message: `Ya existe un turno abierto (ID: ${existing.id}). Debes realizar el Cierre Z antes de abrir otro.`
+        message: `${reason} Debes realizar el Cierre Z antes de abrir otro turno.`
       });
     }
 

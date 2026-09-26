@@ -29,6 +29,8 @@ async function createSale(req, res, next) {
       paymentMethod = 'cash',
       amountPaid,
       paymentReference = null,
+      doctorCmp = null,
+      recipeFolio = null,
       userId: bodyUserId
     } = req.body;
 
@@ -56,6 +58,32 @@ async function createSale(req, res, next) {
       });
     }
 
+    // Validación fiscal estricta SUNAT para Facturas Electrónicas (Evita rechazo Error 2014)
+    if (invoiceType === 'factura') {
+      const cleanRuc = (customerDoc || '').toString().trim();
+      if (!/^\d{11}$/.test(cleanRuc)) {
+        return res.status(400).json({
+          success: false,
+          statusCode: 400,
+          message: 'Para emitir Factura Electrónica, el RUC del receptor debe tener exactamente 11 dígitos numéricos.'
+        });
+      }
+      if (!cleanRuc.startsWith('10') && !cleanRuc.startsWith('20') && !cleanRuc.startsWith('15') && !cleanRuc.startsWith('17')) {
+        return res.status(400).json({
+          success: false,
+          statusCode: 400,
+          message: 'RUC inválido: Conforme a normativa SUNAT, el RUC de Factura debe iniciar con 10, 20, 15 o 17.'
+        });
+      }
+      if (!customerName || customerName.trim() === '' || customerName.trim().toUpperCase() === 'CLIENTE VARIOS') {
+        return res.status(400).json({
+          success: false,
+          statusCode: 400,
+          message: 'Para emitir Factura Electrónica debe registrarse la Razón Social válida de la empresa receptora.'
+        });
+      }
+    }
+
     const sanitizedRef = paymentReference ? String(paymentReference).trim() : null;
 
     // Identificar usuario autenticado (prioridad estricta para prevenir suplantación de identidad)
@@ -71,8 +99,14 @@ async function createSale(req, res, next) {
 
     // Ejecutar transacción atómica ACID
     const saleResult = await transaction(async ({ run, get, query }) => {
-      // 1. Obtener turno de caja abierto
-      const shift = await get("SELECT * FROM caja_turnos WHERE status = 'open' ORDER BY id DESC LIMIT 1");
+      // 1. Obtener turno de caja abierto (priorizar turno del cajero activo)
+      let shift = null;
+      if (activeUserId) {
+        shift = await get("SELECT * FROM caja_turnos WHERE user_id = $1 AND status = 'open' ORDER BY id DESC LIMIT 1", [activeUserId]);
+      }
+      if (!shift) {
+        shift = await get("SELECT * FROM caja_turnos WHERE status = 'open' ORDER BY id DESC LIMIT 1");
+      }
       const turnoId = shift ? shift.id : null;
 
       // 2. Determinar serie y correlativo
@@ -108,12 +142,29 @@ async function createSale(req, res, next) {
           throw err;
         }
 
-        let price = parseFloat(item.unitPrice);
-        if (isNaN(price) || price < 0) {
-          if (item.fractionType === 'box') price = parseFloat(prod.box_price);
-          else if (item.fractionType === 'blister') price = parseFloat(prod.blister_price);
-          else price = parseFloat(prod.unit_price);
+        // Validación sanitaria estricta DIGEMID (Psicotrópicos y Estupefacientes Lista IV)
+        if (prod.prescription_type === 'retained') {
+          const cmp = (item.doctorCmp || doctorCmp || '').toString().trim();
+          const folio = (item.recipeFolio || recipeFolio || '').toString().trim();
+          if (!cmp || !folio) {
+            const err = new Error(
+              `Dispensación bloqueada por DIGEMID: El fármaco "${prod.name}" es controlado (Lista IV - Receta Retenida) y exige registrar obligatoriamente el CMP del médico prescriptor y el folio de receta médica.`
+            );
+            err.statusCode = 400;
+            throw err;
+          }
         }
+
+        // Determinar precio oficial exclusivamente desde la base de datos (Inmune a Price Tampering)
+        let price = 0;
+        if (item.fractionType === 'box') {
+          price = parseFloat(prod.box_price);
+        } else if (item.fractionType === 'blister') {
+          price = parseFloat(prod.blister_price);
+        } else {
+          price = parseFloat(prod.unit_price);
+        }
+        price = Math.round(price * 100) / 100;
 
         const itemSubtotal = Math.round(price * qty * 100) / 100;
         calculatedTotal += itemSubtotal;
@@ -127,12 +178,12 @@ async function createSale(req, res, next) {
           baseUnitsNeeded = qty * unitsPerBlister;
         }
 
-        // Consultar lotes activos del producto con bloqueo de fila transaccional (H-02: FOR UPDATE)
-        // Bloquea las filas en PostgreSQL hasta el COMMIT, impidiendo sobreventas e inventario fantasma
+        // Consultar lotes activos vigentes (NO vencidos) con bloqueo de fila transaccional (H-02: FOR UPDATE)
+        // Bloquea las filas en PostgreSQL y previene la dispensación de lotes caducados (Normativa DIGEMID)
         const lots = await query(
           `SELECT id, lot_number, expire_date, stock_units, stock_boxes, stock_blisters 
            FROM lotes_fefo 
-           WHERE product_id = $1 AND stock_units > 0 
+           WHERE product_id = $1 AND stock_units > 0 AND expire_date >= CURRENT_DATE 
            ORDER BY expire_date ASC, id ASC
            FOR UPDATE`,
           [prod.id]
@@ -184,7 +235,28 @@ async function createSale(req, res, next) {
         changeGiven = 0;
       }
 
-      // 3.1 Generación de comprobante electrónico UBL 2.1 y Hash SHA-256 (SUNAT)
+      // 3.1 Cargar datos fiscales reales de la botica desde la tabla configuraciones (Ajustes)
+      let companyConfig = null;
+      try {
+        const companyDb = await get(`
+          SELECT company_name, commercial_name, ruc, address
+          FROM configuraciones
+          ORDER BY id ASC
+          LIMIT 1
+        `);
+        if (companyDb && companyDb.ruc) {
+          companyConfig = {
+            ruc: String(companyDb.ruc).trim(),
+            name: companyDb.company_name ? String(companyDb.company_name).trim() : 'VALETEC PHARMA S.A.C.',
+            tradeName: companyDb.commercial_name ? String(companyDb.commercial_name).trim() : 'VALETEC PHARMA',
+            address: companyDb.address ? String(companyDb.address).trim() : 'Av. Aviación 2450, San Borja'
+          };
+        }
+      } catch (e) {
+        // Fallback dinámico a COMPANY_CONFIG dentro de generateUBL21 si la tabla no está disponible
+      }
+
+      // 3.2 Generación de comprobante electrónico UBL 2.1 y Hash SHA-256 (SUNAT)
       let cpeData = null;
       if (['boleta', 'factura'].includes(invoiceType)) {
         cpeData = generateUBL21({
@@ -197,8 +269,9 @@ async function createSale(req, res, next) {
           igv: igvAmount,
           total: calculatedTotal,
           items: validatedItems,
-          createdAt: new Date()
-        });
+          createdAt: new Date(),
+          company: companyConfig
+        }, companyConfig);
       }
 
       // 4. Insertar cabecera de la venta en PostgreSQL
@@ -216,17 +289,18 @@ async function createSale(req, res, next) {
       );
       const saleId = insertSaleRes[0].id;
 
-      // 5. Deducción FEFO lote por lote y registro de partidas
+      // 5. Deducción FEFO lote por lote y registro de partidas por lote real
       const dispensedDetails = [];
 
       for (const item of validatedItems) {
         let remainingToDeduct = item.baseUnitsNeeded;
-        let primaryLotId = item.lots[0] ? item.lots[0].id : null;
 
         for (const lot of item.lots) {
           if (remainingToDeduct <= 0) break;
 
           const lotStock = parseInt(lot.stock_units, 10);
+          if (lotStock <= 0) continue;
+
           const deductFromThisLot = Math.min(remainingToDeduct, lotStock);
           const newUnits = lotStock - deductFromThisLot;
 
@@ -244,26 +318,44 @@ async function createSale(req, res, next) {
             [newUnits, newBoxes, newBlisters, newStatus, lot.id]
           );
 
+          // Calcular la fracción y precio correspondiente a la porción extraída de este lote
+          let partQty = deductFromThisLot;
+          let partFraction = 'unit';
+          let partPrice = item.unitPrice;
+
+          if (item.fractionType === 'box' && deductFromThisLot % uPerBox === 0) {
+            partQty = deductFromThisLot / uPerBox;
+            partFraction = 'box';
+          } else if (item.fractionType === 'blister' && deductFromThisLot % uPerBlister === 0) {
+            partQty = deductFromThisLot / uPerBlister;
+            partFraction = 'blister';
+          } else if (item.fractionType === 'box') {
+            partPrice = Math.round((item.unitPrice / uPerBox) * 100) / 100;
+          } else if (item.fractionType === 'blister') {
+            partPrice = Math.round((item.unitPrice / uPerBlister) * 100) / 100;
+          }
+
+          const partSubtotal = Math.round(partQty * partPrice * 100) / 100;
+
+          // Registrar partida exacta en ventas_detalles vinculada al lote real del que se extrajo el stock
+          await run(
+            `INSERT INTO ventas_detalles 
+             (sale_id, product_id, lot_id, fraction_type, quantity, unit_price, subtotal)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [saleId, item.productId, lot.id, partFraction, partQty, partPrice, partSubtotal]
+          );
+
+          dispensedDetails.push({
+            productName: item.productName,
+            fractionType: partFraction,
+            quantity: partQty,
+            unitPrice: partPrice,
+            subtotal: partSubtotal,
+            lotNumber: lot.lot_number
+          });
+
           remainingToDeduct -= deductFromThisLot;
-          primaryLotId = lot.id;
         }
-
-        // Registrar detalle de venta
-        await run(
-          `INSERT INTO ventas_detalles 
-           (sale_id, product_id, lot_id, fraction_type, quantity, unit_price, subtotal)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [saleId, item.productId, primaryLotId, item.fractionType, item.quantity, item.unitPrice, item.subtotal]
-        );
-
-        dispensedDetails.push({
-          productName: item.productName,
-          fractionType: item.fractionType,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          subtotal: item.subtotal,
-          lotNumber: item.lots[0] ? item.lots[0].lot_number : 'L-DEF'
-        });
       }
 
       // 6. Actualizar balance del turno de caja en PostgreSQL

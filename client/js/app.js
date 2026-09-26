@@ -2374,6 +2374,7 @@ class CashModule {
       if (window.api && window.api.isConnected) {
         const res = await window.api.closeZShift({
           countedBalance: physical,
+          shiftId: this.currentShift?.id,
           denominations: this.getDenominationsObject()
         });
 

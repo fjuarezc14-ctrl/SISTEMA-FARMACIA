@@ -269,17 +269,35 @@ async function getSanitaryBalance(req, res, next) {
       ORDER BY r.id ASC
     `);
 
+    let establishment = {
+      name: 'BOTICA VALETEC PHARMA S.A.C.',
+      ruc: '20601234567',
+      sanitaryLicense: 'DIRIS-LC N° 10842-FAR',
+      address: 'Av. Aviación 2450, San Borja, Lima',
+      technicalDirector: 'Dra. Elena Vega (Q.F. Reg. CQFP 18492)'
+    };
+
+    try {
+      const configRow = await get(`
+        SELECT company_name, ruc, address, sanitary_license, technical_director
+        FROM configuraciones
+        ORDER BY id ASC
+        LIMIT 1
+      `);
+      if (configRow) {
+        if (configRow.company_name) establishment.name = configRow.company_name;
+        if (configRow.ruc) establishment.ruc = configRow.ruc;
+        if (configRow.sanitary_license) establishment.sanitaryLicense = configRow.sanitary_license;
+        if (configRow.address) establishment.address = configRow.address;
+        if (configRow.technical_director) establishment.technicalDirector = configRow.technical_director;
+      }
+    } catch (e) {}
+
     res.status(200).json({
       success: true,
       statusCode: 200,
       data: {
-        establishment: {
-          name: 'BOTICA VALETEC PHARMA S.A.C.',
-          ruc: '20601234567',
-          sanitaryLicense: 'DIRIS-LC N° 10842-FAR',
-          address: 'Av. Aviación 2450, San Borja, Lima',
-          technicalDirector: 'Dra. Elena Vega (Q.F. Reg. CQFP 18492)'
-        },
+        establishment,
         summary: {
           totalLedgerEntries: parseInt(stats.total_records, 10),
           retainedCount: parseInt(stats.retained_count, 10),

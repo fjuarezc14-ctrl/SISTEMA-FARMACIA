@@ -340,9 +340,10 @@ ${linesXml}</Invoice>`;
   /**
    * Scaffolding para preparar el sobre SOAP y enviar el comprobante a SUNAT
    */
-  async sendBillSoap(signedXml, cpeId) {
+  async sendBillSoap(signedXml, cpeId, customCompany) {
+    const company = { ...this.companyConfig, ...(customCompany || {}) };
     const endpoint = this.getEndpointUrl();
-    const fileName = `${this.companyConfig.ruc}-${cpeId.replace('-', '_')}`;
+    const fileName = `${company.ruc}-${cpeId.replace('-', '_')}`;
 
     // Estructura del Envelope SOAP estándar de SUNAT
     const soapEnvelope = `

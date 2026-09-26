@@ -60,7 +60,7 @@ async function getAllProducts(req, res, next) {
       LEFT JOIN LATERAL (
         SELECT id, lot_number, expire_date, fefo_status
         FROM lotes_fefo
-        WHERE product_id = p.id AND stock_units > 0
+        WHERE product_id = p.id AND stock_units > 0 AND expire_date >= CURRENT_DATE
         ORDER BY expire_date ASC, id ASC
         LIMIT 1
       ) fefo ON true

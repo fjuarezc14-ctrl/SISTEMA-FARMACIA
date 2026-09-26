@@ -8,15 +8,15 @@ const crypto = require('crypto');
 
 // Datos fiscales del Emisor (Farmacia / Botica)
 const COMPANY_CONFIG = {
-  ruc: '20601234567',
-  name: 'VALETEC PHARMA S.A.C.',
-  tradeName: 'VALETEC PHARMA',
-  address: 'Av. Aviación 2450, San Borja',
-  city: 'Lima',
-  department: 'Lima',
-  district: 'San Borja',
-  countryCode: 'PE',
-  ubigeo: '150130'
+  ruc: process.env.COMPANY_RUC || '20601234567',
+  name: process.env.COMPANY_NAME || 'VALETEC PHARMA S.A.C.',
+  tradeName: process.env.COMPANY_TRADE_NAME || 'VALETEC PHARMA',
+  address: process.env.COMPANY_ADDRESS || 'Av. Aviación 2450, San Borja',
+  city: process.env.COMPANY_CITY || 'Lima',
+  department: process.env.COMPANY_DEPARTMENT || 'Lima',
+  district: process.env.COMPANY_DISTRICT || 'San Borja',
+  countryCode: process.env.COMPANY_COUNTRY_CODE || 'PE',
+  ubigeo: process.env.COMPANY_UBIGEO || '150130'
 };
 
 /**
@@ -104,7 +104,7 @@ function escapeXml(unsafe) {
  * Generar comprobante electrónico UBL 2.1 (Boleta o Factura)
  * Devuelve el XML con su Hash SHA-256 de firma digital y desglose de tributos.
  */
-function generateUBL21(saleData) {
+function generateUBL21(saleData, customCompany) {
   const {
     invoiceSeries,
     invoiceNumber,
@@ -115,8 +115,15 @@ function generateUBL21(saleData) {
     igv,
     total,
     items = [],
-    createdAt
+    createdAt,
+    company: saleCompany
   } = saleData;
+
+  const company = {
+    ...COMPANY_CONFIG,
+    ...(saleCompany || {}),
+    ...(customCompany || {})
+  };
 
   const isFactura = invoiceType === 'factura';
   const tipoCpe = isFactura ? '01' : '03'; // 01 Factura, 03 Boleta
@@ -209,10 +216,10 @@ function generateUBL21(saleData) {
   <cac:AccountingSupplierParty>
     <cac:Party>
       <cac:PartyIdentification>
-        <cbc:ID schemeID="6">${COMPANY_CONFIG.ruc}</cbc:ID>
+        <cbc:ID schemeID="6">${escapeXml(company.ruc)}</cbc:ID>
       </cac:PartyIdentification>
       <cac:PartyLegalEntity>
-        <cbc:RegistrationName>${escapeXml(COMPANY_CONFIG.name)}</cbc:RegistrationName>
+        <cbc:RegistrationName>${escapeXml(company.name)}</cbc:RegistrationName>
       </cac:PartyLegalEntity>
     </cac:Party>
   </cac:AccountingSupplierParty>
@@ -290,10 +297,10 @@ ${linesXml}
   <cac:AccountingSupplierParty>
     <cac:Party>
       <cac:PartyIdentification>
-        <cbc:ID schemeID="6">${COMPANY_CONFIG.ruc}</cbc:ID>
+        <cbc:ID schemeID="6">${escapeXml(company.ruc)}</cbc:ID>
       </cac:PartyIdentification>
       <cac:PartyLegalEntity>
-        <cbc:RegistrationName>${escapeXml(COMPANY_CONFIG.name)}</cbc:RegistrationName>
+        <cbc:RegistrationName>${escapeXml(company.name)}</cbc:RegistrationName>
       </cac:PartyLegalEntity>
     </cac:Party>
   </cac:AccountingSupplierParty>
@@ -371,8 +378,8 @@ class SunatService {
     return numberToLetters(amount);
   }
 
-  buildInvoiceXml(saleData) {
-    return generateUBL21(saleData);
+  buildInvoiceXml(saleData, customCompany) {
+    return generateUBL21(saleData, customCompany);
   }
 
   async signXml(xmlContent, customCertConfig) {
@@ -399,9 +406,10 @@ class SunatService {
     };
   }
 
-  async sendBillSoap(signedXml, cpeId) {
+  async sendBillSoap(signedXml, cpeId, customCompany) {
+    const company = { ...this.companyConfig, ...(customCompany || {}) };
     const endpoint = this.getEndpointUrl();
-    const fileName = `${this.companyConfig.ruc}-${cpeId.replace('-', '_')}`;
+    const fileName = `${company.ruc}-${cpeId.replace('-', '_')}`;
 
     const soapEnvelope = `
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://service.sunat.gob.pe" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
@@ -451,16 +459,49 @@ class SunatService {
   }
 }
 
+/**
+ * Obtener configuración de empresa dinámicamente desde PostgreSQL (tabla configuraciones)
+ * con fallback a COMPANY_CONFIG
+ */
+async function getCompanyConfigFromDb(dbHelper) {
+  try {
+    const queryFn = (dbHelper && dbHelper.get) ? dbHelper.get.bind(dbHelper) : require('../db').get;
+    const row = await queryFn(`
+      SELECT company_name, commercial_name, ruc, address, phone, email, currency_code, igv_percent
+      FROM configuraciones
+      ORDER BY id ASC
+      LIMIT 1
+    `);
+    if (row && row.ruc) {
+      return {
+        ruc: String(row.ruc).trim(),
+        name: row.company_name ? String(row.company_name).trim() : COMPANY_CONFIG.name,
+        tradeName: row.commercial_name ? String(row.commercial_name).trim() : (COMPANY_CONFIG.tradeName || COMPANY_CONFIG.name),
+        address: row.address ? String(row.address).trim() : COMPANY_CONFIG.address,
+        city: COMPANY_CONFIG.city,
+        department: COMPANY_CONFIG.department,
+        district: COMPANY_CONFIG.district,
+        countryCode: COMPANY_CONFIG.countryCode,
+        ubigeo: COMPANY_CONFIG.ubigeo
+      };
+    }
+  } catch (err) {
+    // Si la base de datos no está disponible o la tabla no existe, fallback a COMPANY_CONFIG
+  }
+  return { ...COMPANY_CONFIG };
+}
+
 const sunatSingleton = new SunatService();
 
 module.exports = {
   numberToLetters,
   generateUBL21,
   COMPANY_CONFIG,
+  getCompanyConfigFromDb,
   SunatService,
   sunatService: sunatSingleton,
-  buildInvoiceXml: (s) => generateUBL21(s),
+  buildInvoiceXml: (s, c) => generateUBL21(s, c),
   signXml: (xml, cfg) => sunatSingleton.signXml(xml, cfg),
-  sendBillSoap: (xml, id) => sunatSingleton.sendBillSoap(xml, id),
+  sendBillSoap: (xml, id, c) => sunatSingleton.sendBillSoap(xml, id, c),
   parseCdrResponse: (cdr) => sunatSingleton.parseCdrResponse(cdr)
 };
