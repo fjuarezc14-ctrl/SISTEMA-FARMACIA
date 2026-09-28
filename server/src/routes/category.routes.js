@@ -11,7 +11,7 @@ const { requireRoles } = require('../middlewares/role.middleware');
 
 const router = express.Router();
 
-router.get('/', authenticateToken, requireRoles('cashier', 'qf', 'admin'), getAllCategories);
+router.get('/', authenticateToken, requireRoles('cashier', 'tech', 'qf', 'admin'), getAllCategories);
 router.post('/', authenticateToken, requireRoles('qf', 'admin'), createCategory);
 router.post('/reassign', authenticateToken, requireRoles('qf', 'admin'), reassignCategory);
 router.put('/:id', authenticateToken, requireRoles('qf', 'admin'), updateCategory);

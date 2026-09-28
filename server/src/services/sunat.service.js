@@ -105,10 +105,12 @@ function escapeXml(unsafe) {
  * Devuelve el XML con su Hash SHA-256 de firma digital y desglose de tributos.
  */
 function generateUBL21(saleData, customCompany) {
-  const {
+  let {
     invoiceSeries,
     invoiceNumber,
     invoiceType = 'boleta',
+    cpeId: directCpeId,
+    voucherType,
     customerDoc = '00000000',
     customerName = 'CLIENTE VARIOS',
     subtotal,
@@ -118,6 +120,21 @@ function generateUBL21(saleData, customCompany) {
     createdAt,
     company: saleCompany
   } = saleData;
+
+  if (voucherType && !saleData.invoiceType) {
+    invoiceType = voucherType;
+  }
+
+  if (directCpeId && (!invoiceSeries || !invoiceNumber)) {
+    const parts = String(directCpeId).split('-');
+    if (parts.length >= 2) {
+      invoiceSeries = parts[0];
+      invoiceNumber = parts[1];
+    }
+  }
+
+  invoiceSeries = invoiceSeries || (invoiceType === 'factura' ? 'F001' : 'B001');
+  invoiceNumber = invoiceNumber || '000001';
 
   const company = {
     ...COMPANY_CONFIG,
@@ -340,6 +357,7 @@ ${linesXml}
     cpeId,
     tipoCpe,
     hash: hashDigest,
+    hashDigest,
     hashHex,
     totalInWords: montoLetras,
     taxBreakdown: {

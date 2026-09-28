@@ -11,6 +11,19 @@ const SERIES_MAP = {
 };
 
 /**
+ * Determina el estado FEFO de un lote según su fecha de caducidad
+ */
+function calculateFefoStatus(expireDateStr) {
+  if (!expireDateStr) return 'good';
+  const now = new Date();
+  const exp = new Date(expireDateStr);
+  const diffDays = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
+  if (diffDays <= 0) return 'expired';
+  if (diffDays <= 90) return 'warning';
+  return 'good';
+}
+
+/**
  * Transacción Atómica de Venta:
  * 1. Valida stock y disponibilidad en lotes FEFO.
  * 2. Genera correlativo consecutivo (B001-XXXX).
@@ -308,7 +321,7 @@ async function createSale(req, res, next) {
           const uPerBlister = item.unitsPerBlister || 10;
           const newBoxes = Math.floor(newUnits / uPerBox);
           const newBlisters = Math.floor(newUnits / uPerBlister);
-          const newStatus = newUnits === 0 ? 'expired' : 'good';
+          const newStatus = calculateFefoStatus(lot.expire_date);
 
           // Actualizar lote en PostgreSQL
           await run(
@@ -316,6 +329,27 @@ async function createSale(req, res, next) {
              SET stock_units = $1, stock_boxes = $2, stock_blisters = $3, fefo_status = $4, updated_at = NOW() 
              WHERE id = $5`,
             [newUnits, newBoxes, newBlisters, newStatus, lot.id]
+          );
+
+          // Registrar en Kardex físico (auditoría oficial de trazabilidad)
+          await run(
+            `INSERT INTO kardex (
+              product_id, lot_id, movement_type, reference_type, reference_id,
+              quantity, unit_type, previous_stock, new_stock, reason, user_name
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            [
+              item.productId,
+              lot.id,
+              'sale',
+              invoiceType.toUpperCase(),
+              formattedCorrelative,
+              -deductFromThisLot,
+              'unit',
+              lotStock,
+              newUnits,
+              `Venta ${formattedCorrelative} a ${customerName || 'Cliente Varios'}`,
+              req.user?.name || 'Personal Farmacia'
+            ]
           );
 
           // Calcular la fracción y precio correspondiente a la porción extraída de este lote
@@ -355,6 +389,28 @@ async function createSale(req, res, next) {
           });
 
           remainingToDeduct -= deductFromThisLot;
+        }
+      }
+
+      // 5.1 Actualizar estado de recetas DIGEMID si aplica (marcar como dispensadas)
+      const cleanFolio = (recipeFolio || '').toString().trim();
+      if (cleanFolio) {
+        await run(`UPDATE recetas_digemid SET status = 'dispensed' WHERE folio = $1`, [cleanFolio]);
+      }
+      for (const it of validatedItems) {
+        if (it.recipeFolio) {
+          await run(`UPDATE recetas_digemid SET status = 'dispensed' WHERE folio = $1`, [it.recipeFolio.toString().trim()]);
+        }
+      }
+
+      // 5.2 Acumulación de Puntos de Fidelización para Clientes Registrados
+      if (customerDoc && customerDoc !== '00000000') {
+        const pointsEarned = Math.floor(calculatedTotal);
+        if (pointsEarned > 0) {
+          await run(
+            `UPDATE clientes SET points_balance = points_balance + $1, updated_at = NOW() WHERE document_number = $2`,
+            [pointsEarned, customerDoc]
+          );
         }
       }
 
@@ -589,15 +645,38 @@ async function cancelSale(req, res, next) {
         if (item.lot_id) {
           const lot = await get('SELECT * FROM lotes_fefo WHERE id = $1 FOR UPDATE', [item.lot_id]);
           if (lot) {
-            const newUnits = parseInt(lot.stock_units, 10) + baseUnitsToRestore;
+            const lotStock = parseInt(lot.stock_units, 10);
+            const newUnits = lotStock + baseUnitsToRestore;
             const newBoxes = Math.floor(newUnits / unitsPerBox);
             const newBlisters = Math.floor(newUnits / unitsPerBlister);
+            const newStatus = calculateFefoStatus(lot.expire_date);
 
             await run(
               `UPDATE lotes_fefo 
-               SET stock_units = $1, stock_boxes = $2, stock_blisters = $3, fefo_status = 'good', updated_at = NOW() 
-               WHERE id = $4`,
-              [newUnits, newBoxes, newBlisters, lot.id]
+               SET stock_units = $1, stock_boxes = $2, stock_blisters = $3, fefo_status = $4, updated_at = NOW() 
+               WHERE id = $5`,
+              [newUnits, newBoxes, newBlisters, newStatus, lot.id]
+            );
+
+            // Registrar devolución formal en Kardex
+            await run(
+              `INSERT INTO kardex (
+                product_id, lot_id, movement_type, reference_type, reference_id,
+                quantity, unit_type, previous_stock, new_stock, reason, user_name
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+              [
+                item.product_id,
+                lot.id,
+                'sale_cancellation',
+                sale.invoice_type.toUpperCase(),
+                `${sale.invoice_series}-${String(sale.invoice_number).padStart(6, '0')}`,
+                baseUnitsToRestore,
+                'unit',
+                lotStock,
+                newUnits,
+                `Anulación de venta ${sale.invoice_series}-${String(sale.invoice_number).padStart(6, '0')}`,
+                req.user?.name || 'Administrador'
+              ]
             );
           }
         }
@@ -624,7 +703,18 @@ async function cancelSale(req, res, next) {
         }
       }
 
-      // 5. Marcar venta como anulada
+      // 5. Revocar puntos acumulados por la venta cancelada
+      if (sale.customer_doc && sale.customer_doc !== '00000000') {
+        const pointsToRevoke = Math.floor(parseFloat(sale.total));
+        if (pointsToRevoke > 0) {
+          await run(
+            `UPDATE clientes SET points_balance = GREATEST(0, points_balance - $1), updated_at = NOW() WHERE document_number = $2`,
+            [pointsToRevoke, sale.customer_doc]
+          );
+        }
+      }
+
+      // 6. Marcar venta como anulada
       await run(
         `UPDATE ventas 
          SET status = 'cancelled' 

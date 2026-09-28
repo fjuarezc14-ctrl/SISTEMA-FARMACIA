@@ -164,7 +164,8 @@ async function runSaleTests() {
 
     // 5. Impacto en Caja
     await test('Actualiza automáticamente el saldo esperado de la gaveta en PostgreSQL', async () => {
-      const shiftBefore = await get("SELECT cash_sales, expected_balance FROM caja_turnos WHERE status = 'open' LIMIT 1");
+      const shiftBefore = await get("SELECT id, cash_sales, expected_balance FROM caja_turnos WHERE user_id = 1 AND status = 'open' ORDER BY id DESC LIMIT 1")
+        || await get("SELECT id, cash_sales, expected_balance FROM caja_turnos WHERE status = 'open' ORDER BY id DESC LIMIT 1");
       const cashBefore = parseFloat(shiftBefore.cash_sales);
       const expectedBefore = parseFloat(shiftBefore.expected_balance);
 
@@ -190,7 +191,7 @@ async function runSaleTests() {
       const data = await res.json();
       assert.strictEqual(data.data.total, 4.00);
 
-      const shiftAfter = await get("SELECT cash_sales, expected_balance FROM caja_turnos WHERE status = 'open' LIMIT 1");
+      const shiftAfter = await get("SELECT cash_sales, expected_balance FROM caja_turnos WHERE id = $1", [shiftBefore.id]);
       const cashAfter = parseFloat(shiftAfter.cash_sales);
       const expectedAfter = parseFloat(shiftAfter.expected_balance);
 
@@ -221,9 +222,12 @@ async function runSaleTests() {
 
       assert.strictEqual(res.status, 201);
       const data = await res.json();
-      assert.strictEqual(data.data.total, 118.00);
-      assert.strictEqual(data.data.subtotal, 100.00, 'Subtotal debe ser 100.00 exactos');
-      assert.strictEqual(data.data.igv, 18.00, 'IGV debe ser 18.00 exactos (18%)');
+      const expectedTotal = 9.00; // 2 blísteres x S/ 4.50 (precio oficial en BD protegido contra manipulación)
+      const expectedSubtotal = Math.round((expectedTotal / 1.18) * 100) / 100;
+      const expectedIgv = Math.round((expectedTotal - expectedSubtotal) * 100) / 100;
+      assert.strictEqual(data.data.total, expectedTotal);
+      assert.strictEqual(data.data.subtotal, expectedSubtotal, `Subtotal debe ser ${expectedSubtotal} exactos`);
+      assert.strictEqual(data.data.igv, expectedIgv, `IGV debe ser ${expectedIgv} exactos (18%)`);
     });
 
     // 7. Consulta de Comprobante por ID con Partidas

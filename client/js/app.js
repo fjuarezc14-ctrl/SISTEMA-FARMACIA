@@ -809,7 +809,13 @@ class NavigationController {
     const nameEl = document.getElementById('activeUserName');
     const roleEl = document.getElementById('activeUserRole');
 
-    if (avatarEl) avatarEl.innerText = profile.avatar;
+    if (avatarEl) {
+      if (profile.avatar && profile.avatar.startsWith('bi-')) {
+        avatarEl.innerHTML = `<i class="bi ${profile.avatar}"></i>`;
+      } else {
+        avatarEl.innerText = profile.avatar || '';
+      }
+    }
     if (nameEl) nameEl.innerText = profile.name;
     if (roleEl) roleEl.innerText = profile.roleLabel;
 
@@ -1395,24 +1401,34 @@ class CounterModule {
 
     let price = prod.boxPrice;
     let label = "Caja";
-    // Calcular el stock máximo disponible según la fracción seleccionada
     let maxQty = prod.stockBoxes || 0;
     if (frac === 'blister') { price = prod.blisterPrice; label = "Blíster"; maxQty = prod.stockBlisters || 0; }
     else if (frac === 'unit') { price = prod.unitPrice; label = "Pastilla"; maxQty = prod.stockUnits || 0; }
 
-    // Hotfix V-01: Bloquear si el stock máximo es 0 para esta fracción
     if (maxQty <= 0) {
       showValetecToast(`Sin stock de ${label} disponible para ${prod.name}.`, "danger");
       return;
     }
 
+    const uPerBox = prod.unitsPerBox || 100;
+    const uPerBlister = prod.unitsPerBlister || 10;
+    const unitCost = frac === 'box' ? uPerBox : (frac === 'blister' ? uPerBlister : 1);
+
+    // Validar suma global de unidades mínimas ya comprometidas en el carrito para este fármaco
+    const currentUnitsInCart = this.order
+      .filter(i => i.product.id === prodId)
+      .reduce((sum, i) => {
+        const mult = i.frac === 'box' ? uPerBox : (i.frac === 'blister' ? uPerBlister : 1);
+        return sum + (i.qty * mult);
+      }, 0);
+
+    if (currentUnitsInCart + unitCost > prod.stockUnits) {
+      showValetecToast(`Inventario insuficiente: El carrito ya contiene el equivalente a ${currentUnitsInCart} de las ${prod.stockUnits} unidades disponibles de ${prod.name}.`, "warning");
+      return;
+    }
+
     const exist = this.order.find(i => i.product.id === prodId && i.frac === frac);
     if (exist) {
-      // Hotfix V-01: Cap de cantidad contra el stock real disponible
-      if (exist.qty >= maxQty) {
-        showValetecToast(`Stock máximo alcanzado: ${maxQty} ${label}(s) disponibles de ${prod.name}.`, "warning");
-        return;
-      }
       exist.qty += 1;
     } else {
       this.order.push({ product: prod, frac: frac, label: label, price: price, qty: 1, maxQty: maxQty });
@@ -1425,14 +1441,34 @@ class CounterModule {
   updateQty(index, delta) {
     if (!this.order[index]) return;
     const item = this.order[index];
+    const prod = item.product;
     const newQty = item.qty + delta;
-    // Hotfix V-01: Bloquear incremento si supera el stock máximo de la fracción
-    if (delta > 0 && item.maxQty !== undefined && newQty > item.maxQty) {
-      showValetecToast(`Stock máximo: ${item.maxQty} ${item.label}(s) disponibles.`, "warning");
+
+    if (newQty <= 0) {
+      this.order.splice(index, 1);
+      this.updateUi();
       return;
     }
+
+    if (delta > 0) {
+      const uPerBox = prod.unitsPerBox || 100;
+      const uPerBlister = prod.unitsPerBlister || 10;
+      const itemUnitCost = item.frac === 'box' ? uPerBox : (item.frac === 'blister' ? uPerBlister : 1);
+
+      const currentUnitsInCart = this.order
+        .filter(i => i.product.id === prod.id)
+        .reduce((sum, i) => {
+          const mult = i.frac === 'box' ? uPerBox : (i.frac === 'blister' ? uPerBlister : 1);
+          return sum + (i.qty * mult);
+        }, 0);
+
+      if (currentUnitsInCart + itemUnitCost > prod.stockUnits) {
+        showValetecToast(`Stock máximo alcanzado: Solo hay ${prod.stockUnits} unidades totales en inventario.`, "warning");
+        return;
+      }
+    }
+
     item.qty = newQty;
-    if (item.qty <= 0) this.order.splice(index, 1);
     this.updateUi();
   }
 
@@ -5802,34 +5838,40 @@ async function syncWithBackend() {
       }
     }
 
-    // 4. Cargar personal de turno desde PostgreSQL
-    const userRes = await window.api.getUsers();
-    if (userRes && userRes.data) {
-      if (userRes.data.profiles) {
-        mockStaffProfiles = userRes.data.profiles;
-        if (mockStaffProfiles.qf) {
-          mockStaffProfiles.qf.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement"];
+    // 4. Cargar personal de turno desde PostgreSQL (Exclusivo Administrador)
+    if (window.api && window.api.currentUser && window.api.currentUser.roleKey === 'admin') {
+      try {
+        const userRes = await window.api.getUsers();
+        if (userRes && userRes.data) {
+          if (userRes.data.profiles) {
+            mockStaffProfiles = userRes.data.profiles;
+            if (mockStaffProfiles.qf) {
+              mockStaffProfiles.qf.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement"];
+            }
+            if (mockStaffProfiles.tech) {
+              mockStaffProfiles.tech.allowedViews = ["viewCounter", "viewWarehouse", "viewDigemid"];
+            }
+            if (mockStaffProfiles.cashier) {
+              mockStaffProfiles.cashier.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid"];
+            }
+            if (authManager) authManager.updateQuickProfileCards(userRes.data.profiles);
+            if (appNav) appNav.applyRolePermissions(appNav.currentRole);
+          }
+          if (userRes.data.staffList && userRes.data.staffList.length > 0) {
+            staffMembersList = userRes.data.staffList.map(u => ({
+              name: u.name,
+              role: u.roleLabel,
+              terminal: u.terminal,
+              shift: u.shift,
+              permissions: u.permissions,
+              status: u.status,
+              target: u.target
+            }));
+            if (staffApp) staffApp.render();
+          }
         }
-        if (mockStaffProfiles.tech) {
-          mockStaffProfiles.tech.allowedViews = ["viewCounter", "viewWarehouse", "viewDigemid"];
-        }
-        if (mockStaffProfiles.cashier) {
-          mockStaffProfiles.cashier.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid"];
-        }
-        if (authManager) authManager.updateQuickProfileCards(userRes.data.profiles);
-        if (appNav) appNav.applyRolePermissions(appNav.currentRole);
-      }
-      if (userRes.data.staffList && userRes.data.staffList.length > 0) {
-        staffMembersList = userRes.data.staffList.map(u => ({
-          name: u.name,
-          role: u.roleLabel,
-          terminal: u.terminal,
-          shift: u.shift,
-          permissions: u.permissions,
-          status: u.status,
-          target: u.target
-        }));
-        if (staffApp) staffApp.render();
+      } catch (errUsers) {
+        console.warn("Personal de turno omitido (requiere rol admin):", errUsers.message);
       }
     }
 

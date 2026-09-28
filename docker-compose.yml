@@ -43,6 +43,7 @@ services:
         condition: service_healthy
     volumes:
       - ./server/src:/app/src
+      - ./server/test:/app/test
 
   # 3. CAPA DE FRONTEND (CLIENTE WEB SEPARADO EN PUERTO 3000)
   valetec-frontend:

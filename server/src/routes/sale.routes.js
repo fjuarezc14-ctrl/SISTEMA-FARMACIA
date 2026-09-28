@@ -5,14 +5,14 @@ const { requireRoles } = require('../middlewares/role.middleware');
 
 const router = express.Router();
 
-// Registrar venta en mostrador (Cajero y Admin)
-router.post('/', authenticateToken, requireRoles('cashier', 'admin'), createSale);
+// Registrar venta en mostrador (Cajero, Técnico y Admin)
+router.post('/', authenticateToken, requireRoles('cashier', 'tech', 'admin'), createSale);
 
-// Consultar historial de ventas (Cajero, Q.F., Admin)
-router.get('/', authenticateToken, requireRoles('cashier', 'qf', 'admin'), getSales);
+// Consultar historial de ventas (Cajero, Técnico, Q.F., Admin)
+router.get('/', authenticateToken, requireRoles('cashier', 'tech', 'qf', 'admin'), getSales);
 
 // Obtener detalle de venta / ticket térmico
-router.get('/:id', authenticateToken, requireRoles('cashier', 'qf', 'admin'), getSaleById);
+router.get('/:id', authenticateToken, requireRoles('cashier', 'tech', 'qf', 'admin'), getSaleById);
 
 // Anulación de venta y devolución a Kardex (Estricto: Solo Administrador)
 router.patch('/:id/cancel', authenticateToken, requireRoles('admin'), cancelSale);

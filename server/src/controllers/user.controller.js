@@ -26,22 +26,26 @@ async function getAllUsers(req, res, next) {
     // Estructurar perfiles de trabajo rápidos para login
     const profiles = {};
     users.forEach(u => {
-      let avatar = '🩺';
+      let avatar = 'bi-capsule';
       let allowedViews = ['viewCounter'];
       let defaultView = 'viewCounter';
 
       if (u.roleKey === 'admin') {
-        avatar = '👑';
+        avatar = 'bi-briefcase';
         allowedViews = ['viewCounter', 'viewCash', 'viewWarehouse', 'viewDigemid', 'viewStaff', 'viewManagement'];
         defaultView = 'viewManagement';
       } else if (u.roleKey === 'qf') {
-        avatar = '🔬';
+        avatar = 'bi-file-earmark-medical';
         allowedViews = ['viewCounter', 'viewWarehouse', 'viewDigemid'];
         defaultView = 'viewDigemid';
       } else if (u.roleKey === 'cashier') {
-        avatar = '💵';
+        avatar = 'bi-cash-stack';
         allowedViews = ['viewCounter', 'viewCash'];
         defaultView = 'viewCash';
+      } else if (u.roleKey === 'tech') {
+        avatar = 'bi-capsule';
+        allowedViews = ['viewCounter', 'viewWarehouse', 'viewDigemid'];
+        defaultView = 'viewCounter';
       }
 
       profiles[u.roleKey] = {

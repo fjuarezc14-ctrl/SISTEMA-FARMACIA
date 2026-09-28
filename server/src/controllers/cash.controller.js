@@ -268,20 +268,33 @@ async function closeZ(req, res, next) {
           );
         }
       } else if (activeUserId) {
-        // Filtrar por el user_id de la sesión activa
-        shift = await get(
-          `SELECT t.*, u.name as cashier_name 
-           FROM caja_turnos t 
-           LEFT JOIN usuarios u ON t.user_id = u.id 
-           WHERE t.user_id = $1 AND t.status = 'open' 
-           ORDER BY t.id DESC 
-           LIMIT 1`,
-          [activeUserId]
-        );
+        if (req.user && req.user.roleKey === 'admin') {
+          // El Administrador supervisa y puede realizar el Cierre Z de su turno o del turno abierto activo en la botica
+          shift = await get(
+            `SELECT t.*, u.name as cashier_name 
+             FROM caja_turnos t 
+             LEFT JOIN usuarios u ON t.user_id = u.id 
+             WHERE t.status = 'open' 
+             ORDER BY CASE WHEN t.user_id = $1 THEN 0 ELSE 1 END, t.id DESC 
+             LIMIT 1`,
+            [activeUserId]
+          );
+        } else {
+          // Filtrar estrictamente por el user_id del colaborador de turno
+          shift = await get(
+            `SELECT t.*, u.name as cashier_name 
+             FROM caja_turnos t 
+             LEFT JOIN usuarios u ON t.user_id = u.id 
+             WHERE t.user_id = $1 AND t.status = 'open' 
+             ORDER BY t.id DESC 
+             LIMIT 1`,
+            [activeUserId]
+          );
+        }
       }
 
-      // Fallback si no se encontró turno específico para el cajero
-      if (!shift) {
+      // Fallback solo si no hay usuario autenticado (compatibilidad con modo sin sesión)
+      if (!shift && !activeUserId) {
         shift = await get(
           `SELECT t.*, u.name as cashier_name 
            FROM caja_turnos t 
