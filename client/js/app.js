@@ -203,7 +203,7 @@ let mockStaffProfiles = {
   admin: {
     name: "Ing. Juan Pérez",
     roleLabel: "Dueño / Gerente General",
-    avatar: "👑",
+    avatar: "bi-briefcase",
     email: "gerencia@valetec.pe",
     allowedViews: ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement"],
     defaultView: "viewManagement"
@@ -211,7 +211,7 @@ let mockStaffProfiles = {
   qf: {
     name: "Dra. Elena Vega",
     roleLabel: "Química Farmacéutica (Regente)",
-    avatar: "🔬",
+    avatar: "bi-file-earmark-medical",
     email: "regencia@valetec.pe",
     allowedViews: ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement"],
     defaultView: "viewDigemid"
@@ -219,7 +219,7 @@ let mockStaffProfiles = {
   tech: {
     name: "Carlos Mendoza",
     roleLabel: "Técnico de Mostrador",
-    avatar: "🩺",
+    avatar: "bi-capsule",
     email: "mostrador@valetec.pe",
     allowedViews: ["viewCounter", "viewWarehouse", "viewDigemid"],
     defaultView: "viewCounter"
@@ -227,7 +227,7 @@ let mockStaffProfiles = {
   cashier: {
     name: "Rodrigo Soto",
     roleLabel: "Cajero de Turno",
-    avatar: "💵",
+    avatar: "bi-cash-stack",
     email: "caja@valetec.pe",
     allowedViews: ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid"],
     defaultView: "viewCash"
@@ -361,7 +361,7 @@ class AuthManager {
     } finally {
       if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.innerHTML = `<i class="bi bi-box-arrow-in-right"></i> 🚀 Ingresar al Sistema`;
+        submitBtn.innerHTML = `<i class="bi bi-box-arrow-in-right"></i> Ingresar al Sistema`;
       }
     }
   }
@@ -1200,8 +1200,8 @@ class CounterModule {
         if (client) {
           this.patientInput.value = client.documentNumber;
           this.patientStatus.innerHTML = `
-            <span class="p-name">👤 ${client.fullName}</span>
-            <span class="p-points"><i class="bi bi-star-fill text-warning"></i> ${client.pointsBalance || 0} Puntos</span>
+            <span class="p-name"><i class="bi bi-person"></i> ${client.fullName}</span>
+            <span class="p-points"><i class="bi bi-star"></i> ${client.pointsBalance || 0} Pts</span>
           `;
           showValetecToast(`Cliente "${client.fullName}" identificado en padrón.`, "success");
           return;
@@ -1249,15 +1249,15 @@ class CounterModule {
 
     this.grid.innerHTML = filtered.map(p => {
       const isOut = (p.stockUnits <= 0);
-      let rxPill = `<span class="rx-badge free">🟢 Venta Libre</span>`;
-      if (p.prescriptionType === 'required') rxPill = `<span class="rx-badge required">📝 Receta CMP</span>`;
-      if (p.prescriptionType === 'retained') rxPill = `<span class="rx-badge retained">🔒 Controlado</span>`;
+      let rxPill = `<span class="rx-status-subtle free"><span class="status-dot free"></span> Venta Libre</span>`;
+      if (p.prescriptionType === 'required') rxPill = `<span class="rx-status-subtle required"><span class="status-dot required"></span> Receta CMP</span>`;
+      if (p.prescriptionType === 'retained') rxPill = `<span class="rx-status-subtle retained"><span class="status-dot retained"></span> Controlado</span>`;
 
       return `
         <article class="product-staff-card ${isOut ? 'out-stock' : ''}" data-id="${p.id}">
           <div>
             <div class="card-top-badges">
-              <span class="shelf-tag"><i class="bi bi-geo-alt-fill"></i> 📍 ${p.location}</span>
+              <span class="shelf-tag"><i class="bi bi-geo-alt"></i> ${p.location}</span>
               ${rxPill}
             </div>
 
@@ -1270,9 +1270,9 @@ class CounterModule {
             </div>
 
             <div class="fraction-pick-row">
-              <button type="button" class="btn-frac-pick active" data-frac="box" data-id="${p.id}">📦 Caja</button>
-              <button type="button" class="btn-frac-pick" data-frac="blister" data-id="${p.id}">📑 Blíster</button>
-              <button type="button" class="btn-frac-pick" data-frac="unit" data-id="${p.id}">💊 Pastilla</button>
+              <button type="button" class="btn-frac-pick active" data-frac="box" data-id="${p.id}"><i class="bi bi-box-seam"></i> Caja</button>
+              <button type="button" class="btn-frac-pick" data-frac="blister" data-id="${p.id}"><i class="bi bi-grid-3x2"></i> Blíster</button>
+              <button type="button" class="btn-frac-pick" data-frac="unit" data-id="${p.id}"><i class="bi bi-capsule"></i> Pastilla</button>
             </div>
           </div>
 
@@ -1285,15 +1285,15 @@ class CounterModule {
                 onclick="counterApp.dispenseCard(${p.id})"
                 ${isOut ? 'disabled' : ''}
               >
-                <i class="bi ${isOut ? 'bi-x-circle' : 'bi-plus-lg'}"></i>
-                <span>${isOut ? '🚫 Sin Stock' : '➕ Agregar'}</span>
+                <i class="bi ${isOut ? 'bi-dash-circle' : 'bi-plus-lg'}"></i>
+                <span>${isOut ? 'Sin Stock' : 'Agregar'}</span>
               </button>
             </div>
 
             ${p.genericAlt ? `
               <button type="button" class="btn-alt-generic" onclick="counterApp.suggestAlt(${p.id})">
-                <i class="bi bi-lightbulb-fill"></i>
-                <span>💡 Ofrecer Genérico: ${p.genericAlt.name} (-${p.genericAlt.savingPercent}% ahorro)</span>
+                <i class="bi bi-arrow-repeat"></i>
+                <span>Alternativa DCI: ${p.genericAlt.name} (-${p.genericAlt.savingPercent}% ahorro)</span>
               </button>
             ` : ''}
           </div>
@@ -1369,7 +1369,7 @@ class CounterModule {
     if (!brand || !brand.genericAlt) return;
 
     const alt = brand.genericAlt;
-    const ok = confirm(`💡 AHORRO PARA EL CLIENTE:\n\nPuedes ofrecerle un genérico más económico:\n• Marca: ${brand.name} (S/ ${brand.boxPrice.toFixed(2)})\n• Genérico DCI: ${alt.name} (S/ ${alt.boxPrice.toFixed(2)})\n• Ahorro: ${alt.savingPercent}%\n\n¿Deseas agregar ${alt.name} al carrito?`);
+    const ok = confirm(`AHORRO PARA EL CLIENTE:\n\nPuedes ofrecerle un genérico más económico:\n• Marca: ${brand.name} (S/ ${brand.boxPrice.toFixed(2)})\n• Genérico DCI: ${alt.name} (S/ ${alt.boxPrice.toFixed(2)})\n• Ahorro: ${alt.savingPercent}%\n\n¿Deseas agregar ${alt.name} al carrito?`);
     if (ok) {
       this.addItem(alt.id, 'box');
       showValetecToast(`Agregado genérico DCI: ${alt.name}`, "success");
@@ -1410,7 +1410,7 @@ class CounterModule {
     if (exist) {
       // Hotfix V-01: Cap de cantidad contra el stock real disponible
       if (exist.qty >= maxQty) {
-        showValetecToast(`⚠️ Stock máximo alcanzado: ${maxQty} ${label}(s) disponibles de ${prod.name}.`, "warning");
+        showValetecToast(`Stock máximo alcanzado: ${maxQty} ${label}(s) disponibles de ${prod.name}.`, "warning");
         return;
       }
       exist.qty += 1;
@@ -1428,7 +1428,7 @@ class CounterModule {
     const newQty = item.qty + delta;
     // Hotfix V-01: Bloquear incremento si supera el stock máximo de la fracción
     if (delta > 0 && item.maxQty !== undefined && newQty > item.maxQty) {
-      showValetecToast(`⚠️ Stock máximo: ${item.maxQty} ${item.label}(s) disponibles.`, "warning");
+      showValetecToast(`Stock máximo: ${item.maxQty} ${item.label}(s) disponibles.`, "warning");
       return;
     }
     item.qty = newQty;
@@ -1452,7 +1452,7 @@ class CounterModule {
       this.btnPayYape?.classList.add('active');
       this.cashPaymentSection?.classList.add('d-none');
       this.digitalPaymentSection?.classList.remove('d-none');
-      if (this.digitalIconTag) this.digitalIconTag.innerText = '🟣';
+      if (this.digitalIconTag) this.digitalIconTag.innerHTML = '<i class="bi bi-qr-code"></i>';
       if (this.digitalTitleTag) this.digitalTitleTag.innerText = 'Pago con Yape / Plin';
       if (this.digitalHintTag) this.digitalHintTag.innerText = 'Pide al cliente escanear el QR o transferir el monto exacto.';
       if (this.digitalRefInput) this.digitalRefInput.placeholder = 'N° de Operación (Ej. 849201)';
@@ -1460,7 +1460,7 @@ class CounterModule {
       this.btnPayCard?.classList.add('active');
       this.cashPaymentSection?.classList.add('d-none');
       this.digitalPaymentSection?.classList.remove('d-none');
-      if (this.digitalIconTag) this.digitalIconTag.innerText = '💳';
+      if (this.digitalIconTag) this.digitalIconTag.innerHTML = '<i class="bi bi-credit-card"></i>';
       if (this.digitalTitleTag) this.digitalTitleTag.innerText = 'Pago con Tarjeta POS';
       if (this.digitalHintTag) this.digitalHintTag.innerText = 'Pasa la tarjeta por el POS (Visa, Mastercard, Débito).';
       if (this.digitalRefInput) this.digitalRefInput.placeholder = 'Últimos 4 dígitos o Código de Auth';
@@ -1485,7 +1485,7 @@ class CounterModule {
     if (this.order.length === 0) {
       this.itemsScroll.innerHTML = `
         <div class="empty-ticket-view">
-          <span style="font-size: 36px; display:block; margin-bottom:8px;">🛒</span>
+          <i class="bi bi-cart2" style="font-size: 32px; display:block; margin-bottom:8px; color: var(--text-muted);"></i>
           <p><strong>El carrito está vacío.</strong></p>
           <small>Presiona [F2] o toca "Agregar" en una medicina.</small>
         </div>
@@ -1499,9 +1499,9 @@ class CounterModule {
             <div class="i-sub">${item.label} • S/ ${item.price.toFixed(2)}</div>
           </div>
           <div class="item-qty-wrap">
-            <button type="button" class="btn-item-qty" onclick="counterApp.updateQty(${index}, -1)" title="Disminuir">➖</button>
+            <button type="button" class="btn-item-qty" onclick="counterApp.updateQty(${index}, -1)" title="Disminuir"><i class="bi bi-dash"></i></button>
             <span class="item-qty-val">${item.qty}</span>
-            <button type="button" class="btn-item-qty" onclick="counterApp.updateQty(${index}, 1)" title="Aumentar">➕</button>
+            <button type="button" class="btn-item-qty" onclick="counterApp.updateQty(${index}, 1)" title="Aumentar"><i class="bi bi-plus"></i></button>
           </div>
           <div class="item-subtotal-val">S/ ${(item.price * item.qty).toFixed(2)}</div>
         </div>
@@ -1588,12 +1588,12 @@ class CounterModule {
       <div class="thermal-receipt" id="printableThermalReceipt">
         ${isCancelled ? `
           <div style="color: #dc2626; font-size: 14px; font-weight: 900; text-align: center; border: 2px dashed #dc2626; padding: 6px; margin-bottom: 10px; border-radius: 4px; background: #fef2f2;">
-            ⚠️ *** COMPROBANTE ANULADO ***
+            *** COMPROBANTE ANULADO ***
           </div>
         ` : ''}
 
         <div class="receipt-header">
-          <div class="receipt-logo-title">🏥 VALETEC PHARMA S.A.C.</div>
+          <div class="receipt-logo-title">VALETEC PHARMA S.A.C.</div>
           <div class="receipt-meta-line">R.U.C. 20601234567</div>
           <div class="receipt-meta-line">Av. Aviación 2450 • San Borja, Lima</div>
           <div class="receipt-meta-line">Central Telefónica: (01) 500-8900</div>
@@ -1607,7 +1607,7 @@ class CounterModule {
           ${sale.correlative}
         </div>
         <div style="text-align: center; font-size: 10px; color: #0d9488; font-weight: 800; margin-bottom: 6px;">
-          ✓ ESTÁNDAR SUNAT UBL 2.1
+          ESTÁNDAR SUNAT UBL 2.1
         </div>
 
         <div class="receipt-dashed-line"></div>
@@ -1636,7 +1636,7 @@ class CounterModule {
           <div class="receipt-info-row">
             <span>Estado:</span>
             <span style="font-weight: 800; color: ${isCancelled ? '#dc2626' : '#166534'};">
-              ${isCancelled ? '🔴 ANULADO' : '🟢 EMITIDO'}
+              ${isCancelled ? 'ANULADO' : 'EMITIDO'}
             </span>
           </div>
         </div>
@@ -1708,8 +1708,8 @@ class CounterModule {
 
         <div class="receipt-footer">
           <div>Representación impresa autorizada de Comprobante de Pago Electrónico.</div>
-          <div style="margin-top: 3px;">✅ Generado bajo normativa SUNAT UBL 2.1.</div>
-          <div style="margin-top: 3px;">🛡️ Stock gestionado automáticamente por FEFO en PostgreSQL.</div>
+          <div style="margin-top: 3px;">Generado bajo normativa SUNAT UBL 2.1.</div>
+          <div style="margin-top: 3px;">Stock gestionado automáticamente por FEFO en PostgreSQL.</div>
           <div style="margin-top: 4px; font-weight: 700;">¡Gracias por cuidar tu salud en VALETEC PHARMA!</div>
         </div>
       </div>
@@ -1721,7 +1721,7 @@ class CounterModule {
   async checkout() {
     // Hotfix V-02: Guard inmediato contra Double Submission (race condition con múltiples clics rápidos)
     if (this._checkoutInProgress) {
-      showValetecToast("⚠️ Procesando venta... por favor espera.", "warning");
+      showValetecToast("Procesando venta... por favor espera.", "warning");
       return;
     }
     this._checkoutInProgress = true;
@@ -1737,7 +1737,7 @@ class CounterModule {
       const cmp = this.docCmpInput?.value.trim();
       if (!cmp) {
         this._checkoutInProgress = false;
-        showValetecToast("⚠️ ATENCIÓN: Esta orden contiene medicamentos bajo receta. Escribe el CMP médico.", "warning");
+        showValetecToast("ATENCIÓN: Esta orden contiene medicamentos bajo receta. Escribe el CMP médico.", "warning");
         this.docCmpInput?.focus();
         return;
       }
@@ -1752,7 +1752,7 @@ class CounterModule {
       const rec = parseFloat(this.cashInput?.value || 0);
       if (rec > 0 && rec < total) {
         this._checkoutInProgress = false;
-        showValetecToast(`⚠️ Dinero insuficiente. Total: S/ ${total.toFixed(2)}, Recibido: S/ ${rec.toFixed(2)}. Faltan S/ ${(total - rec).toFixed(2)}.`, "warning");
+        showValetecToast(`Dinero insuficiente. Total: S/ ${total.toFixed(2)}, Recibido: S/ ${rec.toFixed(2)}. Faltan S/ ${(total - rec).toFixed(2)}.`, "warning");
         return;
       }
       amountPaid = rec > 0 ? rec : total;
@@ -1767,7 +1767,7 @@ class CounterModule {
     let customerName = 'CLIENTE GENERAL';
     const pNameEl = this.patientStatus?.querySelector('.p-name');
     if (pNameEl && pNameEl.innerText && !pNameEl.innerText.includes('Cliente General')) {
-      customerName = pNameEl.innerText.replace('👤', '').trim();
+      customerName = pNameEl.innerText.replace(/^[^\w\u00C0-\u017F]+/, '').trim();
     }
 
     const items = this.order.map(i => ({
@@ -1891,8 +1891,8 @@ class CounterModule {
       if (this.patientInput) this.patientInput.value = '';
       if (this.patientStatus) {
         this.patientStatus.innerHTML = `
-          <span class="p-name">👤 Cliente General</span>
-          <span class="p-points"><i class="bi bi-star-fill text-warning"></i> 0 Puntos</span>
+          <span class="p-name"><i class="bi bi-person"></i> Cliente General</span>
+          <span class="p-points"><i class="bi bi-star"></i> 0 Puntos</span>
         `;
       }
       this.setPaymentMethod('cash');
@@ -1910,8 +1910,7 @@ class CounterModule {
 
       showValetecToast(`¡Venta ${saleData.correlative} emitida con éxito!`, "success");
     } catch (err) {
-      showValetecToast(`🚨 Error en la venta: ${err.message}`, "error");
-      showValetecToast(err.message, "danger");
+      showValetecToast(`Error en la venta: ${err.message}`, "danger");
     } finally {
       // Hotfix V-02: Liberar el flag de protección contra double-submit
       this._checkoutInProgress = false;
@@ -1979,16 +1978,16 @@ class CounterModule {
     this.salesHistoryTableBody.innerHTML = sales.map(s => {
       const isCompleted = s.status === 'completed';
       const statusBadge = isCompleted
-        ? `<span class="badge-sale-status completed">🟢 Completado</span>`
-        : `<span class="badge-sale-status cancelled">🔴 Anulado</span>`;
+        ? `<span class="badge-sale-status completed"><span class="status-dot active"></span> Completado</span>`
+        : `<span class="badge-sale-status cancelled"><span class="status-dot retained"></span> Anulado</span>`;
 
-      let payIcon = '💵';
+      let payIcon = '<i class="bi bi-cash"></i>';
       let payLabel = 'Efectivo';
       if (s.paymentMethod === 'yape') {
-        payIcon = '🟣';
+        payIcon = '<i class="bi bi-qr-code"></i>';
         payLabel = s.paymentReference ? `Yape (${s.paymentReference})` : 'Yape / Plin';
       } else if (s.paymentMethod === 'card') {
-        payIcon = '💳';
+        payIcon = '<i class="bi bi-credit-card"></i>';
         payLabel = s.paymentReference ? `Tarjeta (${s.paymentReference})` : 'Tarjeta POS';
       }
 
@@ -2009,7 +2008,7 @@ class CounterModule {
             <small class="text-muted">${escHtml(s.customerDoc || '00000000')}</small>
           </td>
           <td style="padding: 10px 8px;">
-            <span>${payIcon} ${escHtml(payLabel)}</span>
+            <span style="display: inline-flex; align-items: center; gap: 4px;">${payIcon} ${escHtml(payLabel)}</span>
           </td>
           <td style="padding: 10px 12px; text-align: right;">
             <strong style="font-size: 13px; color: ${isCompleted ? '#0f172a' : '#94a3b8'}; ${!isCompleted ? 'text-decoration: line-through;' : ''}">
@@ -2028,7 +2027,7 @@ class CounterModule {
                 onclick="counterApp.reprintSale(${s.id})" 
                 title="Ver e imprimir ticket térmico"
               >
-                🖨️ Ticket
+                <i class="bi bi-printer"></i> <span>Ticket</span>
               </button>
               ${isCompleted ? `
                 <button 
@@ -2038,7 +2037,7 @@ class CounterModule {
                   onclick="counterApp.cancelHistoricalSale(${s.id}, '${correlativeStr}', ${s.total})" 
                   title="Anular comprobante y devolver medicamentos a almacén"
                 >
-                  ❌ Anular
+                  <i class="bi bi-x-circle"></i> <span>Anular</span>
                 </button>
               ` : `
                 <button 
@@ -2048,7 +2047,7 @@ class CounterModule {
                   disabled 
                   title="Comprobante ya fue anulado"
                 >
-                  🚫 Anulado
+                  <i class="bi bi-dash-circle"></i> <span>Anulado</span>
                 </button>
               `}
             </div>
@@ -2079,7 +2078,7 @@ class CounterModule {
 
   async cancelHistoricalSale(saleId, correlative, total) {
     const confirmed = confirm(
-      `🚨 ATENCIÓN - ANULACIÓN DE COMPROBANTE\n\n¿Confirmas la anulación del comprobante ${correlative} por el total de S/ ${parseFloat(total).toFixed(2)}?\n\n• El stock será devuelto inmediatamente a los lotes FEFO en PostgreSQL.\n• El monto será deducido automáticamente de la caja del turno.\n\nEsta operación es definitiva e irreversible.`
+      `ATENCIÓN - ANULACIÓN DE COMPROBANTE\n\n¿Confirmas la anulación del comprobante ${correlative} por el total de S/ ${parseFloat(total).toFixed(2)}?\n\n• El stock será devuelto inmediatamente a los lotes FEFO en PostgreSQL.\n• El monto será deducido automáticamente de la caja del turno.\n\nEsta operación es definitiva e irreversible.`
     );
     if (!confirmed) return;
 
@@ -2099,7 +2098,7 @@ class CounterModule {
         showValetecToast("Debes estar conectado a la API de PostgreSQL para anular ventas con deducción.", "warning");
       }
     } catch (err) {
-      showValetecToast(`🚨 Error al anular la venta: ${err.message}`, "error");
+      showValetecToast(`Error al anular la venta: ${err.message}`, "danger");
     }
   }
 }
@@ -2289,7 +2288,7 @@ class CashModule {
       }
       if (this.btnConfirmZAction) {
         this.btnConfirmZAction.disabled = false;
-        this.btnConfirmZAction.innerHTML = `<i class="bi bi-shield-lock-fill"></i> <span>🔒 Sellar Turno y Emitir Reporte Z</span>`;
+        this.btnConfirmZAction.innerHTML = `<i class="bi bi-shield-lock"></i> <span>Sellar Turno y Emitir Reporte Z</span>`;
       }
 
       this.updateZLiveDiff();
@@ -2330,18 +2329,18 @@ class CashModule {
     if (this.zDiffBanner) {
       if (Math.abs(diff) < 0.05) {
         this.zDiffBanner.className = 'z-diff-indicator cuadre-diff-exact';
-        if (this.zDiffIcon) this.zDiffIcon.className = 'bi bi-check-circle-fill text-success';
-        if (this.zDiffTitle) this.zDiffTitle.innerText = `✅ CUADRE PERFECTO: S/ 0.00`;
+        if (this.zDiffIcon) this.zDiffIcon.className = 'bi bi-check-circle text-teal';
+        if (this.zDiffTitle) this.zDiffTitle.innerText = `CUADRE PERFECTO: S/ 0.00`;
         if (this.zDiffDesc) this.zDiffDesc.innerText = `El efectivo ingresado coincide exactamente con las ventas registradas.`;
       } else if (diff > 0) {
         this.zDiffBanner.className = 'z-diff-indicator cuadre-diff-surplus';
-        if (this.zDiffIcon) this.zDiffIcon.className = 'bi bi-info-circle-fill text-warning';
-        if (this.zDiffTitle) this.zDiffTitle.innerText = `⚠️ SOBRANTE CONTROLADO: +S/ ${diff.toFixed(2)}`;
+        if (this.zDiffIcon) this.zDiffIcon.className = 'bi bi-info-circle text-warning';
+        if (this.zDiffTitle) this.zDiffTitle.innerText = `SOBRANTE CONTROLADO: +S/ ${diff.toFixed(2)}`;
         if (this.zDiffDesc) this.zDiffDesc.innerText = `Hay un excedente de efectivo en gaveta respecto al cálculo teórico.`;
       } else {
         this.zDiffBanner.className = 'z-diff-indicator cuadre-diff-deficit';
-        if (this.zDiffIcon) this.zDiffIcon.className = 'bi bi-exclamation-triangle-fill text-danger';
-        if (this.zDiffTitle) this.zDiffTitle.innerText = `🚨 FALTANTE EN CAJA: -S/ ${Math.abs(diff).toFixed(2)}`;
+        if (this.zDiffIcon) this.zDiffIcon.className = 'bi bi-exclamation-triangle text-danger';
+        if (this.zDiffTitle) this.zDiffTitle.innerText = `FALTANTE EN CAJA: -S/ ${Math.abs(diff).toFixed(2)}`;
         if (this.zDiffDesc) this.zDiffDesc.innerText = `Alerta: El dinero físico es menor al esperado por el total de ventas.`;
       }
     }
@@ -2358,7 +2357,7 @@ class CashModule {
     // Hotfix V-08: Rechazar valores inválidos (NaN o negativos) antes de sellar el turno.
     // Previene Cierre Z sellado con datos matemáticamente corruptos.
     if (isNaN(physical) || physical < 0) {
-      showValetecToast("⚠️ Ingresa un monto válido de efectivo físico (mayor o igual a S/ 0.00) antes de sellar el turno.", "warning");
+      showValetecToast("Ingresa un monto válido de efectivo físico (mayor o igual a S/ 0.00) antes de sellar el turno.", "warning");
       this.zCountedInput?.focus();
       return;
     }
@@ -2416,10 +2415,10 @@ class CashModule {
 
       if (confirmBtn) {
         confirmBtn.disabled = true;
-        confirmBtn.innerHTML = `<i class="bi bi-check-circle-fill"></i> <span>✅ Cierre Z Sellado Conforme</span>`;
+        confirmBtn.innerHTML = `<i class="bi bi-check-circle"></i> <span>Cierre Z Sellado Conforme</span>`;
       }
     } catch (err) {
-      showValetecToast("🚨 Error en cierre Z: " + err.message, "error");
+      showValetecToast("Error en cierre Z: " + err.message, "error");
       if (confirmBtn) {
         confirmBtn.disabled = false;
         confirmBtn.innerHTML = origText;
@@ -2681,13 +2680,13 @@ class CashModule {
     const openDate = new Date(report.openedAt || Date.now());
     const openStr = `${pad(openDate.getDate())}/${pad(openDate.getMonth() + 1)}/${now.getFullYear()} ${pad(openDate.getHours())}:${pad(openDate.getMinutes())}`;
 
-    let statusLabel = '✅ CUADRE PERFECTO (S/ 0.00)';
+    let statusLabel = 'CUADRE PERFECTO (S/ 0.00)';
     let statusStyle = 'color: #065f46; font-weight: 800;';
     if (report.difference < 0) {
-      statusLabel = `❌ FALTANTE EN GAVETA: -S/ ${Math.abs(report.difference).toFixed(2)}`;
+      statusLabel = `FALTANTE EN GAVETA: -S/ ${Math.abs(report.difference).toFixed(2)}`;
       statusStyle = 'color: #991b1b; font-weight: 800;';
     } else if (report.difference > 0) {
-      statusLabel = `⚠️ SOBRANTE EN GAVETA: +S/ ${report.difference.toFixed(2)}`;
+      statusLabel = `SOBRANTE EN GAVETA: +S/ ${report.difference.toFixed(2)}`;
       statusStyle = 'color: #92400e; font-weight: 800;';
     }
 
@@ -2697,7 +2696,7 @@ class CashModule {
     targetContainer.innerHTML = `
       <div class="thermal-receipt" id="printableZReportReceipt">
         <div class="receipt-header">
-          <div class="receipt-logo-title">🏥 VALETEC PHARMA S.A.C.</div>
+          <div class="receipt-logo-title">VALETEC PHARMA S.A.C.</div>
           <div class="receipt-meta-line">R.U.C. 20601234567</div>
           <div class="receipt-meta-line">Av. Aviación 2450 • San Borja, Lima</div>
           <div class="receipt-meta-line">Central: (01) 500-8900 • DIGEMID: 10842-FAR</div>
@@ -2705,7 +2704,7 @@ class CashModule {
 
         <div class="receipt-dashed-line"></div>
 
-        <div class="receipt-doc-title">🔒 REPORTE Z OFICIAL DE CIERRE</div>
+        <div class="receipt-doc-title">REPORTE Z OFICIAL DE CIERRE</div>
         <div style="text-align: center; font-size: 13px; font-weight: 800; color: #0a2540;">
           TURNO N° ${String(report.turnoId).padStart(4, '0')} • ${report.terminal || 'Caja 01'}
         </div>
@@ -2730,7 +2729,7 @@ class CashModule {
         <div class="receipt-dashed-line"></div>
 
         <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 4px; color: #0a2540;">
-          📊 RESUMEN DE VENTAS Y FACTURACIÓN
+          RESUMEN DE VENTAS Y FACTURACIÓN
         </div>
         <div class="receipt-totals-box">
           <div class="receipt-total-row">
@@ -2758,7 +2757,7 @@ class CashModule {
         <div class="receipt-dashed-line"></div>
 
         <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 4px; color: #0a2540;">
-          🧮 AUDITORÍA Y ARQUEO DE GAVETA
+          AUDITORÍA Y ARQUEO DE GAVETA
         </div>
         <div class="receipt-totals-box">
           <div class="receipt-total-row">
@@ -2779,7 +2778,7 @@ class CashModule {
         <div class="receipt-dashed-line"></div>
 
         <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 4px; color: #0a2540;">
-          🧾 COMPROBANTES FISCALES EMITIDOS
+          COMPROBANTES FISCALES EMITIDOS
         </div>
         <div class="receipt-totals-box">
           <div class="receipt-total-row">
@@ -2911,7 +2910,7 @@ class WarehouseModule {
     const form = document.getElementById('medicineForm');
     if (form) form.reset();
     document.getElementById('medId').value = '';
-    document.getElementById('medModalTitle').innerHTML = '<i class="bi bi-capsule-pill text-teal"></i> 💊 Alta de Nuevo Medicamento';
+    document.getElementById('medModalTitle').innerHTML = '<i class="bi bi-capsule text-teal"></i> Alta de Nuevo Medicamento';
     const initSec = document.getElementById('medInitialStockSection');
     if (initSec) initSec.style.display = 'block';
     this.medicineModal?.classList.add('active');
@@ -2922,7 +2921,7 @@ class WarehouseModule {
     if (!prod) return;
 
     document.getElementById('medId').value = prod.id;
-    document.getElementById('medModalTitle').innerHTML = `<i class="bi bi-pencil-square text-blue"></i> ✏️ Editar Fármaco: ${prod.name}`;
+    document.getElementById('medModalTitle').innerHTML = `<i class="bi bi-pencil-square text-blue"></i> Editar Fármaco: ${prod.name}`;
     document.getElementById('medName').value = prod.name || '';
     document.getElementById('medGenericDci').value = prod.genericDci || '';
     document.getElementById('medBarcode').value = prod.barcode || '';
@@ -3040,7 +3039,7 @@ class WarehouseModule {
     } finally {
       if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="bi bi-check-circle-fill"></i> <span>💾 Guardar Fármaco</span>';
+        submitBtn.innerHTML = '<i class="bi bi-check-lg"></i> <span>Guardar Fármaco</span>';
       }
     }
   }
@@ -3077,9 +3076,9 @@ class WarehouseModule {
 
     this.tableBody.innerHTML = filtered.map(p => {
       let fefoClass = 'good';
-      let fefoLabel = '🟢 Vigente (>6m)';
-      if (p.fefoStatus === 'warning') { fefoClass = 'warning'; fefoLabel = '🟡 Canje (<90d)'; }
-      else if (p.fefoStatus === 'expired') { fefoClass = 'expired'; fefoLabel = '🔴 Vencido / Agotado'; }
+      let fefoLabel = '<span class="status-dot free"></span> Vigente (>6m)';
+      if (p.fefoStatus === 'warning') { fefoClass = 'warning'; fefoLabel = '<span class="status-dot required"></span> Canje (<90d)'; }
+      else if (p.fefoStatus === 'expired') { fefoClass = 'expired'; fefoLabel = '<span class="status-dot retained"></span> Vencido / Agotado'; }
 
       const isInactive = p.status === 'inactive';
 
@@ -3099,16 +3098,16 @@ class WarehouseModule {
           <td><span class="fefo-chip ${fefoClass}">${fefoLabel}</span></td>
           <td style="white-space: nowrap;">
             <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; font-weight: 700; margin-right: 4px;" onclick="warehouseApp.openEditModal(${p.id})" title="Editar Fármaco">
-              <span>✏️ Editar</span>
+              <i class="bi bi-pencil"></i> <span>Editar</span>
             </button>
             <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; font-weight: 700; margin-right: 4px; color: #be123c;" onclick="warehouseApp.openAdjustmentModal(${p.id})" title="Ajuste o Merma">
-              <span>⚖️ Ajuste</span>
+              <i class="bi bi-sliders"></i> <span>Ajuste</span>
             </button>
             <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; font-weight: 700; margin-right: 4px;" onclick="warehouseApp.toggleStatus(${p.id})" title="${isInactive ? 'Activar en mostrador' : 'Desactivar de mostrador'}">
-              <span>${isInactive ? '✅' : '🚫'}</span>
+              <i class="bi ${isInactive ? 'bi-check-circle' : 'bi-dash-circle'}"></i>
             </button>
             <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; font-weight: 700;" onclick="warehouseApp.openKardexModal(${p.id})" title="Ver Kardex Físico y Valorizado">
-              <span>📋 Kardex</span>
+              <i class="bi bi-journal-medical"></i> <span>Kardex</span>
             </button>
           </td>
         </tr>
@@ -3228,7 +3227,7 @@ class WarehouseModule {
           this.closeAdjustmentModal();
           this.render();
           if (typeof counterApp !== 'undefined') counterApp.renderProducts();
-          showValetecToast(`⚠️ Ajuste local aplicado (modo contingencia): ${quantity} ${unitType} de "${prod.name}". Sincronizar con PostgreSQL al reconectar.`, "warning");
+          showValetecToast(`Ajuste local aplicado (modo contingencia): ${quantity} ${unitType} de "${prod.name}". Sincronizar con PostgreSQL al reconectar.`, "warning");
         } else {
           showValetecToast("Error: Medicamento no encontrado en el catálogo local.", "danger");
         }
@@ -3275,21 +3274,21 @@ class WarehouseModule {
 
           tbody.innerHTML = res.data.map(l => {
             let badgeClass = '#dcfce7; color:#15803d';
-            let label = '🟢 Vigente';
+            let label = '<span class="status-dot free"></span> Vigente';
             if (l.fefoAlert === 'expired') {
               badgeClass = '#fee2e2; color:#b91c1c';
-              label = '🔴 Vencido';
+              label = '<span class="status-dot retained"></span> Vencido';
             } else if (l.fefoAlert === 'critical') {
               badgeClass = '#fee2e2; color:#b91c1c';
-              label = '🔴 Crítico (<30d)';
+              label = '<span class="status-dot retained"></span> Crítico (<30d)';
             } else if (l.fefoAlert === 'warning') {
               badgeClass = '#fef3c7; color:#b45309';
-              label = '🟡 Canje (<90d)';
+              label = '<span class="status-dot required"></span> Canje (<90d)';
             }
 
             return `
               <tr>
-                <td><span class="badge" style="background:${badgeClass}; font-weight:800; padding:4px 8px; border-radius:6px;">${label}</span></td>
+                <td><span class="badge" style="background:${badgeClass}; font-weight:800; padding:4px 8px; border-radius:6px; display: inline-flex; align-items: center; gap: 4px;">${label}</span></td>
                 <td><strong>${l.productName}</strong><br><small class="text-muted">${l.genericDci || ''}</small></td>
                 <td>${l.laboratory}</td>
                 <td><code>${l.lotNumber}</code></td>
@@ -3298,7 +3297,7 @@ class WarehouseModule {
                 <td><strong>${l.stockBoxes} cajas</strong> (${l.stockUnits} un.)</td>
                 <td style="text-align: right; white-space: nowrap;">
                   <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; color:#be123c;" onclick="warehouseApp.closeFefoAlertsModal(); warehouseApp.openAdjustmentModal(${l.productId})" title="Registrar Merma / Baja">
-                    ⚖️ Dar de Baja
+                    <i class="bi bi-trash3"></i> <span>Dar de Baja</span>
                   </button>
                 </td>
               </tr>
@@ -3371,17 +3370,17 @@ class WarehouseModule {
     const qty = document.getElementById('exchangeQuantity')?.value || '15';
     const reason = document.getElementById('exchangeReasonSelect')?.options[document.getElementById('exchangeReasonSelect')?.selectedIndex]?.text || 'Próximo Vencimiento';
 
-    const text = `🏥 *SOLICITUD FORMAL DE CANJE POR VENCIMIENTO*\n` +
-      `🏢 *VALETEC PHARMA* | RUC: 20601234567\n` +
-      `📅 Fecha: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}\n` +
-      `🏭 Destinatario: *${supp}*\n\n` +
+    const text = `*SOLICITUD FORMAL DE CANJE POR VENCIMIENTO*\n` +
+      `*VALETEC PHARMA* | RUC: 20601234567\n` +
+      `Fecha: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}\n` +
+      `Destinatario: *${supp}*\n\n` +
       `Estimado proveedor, solicitamos el canje formal por rotación conforme a normativa DIGEMID/BPA:\n` +
-      `💊 *Producto:* ${med}\n` +
-      `📦 *Lote:* ${lot}\n` +
-      `🔢 *Cantidad:* ${qty} Cajas\n` +
-      `📋 *Motivo:* ${reason}\n\n` +
-      `📍 *Punto de Recojo:* Botica Central (Av. Aviación 2450, San Borja, Lima)\n` +
-      `👩‍⚕️ *Regente Q.F.:* Dra. Elena Vega (CQFP 18492)\n` +
+      `• *Producto:* ${med}\n` +
+      `• *Lote:* ${lot}\n` +
+      `• *Cantidad:* ${qty} Cajas\n` +
+      `• *Motivo:* ${reason}\n\n` +
+      `Punto de Recojo: Botica Central (Av. Aviación 2450, San Borja, Lima)\n` +
+      `Regente Q.F.: Dra. Elena Vega (CQFP 18492)\n` +
       `Agradecemos coordinar con nosotros la fecha de retiro físico y emisión de nota de crédito / reposición.`;
 
     const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
@@ -3398,7 +3397,7 @@ class WarehouseModule {
     const lot = document.getElementById('exchangeLotCode')?.value || 'L-24115';
     const qty = document.getElementById('exchangeQuantity')?.value || '15';
     this.closeExchangeModal();
-    showValetecToast(`✅ Acta de canje generada: ${qty} cajas de ${med} (Lote: ${lot}) pasadas a custodia.`, 'success');
+    showValetecToast(`Acta de canje generada: ${qty} cajas de ${med} (Lote: ${lot}) pasadas a custodia.`, 'success');
   }
 
   async openKardexModal(productId) {
@@ -3415,7 +3414,7 @@ class WarehouseModule {
 
         const titleEl = document.getElementById('kardexModalTitle');
         const subEl = document.getElementById('kardexModalSubtitle');
-        if (titleEl) titleEl.innerHTML = `<i class="bi bi-journal-medical text-teal"></i> 📋 Kardex: ${p.name}`;
+        if (titleEl) titleEl.innerHTML = `<i class="bi bi-journal-medical text-teal"></i> Kardex: ${p.name}`;
         if (subEl) subEl.innerText = `${p.genericDci || ''} • Lab: ${p.laboratory} • Ubic: ${p.location} • Cód: ${p.barcode}`;
 
         const stockEl = document.getElementById('kardexStockDisplay');
@@ -3523,7 +3522,7 @@ class WarehouseModule {
               <td style="text-align: right; font-weight: 800; color: #15803d;">S/ ${item.valuedSale.toFixed(2)}</td>
               <td style="text-align: right; white-space: nowrap;">
                 <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px;" onclick="warehouseApp.closeValuedInventoryModal(); warehouseApp.openKardexModal(${item.id})">
-                  📋 Kardex
+                  <i class="bi bi-journal-medical"></i> <span>Kardex</span>
                 </button>
               </td>
             </tr>
@@ -3872,7 +3871,7 @@ class DigemidModule {
             ${est.address}
           </div>
           <div style="display: inline-block; margin-top: 6px; padding: 3px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 20px; font-weight: 700; color: #0f172a; font-size: 11px;">
-            ⚖️ BALANCE OFICIAL DE MEDICAMENTOS CONTROLADOS & PSICOTRÓPICOS
+            BALANCE OFICIAL DE MEDICAMENTOS CONTROLADOS & PSICOTRÓPICOS
           </div>
         </div>
 
@@ -3913,7 +3912,7 @@ class DigemidModule {
           <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div>
-                <strong style="color: #6b21a8; font-size: 11px;">🔒 Custodia en Caja Fuerte (Lista IV):</strong>
+                <strong style="color: #6b21a8; font-size: 11px;">Custodia en Caja Fuerte (Lista IV):</strong>
                 <div style="color: #4b5563; font-size: 10.5px;">${escHtml(vault.productName)} • <em>${escHtml(vault.genericDci)}</em></div>
                 <small style="color: #9333ea; font-weight: 600;">Ubicación: ${escHtml(vault.location)}</small>
               </div>
@@ -3971,7 +3970,7 @@ class DigemidModule {
           </div>
           <div>
             <div style="height: 30px; display: flex; align-items: center; justify-content: center; color: #475569; font-size: 20px;">
-              🛡️
+              <i class="bi bi-shield-check"></i>
             </div>
             <div style="border-top: 1px solid #475569; width: 75%; margin: 0 auto; padding-top: 4px;">
               <strong style="font-size: 10px; display: block; color: #1e293b;">Sello de Inspección Sanitaria</strong>
@@ -4073,16 +4072,16 @@ class DigemidModule {
           </div>
           ${statusChip}
         </div>
-        <p style="margin: 4px 0; font-size: 12px;"><strong>👤 Paciente:</strong> ${escHtml(r.patientName)} &nbsp;|&nbsp; <strong>DNI:</strong> <code>${escHtml(r.patientDni)}</code></p>
-        <p style="margin: 4px 0; font-size: 12px;"><strong>👨‍⚕️ Médico Prescriptor:</strong> ${escHtml(r.doctorName)} &nbsp;|&nbsp; <strong>Colegiatura:</strong> <span class="shelf-tag">${escHtml(r.doctorCmp)}</span></p>
-        <p style="margin: 4px 0; font-size: 12px;"><strong>📅 Fecha de Emisión:</strong> ${escHtml(r.dateIssued)}</p>
+        <p style="margin: 4px 0; font-size: 12px;"><strong>Paciente:</strong> ${escHtml(r.patientName)} &nbsp;|&nbsp; <strong>DNI:</strong> <code>${escHtml(r.patientDni)}</code></p>
+        <p style="margin: 4px 0; font-size: 12px;"><strong>Médico Prescriptor:</strong> ${escHtml(r.doctorName)} &nbsp;|&nbsp; <strong>Colegiatura:</strong> <span class="shelf-tag">${escHtml(r.doctorCmp)}</span></p>
+        <p style="margin: 4px 0; font-size: 12px;"><strong>Fecha de Emisión:</strong> ${escHtml(r.dateIssued)}</p>
         <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:10px; margin:10px 0;">
           <strong style="color: var(--valetec-navy); font-size: 12px;">Rp. Medicamento Controlado &amp; Posología:</strong>
           <p style="font-size: 13.5px; font-weight: 800; color: #0066cc; margin: 4px 0;">${escHtml(r.medication)}</p>
-          <small style="color: var(--text-muted);"><strong>📌 Custodia:</strong> ${escHtml(r.notes) || 'En archivo de regencia'}</small>
+          <small style="color: var(--text-muted);"><strong>Custodia:</strong> ${escHtml(r.notes) || 'En archivo de regencia'}</small>
         </div>
         <div style="font-size: 11px; color: #64748b; background: #f1f5f9; padding: 6px 10px; border-radius: 4px;">
-          ⚖️ Cumplimiento estricto D.S. 023-2001-SA (Reglamento de Estupefacientes y Psicotrópicos).
+          Cumplimiento estricto D.S. 023-2001-SA (Reglamento de Estupefacientes y Psicotrópicos).
         </div>
       </div>
     `;
@@ -4091,7 +4090,7 @@ class DigemidModule {
     if (this.btnApprove) {
       if (r.status === 'retained') {
         this.btnApprove.style.display = 'inline-flex';
-        this.btnApprove.innerHTML = '<i class="bi bi-check2-circle"></i> <span>✅ Aprobar y Cargar al Carrito</span>';
+        this.btnApprove.innerHTML = '<i class="bi bi-check2-circle"></i> <span>Aprobar y Cargar al Carrito</span>';
       } else {
         this.btnApprove.style.display = 'none';
       }
@@ -4114,7 +4113,7 @@ class DigemidModule {
       this.tableBody.innerHTML = `
         <tr>
           <td colspan="9" style="text-align: center; color: #94a3b8; padding: 24px;">
-            No hay recetas foliadas en el Libro Oficial. Haz clic en "📝 Foliar Nueva Receta" para registrar la primera.
+            No hay recetas foliadas en el Libro Oficial. Haz clic en "Foliar Nueva Receta" para registrar la primera.
           </td>
         </tr>
       `;
@@ -4138,7 +4137,7 @@ class DigemidModule {
           <td>${badge}</td>
           <td>
             <button type="button" class="btn-action-outline" style="padding: 4px 10px; font-size: 11px; font-weight: 700;" onclick="digemidApp.viewRecord('${escHtml(r.folio)}')">
-              <span>👁️ Ver Receta</span>
+              <i class="bi bi-eye"></i> <span>Ver Receta</span>
             </button>
           </td>
         </tr>
@@ -4178,14 +4177,14 @@ class StaffManagementModule {
           <td>${m.shift}</td>
           <td><small style="color: var(--text-muted);">${m.permissions}</small></td>
           <td>
-            <span class="pulse-indicator" style="background-color: ${isAct ? 'rgba(0, 212, 178, 0.2)' : '#f1f5f9'}; color: ${isAct ? '#0f766e' : '#64748b'};">
-              <i class="bi bi-circle-fill"></i> ${isAct ? 'En Turno' : 'Pausa / Fuera'}
+            <span class="pulse-indicator" style="background-color: ${isAct ? 'rgba(13, 148, 136, 0.15)' : '#f1f5f9'}; color: ${isAct ? '#0d9488' : '#64748b'};">
+              <span class="status-dot ${isAct ? 'active' : ''}"></span> ${isAct ? 'En Turno' : 'Pausa / Fuera'}
             </span>
           </td>
           <td><strong>${m.target}</strong></td>
           <td>
             <button type="button" class="btn-action-outline btn-staff-perm" data-index="${index}" style="padding: 4px 10px; font-size: 11px; font-weight: 700;" onclick="window.staffApp ? window.staffApp.openPermissionsModal(${index}, event) : window.openPermissionsModal(${index}, event)">
-              <span>⚙️ Permisos</span>
+              <i class="bi bi-sliders"></i> <span>Permisos</span>
             </button>
           </td>
         </tr>
@@ -4498,13 +4497,13 @@ class ClassificationModule {
         <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:800; padding:4px 8px; border-radius:6px;">${c.productCount || 0} medicamentos</span></td>
         <td style="text-align: right; white-space: nowrap;">
           <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="classificationApp.editCategory(${c.id}, '${c.name.replace(/'/g, "\\'")}', '${c.icon || ''}')" title="Editar Categoría">
-            ✏️ Editar
+            <i class="bi bi-pencil"></i> Editar
           </button>
           <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px; color:#0284c7;" onclick="classificationApp.reassignCategory(${c.id}, '${c.name.replace(/'/g, "\\'")}')" title="Reasignar Medicamentos a otra categoría">
-            🔄 Reasignar
+            <i class="bi bi-arrow-repeat"></i> Reasignar
           </button>
           <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; color:#dc2626;" onclick="classificationApp.deleteCategory(${c.id}, ${c.productCount || 0}, '${c.name.replace(/'/g, "\\'")}')" title="Eliminar Categoría">
-            🗑️ Eliminar
+            <i class="bi bi-trash3"></i> Eliminar
           </button>
         </td>
       </tr>
@@ -4522,17 +4521,17 @@ class ClassificationModule {
       <tr>
         <td><code>#${l.id}</code></td>
         <td><strong><i class="bi bi-building text-blue"></i> ${l.name}</strong></td>
-        <td><span>🇵🇪 ${l.country || 'Perú'}</span></td>
+        <td><span><i class="bi bi-geo-alt" style="color: #64748b; margin-right: 3px;"></i>${l.country || 'Perú'}</span></td>
         <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:800; padding:4px 8px; border-radius:6px;">${l.productCount || 0} medicamentos</span></td>
         <td style="text-align: right; white-space: nowrap;">
           <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="classificationApp.editLaboratory(${l.id}, '${l.name.replace(/'/g, "\\'")}', '${l.country || 'Perú'}', '${l.contact || ''}')" title="Editar Laboratorio">
-            ✏️ Editar
+            <i class="bi bi-pencil"></i> Editar
           </button>
           <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px; color:#0284c7;" onclick="classificationApp.reassignLaboratory('${l.name.replace(/'/g, "\\'")}')" title="Reasignar Medicamentos a otro laboratorio">
-            🔄 Reasignar
+            <i class="bi bi-arrow-repeat"></i> Reasignar
           </button>
           <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; color:#dc2626;" onclick="classificationApp.deleteLaboratory(${l.id}, ${l.productCount || 0}, '${l.name.replace(/'/g, "\\'")}')" title="Eliminar Laboratorio">
-            🗑️ Eliminar
+            <i class="bi bi-trash3"></i> Eliminar
           </button>
         </td>
       </tr>
@@ -4623,7 +4622,7 @@ class ClassificationModule {
 
   async deleteCategory(id, count, name) {
     if (count > 0) {
-      showValetecToast(`⚠️ Operación denegada: La categoría "${name}" tiene ${count} fármacos asociados.`, "warning");
+      showValetecToast(`Operación denegada: La categoría "${name}" tiene ${count} fármacos asociados.`, "warning");
       return;
     }
 
@@ -4636,13 +4635,13 @@ class ClassificationModule {
         await this.loadCategories();
       }
     } catch (err) {
-      showValetecToast("Error al eliminar categoría: " + err.message, "error");
+      showValetecToast("Error al eliminar categoría: " + err.message, "danger");
     }
   }
 
   async deleteLaboratory(id, count, name) {
     if (count > 0) {
-      showValetecToast(`⚠️ Operación denegada: El laboratorio "${name}" tiene ${count} fármacos asociados.`, "warning");
+      showValetecToast(`Operación denegada: El laboratorio "${name}" tiene ${count} fármacos asociados.`, "warning");
       return;
     }
 
@@ -4829,7 +4828,7 @@ class ClientsModule {
     // Validación visual de longitud DNI (8 dígitos)
     if (docType === 'DNI') {
       if (!/^\d{8}$/.test(docNum)) {
-        this.showAlert("⚠️ Error de validación: El DNI debe tener exactamente 8 dígitos numéricos.");
+        this.showAlert("Error de validación: El DNI debe tener exactamente 8 dígitos numéricos.");
         this.inDocNumber?.focus();
         return;
       }
@@ -4838,12 +4837,12 @@ class ClientsModule {
     // Validación visual de longitud RUC (11 dígitos y prefijo SUNAT)
     if (docType === 'RUC') {
       if (!/^\d{11}$/.test(docNum)) {
-        this.showAlert("⚠️ Error de validación: El RUC debe tener exactamente 11 dígitos numéricos.");
+        this.showAlert("Error de validación: El RUC debe tener exactamente 11 dígitos numéricos.");
         this.inDocNumber?.focus();
         return;
       }
       if (!docNum.startsWith('10') && !docNum.startsWith('20') && !docNum.startsWith('15') && !docNum.startsWith('17')) {
-        this.showAlert("⚠️ Error SUNAT: El RUC debe iniciar con 10, 20, 15 o 17.");
+        this.showAlert("Error SUNAT: El RUC debe iniciar con 10, 20, 15 o 17.");
         this.inDocNumber?.focus();
         return;
       }
@@ -4902,8 +4901,8 @@ class ClientsModule {
     if (statusLine) {
       // Hotfix V-06: Escapar fullName contra XSS Stored desde backend/formulario de clientes
       statusLine.innerHTML = `
-        <span class="p-name">👤 ${escHtml(client.fullName)}</span>
-        <span class="p-points"><i class="bi bi-star-fill text-warning"></i> ${parseInt(client.pointsBalance, 10) || 0} Puntos</span>
+        <span class="p-name"><i class="bi bi-person"></i> ${escHtml(client.fullName)}</span>
+        <span class="p-points"><i class="bi bi-star"></i> ${parseInt(client.pointsBalance, 10) || 0} Pts</span>
       `;
     }
     showValetecToast(`Cliente "${escHtml(client.fullName)}" asignado a la venta en curso.`, "success");
@@ -4963,8 +4962,8 @@ class ClientsModule {
     this.tableBody.innerHTML = clients.map(c => {
       const isRuc = c.documentType === 'RUC';
       const badgeStyle = isRuc
-        ? 'background: #f3e8ff; color: #7e22ce;'
-        : (c.documentType === 'DNI' ? 'background: #e0f2fe; color: #0369a1;' : 'background: #f1f5f9; color: #475569;');
+        ? 'background: #f8fafc; border: 1px solid #cbd5e1; color: #475569;'
+        : (c.documentType === 'DNI' ? 'background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534;' : 'background: #f1f5f9; color: #475569;');
       const clientSafeData = {
         id: c.id,
         documentType: c.documentType,
@@ -4977,7 +4976,7 @@ class ClientsModule {
       return `
         <tr>
           <td>
-            <span class="badge" style="${badgeStyle} font-weight: 800; padding: 3px 6px; border-radius: 4px; font-size: 11px;">
+            <span class="badge" style="${badgeStyle} font-weight: 700; padding: 3px 6px; border-radius: 4px; font-size: 11px;">
               ${escHtml(c.documentType)}
             </span>
             <strong style="margin-left: 6px; font-family: monospace;">${escHtml(c.documentNumber)}</strong>
@@ -4987,13 +4986,13 @@ class ClientsModule {
           <td><small style="color: #64748b;">${escHtml(c.email) || '—'}</small></td>
           <td><small style="color: #64748b;">${escHtml(c.address) || '—'}</small></td>
           <td style="text-align: center;">
-            <span class="badge" style="background: #fefce8; color: #a16207; font-weight: 700; padding: 4px 8px; border-radius: 6px;">
-              ⭐ ${parseInt(c.pointsBalance, 10) || 0}
+            <span class="badge" style="background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; font-weight: 600; padding: 4px 8px; border-radius: 6px;">
+              <i class="bi bi-star"></i> ${parseInt(c.pointsBalance, 10) || 0}
             </span>
           </td>
           <td style="text-align: right; white-space: nowrap;">
-            <button type="button" class="btn-action-solid" style="padding: 4px 10px; font-size: 11px; background: #0d9488; color: white; border: none; border-radius: 4px;" onclick="clientsApp.selectAndAssign('${clientJson}')" title="Asignar al Carrito de Ventas">
-              🛒 Asignar
+            <button type="button" class="btn-action-outline" style="padding: 4px 10px; font-size: 11px;" onclick="clientsApp.selectAndAssign('${clientJson}')" title="Asignar al Carrito de Ventas">
+              <i class="bi bi-check2"></i> Asignar
             </button>
           </td>
         </tr>
@@ -5029,10 +5028,10 @@ function showValetecToast(message, type = 'success') {
 
   msg.innerText = message;
   if (icon) {
-    if (type === 'danger') icon.className = 'bi bi-x-circle-fill text-danger';
-    else if (type === 'warning') icon.className = 'bi bi-exclamation-triangle-fill text-warning';
-    else if (type === 'info') icon.className = 'bi bi-info-circle-fill text-blue';
-    else icon.className = 'bi bi-check-circle-fill text-teal';
+    if (type === 'danger') icon.className = 'bi bi-x-circle text-danger';
+    else if (type === 'warning') icon.className = 'bi bi-exclamation-triangle text-warning';
+    else if (type === 'info') icon.className = 'bi bi-info-circle text-blue';
+    else icon.className = 'bi bi-check-circle text-teal';
   }
 
   toast.classList.add('show');
@@ -5492,14 +5491,14 @@ class ManagementDashboardModule {
     const dateStr = new Date().toLocaleDateString();
     const timeStr = new Date().toLocaleTimeString();
 
-    const msg = `🏥 *ORDEN DE COMPRA URGENTE (48H) - VALETEC PHARMA*\n` +
-      `🏢 *Botica Central* | RUC: 20601234567\n` +
-      `📅 Fecha: ${dateStr} ${timeStr}\n\n` +
+    const msg = `*ORDEN DE COMPRA URGENTE (48H) - VALETEC PHARMA*\n` +
+      `*Botica Central* | RUC: 20601234567\n` +
+      `Fecha: ${dateStr} ${timeStr}\n\n` +
       `Estimado proveedor, requerimos despacho urgente de los siguientes ítems de reposición:\n\n` +
       `${data.text}\n\n` +
-      `💰 *Total Estimado:* S/ ${data.total}\n` +
-      `📍 *Entrega:* Av. Aviación 2450, San Borja, Lima\n` +
-      `👩‍⚕️ *Regente Q.F.:* Dra. Elena Vega (CQFP 18492)\n\n` +
+      `*Total Estimado:* S/ ${data.total}\n` +
+      `*Entrega:* Av. Aviación 2450, San Borja, Lima\n` +
+      `*Regente Q.F.:* Dra. Elena Vega (CQFP 18492)\n\n` +
       `Agradecemos confirmar recepción y hora estimada de entrega en botica.`;
 
     previewEl.value = msg;
@@ -5514,7 +5513,7 @@ class ManagementDashboardModule {
     if (previewEl) {
       previewEl.select();
       navigator.clipboard.writeText(previewEl.value).then(() => {
-        showValetecToast("📋 Mensaje copiado al portapapeles listo para pegar.", "success");
+        showValetecToast("Mensaje copiado al portapapeles listo para pegar.", "success");
       }).catch(() => {
         showValetecToast("Texto seleccionado. Puedes presionar Ctrl+C.", "info");
       });
@@ -5736,7 +5735,7 @@ class SettingsModule {
     } finally {
       if (this.btnSave) {
         this.btnSave.disabled = false;
-        this.btnSave.innerHTML = `<i class="bi bi-floppy-fill"></i> <span>💾 Guardar Cambios</span>`;
+        this.btnSave.innerHTML = `<i class="bi bi-floppy"></i> <span>Guardar Cambios</span>`;
       }
     }
   }

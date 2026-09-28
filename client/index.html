@@ -37,21 +37,21 @@
 
         <div class="login-feature-list">
           <div class="feature-bullet">
-            <span class="feat-emoji">🛡️</span>
+            <span class="feat-emoji"><i class="bi bi-shield-check"></i></span>
             <div>
               <strong>Control Sanitario DIGEMID</strong>
               <small style="display:block; color:#94a3b8;">Recetas retenidas y psicotrópicos al día</small>
             </div>
           </div>
           <div class="feature-bullet">
-            <span class="feat-emoji">⚡</span>
+            <span class="feat-emoji"><i class="bi bi-lightning"></i></span>
             <div>
               <strong>Ventas Ultra-Rápidas</strong>
               <small style="display:block; color:#94a3b8;">Cobro ágil con teclado y vuelto automático</small>
             </div>
           </div>
           <div class="feature-bullet">
-            <span class="feat-emoji">📱</span>
+            <span class="feat-emoji"><i class="bi bi-phone"></i></span>
             <div>
               <strong>Control para el Dueño</strong>
               <small style="display:block; color:#94a3b8;">Supervisa ventas y ganancias desde tu celular</small>
@@ -67,57 +67,57 @@
       <!-- Lado Derecho: Formulario de Acceso y Perfiles Rápidos -->
       <div class="login-form-side">
         <div class="login-form-header">
-          <h2>👋 ¡Hola! Bienvenido a tu Botica</h2>
+          <h2>Bienvenido a tu Botica</h2>
           <p>Toca tu perfil de trabajo para entrar rápido o escribe tu clave:</p>
         </div>
 
         <!-- Perfiles de Acceso Rápido (1 Clic) con Emojis y Textos Claros -->
         <div class="quick-profiles-grid">
           <div class="profile-card-btn active" data-role="admin" onclick="authManager.selectQuickProfile('admin')" title="Ver todo el negocio">
-            <div class="prof-avatar">👑</div>
+            <div class="prof-avatar"><i class="bi bi-briefcase"></i></div>
             <div class="prof-text">
               <strong>Dueño / Gerente</strong>
               <small>Ing. Juan Pérez • Todo el negocio</small>
             </div>
-            <i class="bi bi-check-circle-fill prof-check"></i>
+            <i class="bi bi-check-circle prof-check"></i>
           </div>
 
           <div class="profile-card-btn" data-role="qf" onclick="authManager.selectQuickProfile('qf')" title="Recetas y Almacén">
-            <div class="prof-avatar">🔬</div>
+            <div class="prof-avatar"><i class="bi bi-file-earmark-medical"></i></div>
             <div class="prof-text">
               <strong>Químico (Q.F.)</strong>
               <small>Dra. Elena Vega • DIGEMID & Lotes</small>
             </div>
-            <i class="bi bi-check-circle-fill prof-check"></i>
+            <i class="bi bi-check-circle prof-check"></i>
           </div>
 
           <div class="profile-card-btn" data-role="tech" onclick="authManager.selectQuickProfile('tech')" title="Atención a Clientes">
-            <div class="prof-avatar">🩺</div>
+            <div class="prof-avatar"><i class="bi bi-capsule"></i></div>
             <div class="prof-text">
               <strong>Técnico Mostrador</strong>
               <small>Carlos Mendoza • Ventas rápidas</small>
             </div>
-            <i class="bi bi-check-circle-fill prof-check"></i>
+            <i class="bi bi-check-circle prof-check"></i>
           </div>
 
           <div class="profile-card-btn" data-role="cashier" onclick="authManager.selectQuickProfile('cashier')" title="Cobros y Caja">
-            <div class="prof-avatar">💵</div>
+            <div class="prof-avatar"><i class="bi bi-cash-stack"></i></div>
             <div class="prof-text">
               <strong>Cajero de Turno</strong>
               <small>Rodrigo Soto • Cobro & Arqueo</small>
             </div>
-            <i class="bi bi-check-circle-fill prof-check"></i>
+            <i class="bi bi-check-circle prof-check"></i>
           </div>
         </div>
 
         <!-- Formulario Manual de Autenticación -->
         <form class="login-form-fields" onsubmit="authManager.login(event)">
           <div class="login-input-group">
-            <label><i class="bi bi-person-fill"></i> Correo o Usuario:</label>
+            <label><i class="bi bi-person"></i> Correo o Usuario:</label>
             <input type="text" id="loginUsername" class="login-field" value="gerencia@valetec.pe" required>
           </div>
           <div class="login-input-group mt-2">
-            <label><i class="bi bi-key-fill"></i> Clave / PIN de Turno:</label>
+            <label><i class="bi bi-key"></i> Clave / PIN de Turno:</label>
             <input type="password" id="loginPassword" class="login-field" value="••••••••" required>
           </div>
 
@@ -127,12 +127,12 @@
           </div>
 
           <button type="submit" class="btn-login-submit">
-            <i class="bi bi-box-arrow-in-right"></i> 🚀 Ingresar al Sistema
+            <i class="bi bi-box-arrow-in-right"></i> Ingresar al Sistema
           </button>
         </form>
 
         <div class="login-security-notice">
-          <i class="bi bi-shield-lock-fill text-teal"></i> Sistema protegido y seguro para farmacias
+          <i class="bi bi-shield-check text-teal"></i> Sistema protegido y seguro para farmacias
         </div>
       </div>
 
@@ -172,14 +172,14 @@
       <!-- Selector de Rol Dinámico (Simulador de Perfiles) -->
       <div class="sidebar-role-container">
         <div class="role-selector-pill" title="Toca aquí para cambiar de perfil y ver cómo trabaja cada colaborador">
-          <i class="bi bi-person-badge-fill text-teal"></i>
+          <i class="bi bi-person-badge"></i>
           <div class="role-selector-info">
             <small>Estás viendo como:</small>
             <select id="appRoleSelector" class="role-select">
-              <option value="admin" selected>👑 Dueño / Gerente (Acceso Total)</option>
-              <option value="qf">🔬 Químico (Q.F.) (Regente)</option>
-              <option value="tech">🩺 Técnico Mostrador (Ventas)</option>
-              <option value="cashier">💵 Cajero de Turno (Caja)</option>
+              <option value="admin" selected>Dueño / Gerente (Acceso Total)</option>
+              <option value="qf">Químico (Q.F.) (Regente)</option>
+              <option value="tech">Técnico Mostrador (Ventas)</option>
+              <option value="cashier">Cajero de Turno (Caja)</option>
             </select>
           </div>
         </div>
@@ -191,50 +191,50 @@
 
         <!-- Tab 1: Mostrador (Visible para Técnico, Q.F., Gerente) -->
         <button type="button" class="nav-tab-btn" data-view="viewCounter" data-roles="all">
-          <span class="tab-icon">⚡</span>
+          <span class="tab-icon"><i class="bi bi-shop-window"></i></span>
           <span class="tab-label">1. Mostrador & Venta</span>
           <span class="tab-kbd-hint">F2</span>
         </button>
 
         <!-- Tab 2: Control de Caja & Arqueo (Visible para Cajero, Gerente) -->
         <button type="button" class="nav-tab-btn" data-view="viewCash" data-roles="cashier,admin">
-          <span class="tab-icon">💵</span>
+          <span class="tab-icon"><i class="bi bi-wallet2"></i></span>
           <span class="tab-label">2. Caja & Cuadre</span>
           <span class="tab-kbd-hint">F9</span>
         </button>
 
         <!-- Tab 3: Almacén & Lotes FEFO (Visible para Q.F., Gerente) -->
         <button type="button" class="nav-tab-btn" data-view="viewWarehouse" data-roles="qf,admin">
-          <span class="tab-icon">📦</span>
+          <span class="tab-icon"><i class="bi bi-boxes"></i></span>
           <span class="tab-label">3. Almacén & Lotes</span>
-          <span class="badge-tab-notify warn">⚠️ 1 Canje</span>
+          <span class="badge-tab-notify warn"><span class="status-dot warn"></span> 1 Canje</span>
         </button>
 
         <!-- Tab 4: Regencia DIGEMID & Controlados (Visible para Q.F., Gerente) -->
         <button type="button" class="nav-tab-btn" data-view="viewDigemid" data-roles="qf,admin">
-          <span class="tab-icon">📋</span>
+          <span class="tab-icon"><i class="bi bi-file-earmark-medical"></i></span>
           <span class="tab-label">4. Recetas DIGEMID</span>
-          <span class="badge-tab-notify info">3 Recetas</span>
+          <span class="badge-tab-notify info"><span class="status-dot neutral"></span> 3 Recetas</span>
         </button>
 
         <!-- Tab 5: Gestión de Colaboradores & Turnos (Visible para Gerente) -->
         <button type="button" class="nav-tab-btn" data-view="viewStaff" data-roles="admin">
-          <span class="tab-icon">👥</span>
+          <span class="tab-icon"><i class="bi bi-people"></i></span>
           <span class="tab-label">5. Personal & Turnos</span>
         </button>
 
         <!-- Tab 6: Torre de Control Gerencial (Visible para Gerente) -->
         <button type="button" class="nav-tab-btn active" data-view="viewManagement" data-roles="admin">
-          <span class="tab-icon">📊</span>
+          <span class="tab-icon"><i class="bi bi-graph-up"></i></span>
           <span class="tab-label">6. Torre de Control</span>
-          <span class="badge-tab-notify live">🔴 En Vivo</span>
+          <span class="badge-tab-notify live"><span class="status-dot active pulse"></span> En Vivo</span>
         </button>
       </div>
 
       <!-- Pie del Sidebar: Perfil del Usuario Activo & Cerrar Sesión -->
       <div class="sidebar-footer">
         <div class="user-profile-badge">
-          <div class="user-avatar" id="activeUserAvatar">👑</div>
+          <div class="user-avatar" id="activeUserAvatar"><i class="bi bi-person"></i></div>
           <div class="user-details">
             <strong id="activeUserName">Ing. Juan Pérez</strong>
             <small id="activeUserRole">Dueño / Gerente General</small>
@@ -268,9 +268,9 @@
 
           <!-- Indicador de Terminal y Sede -->
           <div class="terminal-badge d-none d-lg-flex">
-            <i class="bi bi-shop text-blue"></i>
+            <i class="bi bi-shop"></i>
             <span><strong>Botica Central</strong> • Caja 01</span>
-            <span class="pulse-indicator"><i class="bi bi-circle-fill"></i> 🟢 Turno Abierto</span>
+            <span class="pulse-indicator"><span class="status-dot free pulse"></span> Turno Abierto</span>
           </div>
         </div>
 
@@ -283,12 +283,12 @@
 
           <!-- Botón Configuración de Empresa (Admin) -->
           <button type="button" class="btn-shortcuts-modal" id="btnOpenSettingsHeader" title="Configuraciones Generales de la Empresa [Admin]">
-            <i class="bi bi-gear-fill text-teal"></i> <span>⚙️ Empresa</span>
+            <i class="bi bi-gear"></i> <span>Empresa</span>
           </button>
 
           <!-- Botón de Atajos -->
           <button type="button" class="btn-shortcuts-modal" id="btnOpenShortcuts" title="Ver atajos de teclado [F1]">
-            <span>⌨️ Atajos <kbd>F1</kbd></span>
+            <i class="bi bi-keyboard"></i> <span>Atajos <kbd>F1</kbd></span>
           </button>
         </div>
       </header>
@@ -313,28 +313,28 @@
                 <input 
                   type="text" 
                   id="fastProductSearch" 
-                  placeholder="🔍 Escribe medicina, genérico o pasa el lector de código de barras... [F2]" 
+                  placeholder="Escribe medicina, genérico o pasa el lector de código de barras... [F2]" 
                   autocomplete="off"
                 >
-                <span class="search-enter-tag">⚡ <kbd>Enter</kbd> Agregar</span>
+                <span class="search-enter-tag"><kbd>Enter</kbd> Agregar</span>
               </div>
               <div class="search-autocomplete-dropdown" id="searchAutocompleteDropdown"></div>
             </div>
 
-            <!-- Filtro de Categorías Rápidas con Emojis Vistosos -->
+            <!-- Filtro de Categorías Rápidas con Íconos Lineales -->
             <div class="category-chips-scroll">
-              <button type="button" class="cat-chip active" data-cat="all">✨ Todas las Medicinas</button>
-              <button type="button" class="cat-chip" data-cat="dolor">💊 Dolor & Fiebre</button>
-              <button type="button" class="cat-chip" data-cat="respiratorio">🫁 Gripe & Tos</button>
-              <button type="button" class="cat-chip" data-cat="antibioticos">🛡️ Antibióticos (Receta)</button>
-              <button type="button" class="cat-chip" data-cat="digestivos">🍵 Estómago & Digestión</button>
-              <button type="button" class="cat-chip" data-cat="controlados">🔒 Controlados (Lista IV)</button>
-              <button type="button" class="cat-chip" data-cat="vitaminas">🍊 Vitaminas & Defensas</button>
+              <button type="button" class="cat-chip active" data-cat="all"><i class="bi bi-grid"></i> Todas</button>
+              <button type="button" class="cat-chip" data-cat="dolor"><i class="bi bi-capsule"></i> Dolor & Fiebre</button>
+              <button type="button" class="cat-chip" data-cat="respiratorio"><i class="bi bi-lungs"></i> Gripe & Tos</button>
+              <button type="button" class="cat-chip" data-cat="antibioticos"><i class="bi bi-shield-check"></i> Antibióticos</button>
+              <button type="button" class="cat-chip" data-cat="digestivos"><i class="bi bi-heart-pulse"></i> Digestivos</button>
+              <button type="button" class="cat-chip" data-cat="controlados"><i class="bi bi-lock"></i> Controlados</button>
+              <button type="button" class="cat-chip" data-cat="vitaminas"><i class="bi bi-flower1"></i> Vitaminas</button>
             </div>
 
-            <!-- Banner de Asesoría de Genéricos DCI (Texto directo y al grano) -->
+            <!-- Banner de Asesoría de Genéricos DCI -->
             <div class="dci-advisor-card">
-              <span class="feat-emoji" style="font-size:22px;">💡</span>
+              <i class="bi bi-lightbulb"></i>
               <div>
                 <strong>Ahorro para el Cliente:</strong>
                 <span>Ofrece la alternativa genérica DCI para fidelizar al paciente con precios bajos y cumplir la ley.</span>
@@ -353,13 +353,13 @@
             
             <div class="ticket-header-card">
               <div class="ticket-title-row">
-                <span class="ticket-title"><i class="bi bi-cart3"></i> 🛒 Carrito de Venta</span>
+                <span class="ticket-title"><i class="bi bi-cart2"></i> Carrito de Venta</span>
                 <div style="display: flex; gap: 6px; align-items: center;">
-                  <button type="button" class="btn-history-trigger" id="btnOpenClientsDirectory" onclick="clientsApp.openDirectoryModal()" title="Directorio de Clientes [F4]" style="background: #f0fdf4; color: #166534; border-color: #bbf7d0;">
-                    <i class="bi bi-people-fill"></i> <span>👥 Clientes</span>
+                  <button type="button" class="btn-history-trigger" id="btnOpenClientsDirectory" onclick="clientsApp.openDirectoryModal()" title="Directorio de Clientes [F4]">
+                    <i class="bi bi-people"></i> <span>Clientes</span>
                   </button>
                   <button type="button" class="btn-history-trigger" id="btnOpenSalesHistory" title="Ver historial de comprobantes del turno [F7]">
-                    <i class="bi bi-clock-history"></i> <span>🧾 Historial [F7]</span>
+                    <i class="bi bi-clock-history"></i> <span>Historial [F7]</span>
                   </button>
                   <span class="ticket-id-tag" id="ticketLiveNumber">VAL-2026-0042</span>
                 </div>
@@ -367,18 +367,18 @@
 
               <div class="patient-lookup-box">
                 <div class="input-doc-wrap">
-                  <i class="bi bi-person-vcard text-blue"></i>
+                  <i class="bi bi-person-vcard"></i>
                   <input type="text" id="patientDocInput" placeholder="DNI o RUC del cliente..." maxlength="11" onkeydown="if(event.key==='Enter'){event.preventDefault(); counterApp.lookupPatient();}">
                   <button type="button" id="btnQueryPatient" onclick="counterApp.lookupPatient()" title="Buscar cliente en el sistema">
-                    <span>🔍 Buscar</span>
+                    <i class="bi bi-search"></i>
                   </button>
-                  <button type="button" id="btnQuickAddClient" onclick="clientsApp.openQuickModal(document.getElementById('patientDocInput')?.value)" title="Registrar nuevo cliente rápido" style="background: #0d9488; color: white; border: none; border-radius: 6px; padding: 0 10px; font-weight: 700; font-size: 11.5px; cursor: pointer; white-space: nowrap;">
-                    <span>➕ Nuevo</span>
+                  <button type="button" id="btnQuickAddClient" onclick="clientsApp.openQuickModal(document.getElementById('patientDocInput')?.value)" title="Registrar nuevo cliente rápido" class="btn-action-solid" style="padding: 0 10px; height: 36px; border-radius: 6px; font-size: 11px;">
+                    <i class="bi bi-person-plus"></i> <span>Nuevo</span>
                   </button>
                 </div>
                 <div class="patient-status-line" id="patientStatusLine">
-                  <span class="p-name">👤 Cliente General</span>
-                  <span class="p-points"><i class="bi bi-star-fill text-warning"></i> 0 Puntos</span>
+                  <span class="p-name"><i class="bi bi-person"></i> Cliente General</span>
+                  <span class="p-points"><span class="status-dot free"></span> 0 Puntos</span>
                 </div>
               </div>
             </div>
@@ -386,7 +386,7 @@
             <!-- Lista de Medicamentos Agregados -->
             <div class="ticket-items-scroll" id="ticketItemsScroll">
               <div class="empty-ticket-view">
-                <span style="font-size: 36px; display:block; margin-bottom:8px;">🛒</span>
+                <i class="bi bi-cart2" style="font-size: 32px; display:block; margin-bottom:8px; color: #94a3b8;"></i>
                 <p><strong>El carrito está vacío.</strong></p>
                 <small>Busca medicamentos o presiona [F2] para agregar.</small>
               </div>
@@ -394,13 +394,13 @@
 
             <!-- Alerta de Receta Obligatoria CMP -->
             <div class="prescription-alert-box d-none" id="prescriptionAlertBox">
-              <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+              <i class="bi bi-exclamation-triangle text-danger"></i>
               <div>
-                <strong class="text-danger">⚠️ Requiere Receta Médica DIGEMID:</strong>
+                <strong class="text-danger">Requiere Receta Médica DIGEMID:</strong>
                 <p>Escribe el CMP del médico tratante para autorizar la salida:</p>
                 <div class="cmp-row">
                   <input type="text" id="orderDoctorCmp" placeholder="Ej. CMP-48291 (Doctor)">
-                  <button type="button" class="btn-check-cmp" onclick="showValetecToast('✅ Colegiatura CMP verificada y vigente en el Colegio Médico del Perú.', 'success')">Validar</button>
+                  <button type="button" class="btn-check-cmp" onclick="showValetecToast('Colegiatura CMP verificada y vigente en el Colegio Médico del Perú.', 'success')">Validar</button>
                 </div>
               </div>
             </div>
@@ -416,7 +416,7 @@
                 <span id="ticketIgvAmount">S/ 0.00</span>
               </div>
               <div class="tot-row final-total">
-                <span>💰 TOTAL A COBRAR:</span>
+                <span>TOTAL A COBRAR:</span>
                 <span class="total-val" id="ticketTotalAmount">S/ 0.00</span>
               </div>
             </div>
@@ -424,42 +424,42 @@
             <!-- Panel de Cobro Rápido -->
             <div class="payment-controls-card">
               <div class="voucher-switch-grid">
-                <label class="v-opt"><input type="radio" name="orderVoucherType" value="ticket" checked> 🧾 Ticket</label>
-                <label class="v-opt"><input type="radio" name="orderVoucherType" value="boleta"> 📄 Boleta</label>
-                <label class="v-opt"><input type="radio" name="orderVoucherType" value="factura"> 🏢 Factura</label>
+                <label class="v-opt"><input type="radio" name="orderVoucherType" value="ticket" checked> Ticket</label>
+                <label class="v-opt"><input type="radio" name="orderVoucherType" value="boleta"> Boleta</label>
+                <label class="v-opt"><input type="radio" name="orderVoucherType" value="factura"> Factura</label>
               </div>
 
               <!-- Selector Táctil de Medios de Pago -->
               <div class="payment-methods-selector">
                 <button type="button" class="pay-method-btn active" data-method="cash" id="btnPayCash">
-                  <span>💵 Efectivo</span>
+                  <i class="bi bi-cash"></i> <span>Efectivo</span>
                 </button>
                 <button type="button" class="pay-method-btn" data-method="yape" id="btnPayYape">
-                  <span>🟣 Yape / Plin</span>
+                  <i class="bi bi-qr-code"></i> <span>Yape / Plin</span>
                 </button>
                 <button type="button" class="pay-method-btn" data-method="card" id="btnPayCard">
-                  <span>💳 Tarjeta POS</span>
+                  <i class="bi bi-credit-card"></i> <span>Tarjeta POS</span>
                 </button>
               </div>
 
               <!-- Billetes para cálculo inmediato de vuelto (Solo Efectivo) -->
               <div class="cash-calc-wrapper" id="cashPaymentSection">
-                <span class="calc-label-tag">💵 Toca el billete recibido para calcular vuelto:</span>
+                <span class="calc-label-tag">Cálculo de vuelto rápido:</span>
                 <div class="bills-fast-grid">
-                  <button type="button" class="btn-cash-bill" data-amount="10">💵 S/ 10</button>
-                  <button type="button" class="btn-cash-bill" data-amount="20">💵 S/ 20</button>
-                  <button type="button" class="btn-cash-bill" data-amount="50">💵 S/ 50</button>
-                  <button type="button" class="btn-cash-bill" data-amount="100">💵 S/ 100</button>
-                  <button type="button" class="btn-cash-bill" data-amount="200">💵 S/ 200</button>
-                  <button type="button" class="btn-cash-bill exact" id="btnCashExact">🪙 Pago Exacto</button>
+                  <button type="button" class="btn-cash-bill" data-amount="10">S/ 10</button>
+                  <button type="button" class="btn-cash-bill" data-amount="20">S/ 20</button>
+                  <button type="button" class="btn-cash-bill" data-amount="50">S/ 50</button>
+                  <button type="button" class="btn-cash-bill" data-amount="100">S/ 100</button>
+                  <button type="button" class="btn-cash-bill" data-amount="200">S/ 200</button>
+                  <button type="button" class="btn-cash-bill exact" id="btnCashExact">Pago Exacto</button>
                 </div>
                 <div class="change-display-grid">
                   <div class="c-field">
-                    <small>💵 Dinero Recibido:</small>
+                    <small>Dinero Recibido:</small>
                     <input type="number" id="cashReceivedInput" placeholder="0.00" step="0.50">
                   </div>
                   <div class="c-field highlight">
-                    <small>🟢 SU VUELTO:</small>
+                    <small>Vuelto:</small>
                     <strong id="cashChangeDisplay">S/ 0.00</strong>
                   </div>
                 </div>
@@ -470,14 +470,14 @@
                 <div class="digital-info-box">
                   <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
                     <div style="display: flex; align-items: center; gap: 6px;">
-                      <span id="digitalIconTag" style="font-size: 1.3rem;">🟣</span>
+                      <i class="bi bi-phone" style="font-size: 1.1rem; color: #64748b;"></i>
                       <strong id="digitalTitleTag" style="font-size: 13px;">Pago Digital Directo</strong>
                     </div>
-                    <span class="badge" style="background: #e0f2fe; color: #0369a1; font-size: 11px; padding: 4px 8px; border-radius: 4px;" id="digitalExactBadge">Monto Exacto: S/ 0.00</span>
+                    <span class="badge" style="background: #f1f5f9; color: #475569; font-size: 11px; padding: 4px 8px; border-radius: 4px;" id="digitalExactBadge">Monto Exacto: S/ 0.00</span>
                   </div>
                   <small style="color: #64748b; display: block; margin-bottom: 8px;" id="digitalHintTag">Pide al cliente transferir el monto exacto por Yape o Plin.</small>
                   <div>
-                    <label for="digitalRefInput" style="font-size: 11.5px; font-weight: 700; color: #334155; margin-bottom: 3px; display: block;">N° Operación / Referencia (Opcional):</label>
+                    <label for="digitalRefInput" style="font-size: 11.5px; font-weight: 600; color: #334155; margin-bottom: 3px; display: block;">N° Operación / Referencia (Opcional):</label>
                     <input type="text" id="digitalRefInput" class="form-control" placeholder="Ej. OP-738291" style="font-size: 12.5px; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; width: 100%;">
                   </div>
                 </div>
@@ -486,10 +486,10 @@
               <!-- Acciones de Mostrador: Botones Grandes y Claros -->
               <div class="ticket-action-btns">
                 <button type="button" class="btn-order-checkout" id="btnCheckoutOrder" title="Cobrar e imprimir comprobante [F4]">
-                  <i class="bi bi-printer-fill"></i> <span>💳 [F4] COBRAR Y ENTREGAR</span>
+                  <i class="bi bi-printer"></i> <span>[F4] COBRAR Y ENTREGAR</span>
                 </button>
                 <button type="button" class="btn-order-cancel" id="btnCancelOrder" title="Borrar y vaciar el carrito [F8]">
-                  <i class="bi bi-trash3"></i> <span>🗑️ [F8] Cancelar Venta</span>
+                  <i class="bi bi-trash3"></i> <span>[F8] Cancelar Venta</span>
                 </button>
               </div>
 
@@ -508,18 +508,18 @@
           
           <div class="card-header-flex">
             <div>
-              <h2 class="view-heading"><i class="bi bi-cash-stack text-blue"></i> 💵 Caja 01 • Cuadre y Arqueo del Turno</h2>
-              <p class="view-subheading">Controla el dinero en efectivo, cobros por tarjeta/Yape y verifica que no falte ni un sol.</p>
+              <h2 class="view-heading"><i class="bi bi-wallet2"></i> Caja 01 • Cuadre y Arqueo del Turno</h2>
+              <p class="view-subheading">Controla el dinero en efectivo, cobros por tarjeta/Yape y verifica el arqueo.</p>
             </div>
             <div class="header-actions-group">
-              <button type="button" class="btn-action-solid" id="btnOpenShiftModal" style="display: none; background: linear-gradient(135deg, #0d9488, #059669); color: white; border: none;">
-                <span>🔓 Iniciar Turno</span>
+              <button type="button" class="btn-action-solid" id="btnOpenShiftModal" style="display: none;">
+                <i class="bi bi-unlock"></i> <span>Iniciar Turno</span>
               </button>
               <button type="button" class="btn-action-outline" id="btnOpenExpenseModal">
-                <span>💸 + Registrar Gasto</span>
+                <i class="bi bi-dash-circle"></i> <span>Registrar Gasto</span>
               </button>
               <button type="button" class="btn-action-solid" id="btnTriggerZClose">
-                <span>🔒 Cierre Z (Finalizar Día)</span>
+                <i class="bi bi-lock"></i> <span>Cierre Z (Finalizar Día)</span>
               </button>
             </div>
           </div>
@@ -527,22 +527,22 @@
           <!-- 4 Tarjetas de Balance de Caja -->
           <div class="cash-kpi-grid">
             <div class="cash-stat-card">
-              <span class="stat-label">🪙 Sencillo de Inicio (Fondo)</span>
+              <span class="stat-label">Sencillo de Inicio (Fondo)</span>
               <div class="stat-value" id="cashOpeningFund">S/ 250.00</div>
               <small class="stat-meta" id="cashOpeningMeta"><i class="bi bi-clock"></i> Turno Abierto</small>
             </div>
             <div class="cash-stat-card">
-              <span class="stat-label">💵 Ventas en Efectivo (Hoy)</span>
+              <span class="stat-label">Ventas en Efectivo (Hoy)</span>
               <div class="stat-value text-teal" id="cashCashSales">S/ 1,840.50</div>
               <small class="stat-meta" id="cashSalesMeta"><i class="bi bi-receipt"></i> Efectivo en caja</small>
             </div>
             <div class="cash-stat-card">
-              <span class="stat-label">💳 Tarjeta / Yape / Plin</span>
+              <span class="stat-label">Tarjeta / Yape / Plin</span>
               <div class="stat-value text-blue" id="cashDigitalSales">S/ 3,052.00</div>
               <small class="stat-meta"><i class="bi bi-phone"></i> Pagos digitales</small>
             </div>
             <div class="cash-stat-card expected-highlight">
-              <span class="stat-label">🎯 Dinero que DEBE haber en gaveta:</span>
+              <span class="stat-label">Dinero que DEBE haber en gaveta:</span>
               <div class="stat-value" id="cashExpectedDrawer">S/ 2,005.50</div>
               <small class="stat-meta" id="cashExpectedMeta">Fondo + Ventas Efectivo - Gastos</small>
             </div>
@@ -553,7 +553,7 @@
             
             <div class="audit-matrix-box">
               <div class="box-title-row">
-                <h3><i class="bi bi-calculator"></i> 🧮 Conteo de Dinero en Gaveta</h3>
+                <h3><i class="bi bi-calculator"></i> Conteo de Dinero en Gaveta</h3>
                 <span class="badge-sub">Escribe cuántos billetes y monedas tienes en las manos</span>
               </div>
 
@@ -561,29 +561,29 @@
                 <table class="audit-table">
                   <thead><tr><th>Billete</th><th>Cantidad</th><th>Total</th></tr></thead>
                   <tbody>
-                    <tr><td><strong>💵 S/ 200</strong></td><td><input type="number" class="denom-field" data-val="200" value="3" min="0"></td><td class="denom-cell">S/ 600.00</td></tr>
-                    <tr><td><strong>💵 S/ 100</strong></td><td><input type="number" class="denom-field" data-val="100" value="9" min="0"></td><td class="denom-cell">S/ 900.00</td></tr>
-                    <tr><td><strong>💵 S/ 50</strong></td><td><input type="number" class="denom-field" data-val="50" value="6" min="0"></td><td class="denom-cell">S/ 300.00</td></tr>
-                    <tr><td><strong>💵 S/ 20</strong></td><td><input type="number" class="denom-field" data-val="20" value="7" min="0"></td><td class="denom-cell">S/ 140.00</td></tr>
-                    <tr><td><strong>💵 S/ 10</strong></td><td><input type="number" class="denom-field" data-val="10" value="5" min="0"></td><td class="denom-cell">S/ 50.00</td></tr>
+                    <tr><td><strong>S/ 200</strong></td><td><input type="number" class="denom-field" data-val="200" value="3" min="0"></td><td class="denom-cell">S/ 600.00</td></tr>
+                    <tr><td><strong>S/ 100</strong></td><td><input type="number" class="denom-field" data-val="100" value="9" min="0"></td><td class="denom-cell">S/ 900.00</td></tr>
+                    <tr><td><strong>S/ 50</strong></td><td><input type="number" class="denom-field" data-val="50" value="6" min="0"></td><td class="denom-cell">S/ 300.00</td></tr>
+                    <tr><td><strong>S/ 20</strong></td><td><input type="number" class="denom-field" data-val="20" value="7" min="0"></td><td class="denom-cell">S/ 140.00</td></tr>
+                    <tr><td><strong>S/ 10</strong></td><td><input type="number" class="denom-field" data-val="10" value="5" min="0"></td><td class="denom-cell">S/ 50.00</td></tr>
                   </tbody>
                 </table>
 
                 <table class="audit-table">
                   <thead><tr><th>Moneda</th><th>Cantidad</th><th>Total</th></tr></thead>
                   <tbody>
-                    <tr><td><strong>🪙 S/ 5.00</strong></td><td><input type="number" class="denom-field" data-val="5" value="2" min="0"></td><td class="denom-cell">S/ 10.00</td></tr>
-                    <tr><td><strong>🪙 S/ 2.00</strong></td><td><input type="number" class="denom-field" data-val="2" value="2" min="0"></td><td class="denom-cell">S/ 4.00</td></tr>
-                    <tr><td><strong>🪙 S/ 1.00</strong></td><td><input type="number" class="denom-field" data-val="1" value="1" min="0"></td><td class="denom-cell">S/ 1.00</td></tr>
-                    <tr><td><strong>🪙 S/ 0.50</strong></td><td><input type="number" class="denom-field" data-val="0.5" value="1" min="0"></td><td class="denom-cell">S/ 0.50</td></tr>
-                    <tr><td><strong>🪙 S/ 0.20/0.10</strong></td><td><input type="number" class="denom-field" data-val="0" value="0" min="0"></td><td class="denom-cell">S/ 0.00</td></tr>
+                    <tr><td><strong>S/ 5.00</strong></td><td><input type="number" class="denom-field" data-val="5" value="2" min="0"></td><td class="denom-cell">S/ 10.00</td></tr>
+                    <tr><td><strong>S/ 2.00</strong></td><td><input type="number" class="denom-field" data-val="2" value="2" min="0"></td><td class="denom-cell">S/ 4.00</td></tr>
+                    <tr><td><strong>S/ 1.00</strong></td><td><input type="number" class="denom-field" data-val="1" value="1" min="0"></td><td class="denom-cell">S/ 1.00</td></tr>
+                    <tr><td><strong>S/ 0.50</strong></td><td><input type="number" class="denom-field" data-val="0.5" value="1" min="0"></td><td class="denom-cell">S/ 0.50</td></tr>
+                    <tr><td><strong>S/ 0.20/0.10</strong></td><td><input type="number" class="denom-field" data-val="0" value="0" min="0"></td><td class="denom-cell">S/ 0.00</td></tr>
                   </tbody>
                 </table>
               </div>
             </div>
 
             <div class="audit-verdict-box">
-              <h3>📋 Resultado del Cuadre</h3>
+              <h3><i class="bi bi-clipboard-check"></i> Resultado del Cuadre</h3>
               
               <div class="verdict-row">
                 <span>Dinero que contaste en mano:</span>
@@ -595,9 +595,9 @@
               </div>
 
               <div class="cuadre-status-banner perfect" id="cuadreStatusBanner">
-                <i class="bi bi-check-circle-fill"></i>
+                <i class="bi bi-check-circle"></i>
                 <div>
-                  <strong>✅ ¡CUADRE PERFECTO!</strong>
+                  <strong>¡CUADRE PERFECTO!</strong>
                   <p>Diferencia: S/ 0.00. El dinero en mano coincide exactamente con las ventas.</p>
                 </div>
               </div>
@@ -609,7 +609,7 @@
               </div>
 
               <button type="button" class="btn-print-ticket-audit" onclick="cashApp.printAuditTicket()">
-                <span>🖨️ Imprimir Ticket de Cuadre</span>
+                <i class="bi bi-printer"></i> <span>Imprimir Ticket de Cuadre</span>
               </button>
             </div>
 
@@ -619,7 +619,7 @@
           <div class="cash-movements-section" style="margin-top: 24px; border-top: 1px solid var(--border-color, #e2e8f0); padding-top: 18px;">
             <div class="box-title-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
               <h3 style="margin: 0; font-size: 14px; font-weight: 700; color: #0f172a;">
-                <i class="bi bi-journal-text text-teal"></i> 📋 Egresos y Salidas de Caja Chica en este Turno
+                <i class="bi bi-journal-text text-teal"></i> Egresos y Salidas de Caja Chica en este Turno
               </h3>
               <span class="badge-sub" id="cashMovementsCountBadge">0 movimientos</span>
             </div>
@@ -656,60 +656,60 @@
           
           <div class="card-header-flex">
             <div>
-              <h2 class="view-heading"><i class="bi bi-boxes text-blue"></i> 📦 Almacén, Lotes & Vencimientos (FEFO)</h2>
+              <h2 class="view-heading"><i class="bi bi-boxes"></i> Almacén, Lotes & Vencimientos (FEFO)</h2>
               <p class="view-subheading">Controla anaqueles, stock en pastillas y canjea medicinas antes de que venzan.</p>
             </div>
             <div class="header-actions-group">
               <button type="button" class="btn-action-outline" onclick="classificationApp.openModal()">
-                <span>🏷️ Categorías & Labs</span>
+                <i class="bi bi-tags"></i> <span>Categorías & Labs</span>
               </button>
-              <button type="button" class="btn-action-outline" style="background: #fff1f2; color: #be123c; border-color: #fecdd3;" onclick="warehouseApp.openAdjustmentModal()">
-                <span>⚖️ Ajustes & Mermas</span>
+              <button type="button" class="btn-action-outline" onclick="warehouseApp.openAdjustmentModal()">
+                <i class="bi bi-sliders"></i> <span>Ajustes & Mermas</span>
               </button>
-              <button type="button" class="btn-action-outline" style="background: #fefce8; color: #a16207; border-color: #fef08a;" onclick="warehouseApp.openFefoAlertsModal()">
-                <span>⏳ Semáforo FEFO (<strong id="fefoCriticalCount">0</strong>)</span>
+              <button type="button" class="btn-action-outline" onclick="warehouseApp.openFefoAlertsModal()">
+                <i class="bi bi-hourglass-split"></i> <span>Semáforo FEFO (<strong id="fefoCriticalCount">0</strong>)</span>
               </button>
-              <button type="button" class="btn-action-outline" style="background: #f0fdf4; color: #166534; border-color: #bbf7d0;" onclick="warehouseApp.openValuedInventoryModal()">
-                <span>📊 Inventario Valorizado</span>
+              <button type="button" class="btn-action-outline" onclick="warehouseApp.openValuedInventoryModal()">
+                <i class="bi bi-bar-chart"></i> <span>Inventario Valorizado</span>
               </button>
               <button type="button" class="btn-action-solid" id="btnOpenReceiveModal">
-                <span>📥 + Recibir de Droguería</span>
+                <i class="bi bi-box-arrow-in-down"></i> <span>Recibir de Droguería</span>
               </button>
-              <button type="button" class="btn-action-solid" id="btnOpenNewMedicineModal" style="background: linear-gradient(135deg, #0d9488, #059669); color: white; border: none;" onclick="warehouseApp.openCreateModal()">
-                <span>💊 + Nuevo Fármaco</span>
+              <button type="button" class="btn-action-solid" id="btnOpenNewMedicineModal" onclick="warehouseApp.openCreateModal()">
+                <i class="bi bi-plus-lg"></i> <span>Nuevo Fármaco</span>
               </button>
             </div>
           </div>
 
           <div class="exchange-alert-banner">
-            <span class="feat-emoji" style="font-size: 24px;">⏰</span>
+            <i class="bi bi-clock-history" style="font-size: 22px; color: #b45309; flex-shrink: 0;"></i>
             <div class="exchange-text">
-              <strong>¡Medicina por Vencer en menos de 90 días!</strong>
+              <strong>Medicina por Vencer en menos de 90 días</strong>
               <p>Lote L-24115 de <strong>Bio-Amoxil 500mg</strong> vence pronto. Tramita el canje con el proveedor para no perder dinero.</p>
             </div>
             <button type="button" class="btn-exchange-action" id="btnExchangeFefoAction" onclick="window.warehouseApp ? window.warehouseApp.openExchangeModal(event) : window.openExchangeModal(event)">
-              <span>🔄 Tramitar Canje</span>
+              <i class="bi bi-arrow-repeat"></i> <span>Tramitar Canje</span>
             </button>
           </div>
 
           <div class="warehouse-filter-bar">
             <div class="wh-search-input">
               <i class="bi bi-search"></i>
-              <input type="text" id="whSearchField" placeholder="🔍 Buscar por medicina, lote o código de barras...">
+              <input type="text" id="whSearchField" placeholder="Buscar por medicina, lote o código de barras...">
             </div>
             <div class="wh-selects">
               <select id="whLocationFilter" class="form-select-valetec">
-                <option value="all">📍 Todos los Anaqueles</option>
+                <option value="all">Todos los Anaqueles</option>
                 <option value="Pasillo 1">Pasillo 1 (Dolor & Gripe)</option>
                 <option value="Pasillo 2">Pasillo 2 (Digestivos)</option>
                 <option value="Zona Refrigerada">Zona Refrigerada (Antibióticos)</option>
                 <option value="Caja Fuerte">Caja Fuerte (Controlados)</option>
               </select>
               <select id="whFefoFilter" class="form-select-valetec">
-                <option value="all">📅 Todos los Vencimientos</option>
-                <option value="good">🟢 Vigente (> 6 meses)</option>
-                <option value="warning">🟡 Vence Pronto (< 90 días)</option>
-                <option value="expired">🔴 Crítico / Vencido</option>
+                <option value="all">Todos los Vencimientos</option>
+                <option value="good">Vigente (> 6 meses)</option>
+                <option value="warning">Vence Pronto (< 90 días)</option>
+                <option value="expired">Crítico / Vencido</option>
               </select>
             </div>
           </div>
@@ -746,36 +746,36 @@
           
           <div class="card-header-flex">
             <div>
-              <h2 class="view-heading"><i class="bi bi-journal-medical text-blue"></i> 📋 Libro Oficial de Psicotrópicos DIGEMID</h2>
+              <h2 class="view-heading"><i class="bi bi-journal-medical"></i> Libro Oficial de Psicotrópicos DIGEMID</h2>
               <p class="view-subheading">Registro sanitario legal de recetas retenidas (Lista IV) y antibióticos con CMP.</p>
             </div>
             <div class="header-actions-group">
               <button type="button" class="btn-action-outline" id="btnPrintDigemidBalance">
-                <span>🖨️ Balance Sanitario</span>
+                <i class="bi bi-printer"></i> <span>Balance Sanitario</span>
               </button>
               <button type="button" class="btn-action-solid" id="btnNewPrescriptionEntry">
-                <span>📝 + Foliar Nueva Receta</span>
+                <i class="bi bi-file-earmark-plus"></i> <span>Foliar Nueva Receta</span>
               </button>
             </div>
           </div>
 
           <div class="sanitary-metrics-grid">
             <div class="san-card">
-              <span class="feat-emoji" style="font-size: 26px;">🔒</span>
+              <i class="bi bi-shield-lock" style="font-size: 22px; color: #64748b;"></i>
               <div>
                 <div class="san-num" id="digemidVaultUnits">25 Pastillas en Caja Fuerte</div>
                 <div class="san-label">Sedafarma 2mg (Custodia de Regencia)</div>
               </div>
             </div>
             <div class="san-card">
-              <span class="feat-emoji" style="font-size: 26px;">✅</span>
+              <i class="bi bi-check2-circle" style="font-size: 22px; color: #0d9488;"></i>
               <div>
                 <div class="san-num" id="digemidFolioStatus">100% Foliado al Día</div>
                 <div class="san-label">Libro Oficial de Psicotrópicos</div>
               </div>
             </div>
             <div class="san-card">
-              <span class="feat-emoji" style="font-size: 26px;">👩‍⚕️</span>
+              <i class="bi bi-person-badge" style="font-size: 22px; color: #64748b;"></i>
               <div>
                 <div class="san-num">Dra. Elena Vega (Q.F.)</div>
                 <div class="san-label">Directora Técnica / Regente Responsable</div>
@@ -815,12 +815,12 @@
           
           <div class="card-header-flex">
             <div>
-              <h2 class="view-heading"><i class="bi bi-people-fill text-blue"></i> 👥 Personal de Botica & Turnos</h2>
+              <h2 class="view-heading"><i class="bi bi-people"></i> Personal de Botica & Turnos</h2>
               <p class="view-subheading">Horarios de turno, permisos en el sistema y metas comerciales de cada trabajador.</p>
             </div>
             <div class="header-actions-group">
               <button type="button" class="btn-action-solid" id="btnRegisterStaffAction" onclick="window.staffApp ? window.staffApp.openNewStaffModal(event) : window.openNewStaffModal(event)">
-                <span>👤 + Registrar Trabajador</span>
+                <i class="bi bi-person-plus"></i> <span>Registrar Trabajador</span>
               </button>
             </div>
           </div>
@@ -856,25 +856,25 @@
           
           <div class="card-header-flex">
             <div>
-              <div class="cloud-status-tag"><i class="bi bi-cloud-check-fill"></i> ☁️ Conexión en Vivo (Modo Dueño)</div>
-              <h2 class="view-heading mt-1">📊 Torre de Control Gerencial</h2>
+              <div class="cloud-status-tag"><i class="bi bi-cloud-check"></i> Conexión en Vivo (Modo Dueño)</div>
+              <h2 class="view-heading mt-1"><i class="bi bi-speedometer2"></i> Torre de Control Gerencial</h2>
               <p class="view-subheading">Supervisa ventas, ganancias y stock en tiempo real desde tu celular o laptop.</p>
             </div>
-              <button type="button" class="btn-action-outline" id="btnOpenSettingsFromMgmt" style="font-weight: 700; font-size: 12px;">
-                <i class="bi bi-gear-fill text-teal"></i> <span>⚙️ Configuración</span>
+              <button type="button" class="btn-action-outline" id="btnOpenSettingsFromMgmt" style="font-weight: 600; font-size: 12px;">
+                <i class="bi bi-gear"></i> <span>Configuración</span>
               </button>
-              <button type="button" class="btn-action-solid" id="btnDownloadBackupMgmt" style="font-weight: 700; font-size: 12px; background: linear-gradient(135deg, #0284c7, #0369a1); border: none;">
-                <i class="bi bi-database-down"></i> <span>💾 Descargar Backup BD</span>
+              <button type="button" class="btn-action-solid" id="btnDownloadBackupMgmt" style="font-weight: 600; font-size: 12px;">
+                <i class="bi bi-database-down"></i> <span>Descargar Backup BD</span>
               </button>
-              <span class="live-stream-badge"><i class="bi bi-circle-fill"></i> 🟢 Nube Activa</span>
+              <span class="live-stream-badge"><span class="status-dot free pulse"></span> Nube Activa</span>
             </div>
 
           <!-- Cockpit Gerencial Rápido -->
           <div class="management-kpi-grid">
             <div class="mgmt-metric-card">
               <div class="m-card-head">
-                <span>💰 Venta Total de Hoy</span>
-                <i class="bi bi-cash-coin text-teal"></i>
+                <span>Venta Total de Hoy</span>
+                <i class="bi bi-cash-coin text-muted"></i>
               </div>
               <div class="m-card-val" id="mgmtTodaySales">S/ 4,892.50</div>
               <div class="m-card-sub text-teal" id="mgmtTodaySub"><i class="bi bi-arrow-up-right"></i> En tiempo real desde PostgreSQL</div>
@@ -882,8 +882,8 @@
 
             <div class="mgmt-metric-card">
               <div class="m-card-head">
-                <span>📈 Ganancia Estimada</span>
-                <i class="bi bi-graph-up-arrow text-blue"></i>
+                <span>Ganancia Estimada</span>
+                <i class="bi bi-graph-up-arrow text-muted"></i>
               </div>
               <div class="m-card-val" id="mgmtGrossProfit">S/ 1,642.10</div>
               <div class="m-card-sub" id="mgmtGrossMargin">Margen comercial: <strong>35.0%</strong></div>
@@ -891,8 +891,8 @@
 
             <div class="mgmt-metric-card">
               <div class="m-card-head">
-                <span>👥 Comprobantes Emitidos</span>
-                <i class="bi bi-person-check-fill text-warning"></i>
+                <span>Comprobantes Emitidos</span>
+                <i class="bi bi-receipt text-muted"></i>
               </div>
               <div class="m-card-val" id="mgmtPatientsCount">142 Comprobantes</div>
               <div class="m-card-sub" id="mgmtAvgTicket">Ticket promedio: <strong>S/ 34.45</strong></div>
@@ -900,8 +900,8 @@
 
             <div class="mgmt-metric-card">
               <div class="m-card-head">
-                <span>⚠️ Lotes en Riesgo FEFO</span>
-                <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+                <span>Lotes en Riesgo FEFO</span>
+                <i class="bi bi-exclamation-triangle text-danger"></i>
               </div>
               <div class="m-card-val text-danger" id="mgmtLowStockCount">2 Lotes</div>
               <div class="m-card-sub" id="mgmtFefoMeta">Vencimiento en &lt; 90 días</div>
@@ -915,8 +915,8 @@
             <div class="mgmt-chart-card" style="background: #fff; border: 1px solid var(--border-strong); border-radius: var(--radius-md); padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
                 <div>
-                  <h3 style="font-size: 13.5px; font-weight: 800; color: var(--valetec-navy); margin: 0;">
-                    <i class="bi bi-graph-up text-blue"></i> 📈 Evolución de Ventas
+                  <h3 style="font-size: 13.5px; font-weight: 800; color: var(--valetec-navy); margin: 0; display: flex; align-items: center; gap: 6px;">
+                    <i class="bi bi-graph-up text-blue"></i> Evolución de Ventas
                   </h3>
                   <small style="color: var(--text-muted); font-size: 11px;">Facturación real en soles (Efectivo vs. Digital)</small>
                 </div>
@@ -938,8 +938,8 @@
             <div class="mgmt-chart-card" style="background: #fff; border: 1px solid var(--border-strong); border-radius: var(--radius-md); padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                 <div>
-                  <h3 style="font-size: 13.5px; font-weight: 800; color: var(--valetec-navy); margin: 0;">
-                    <i class="bi bi-bar-chart-steps text-teal"></i> 🏆 Top Medicamentos Más Vendidos
+                  <h3 style="font-size: 13.5px; font-weight: 800; color: var(--valetec-navy); margin: 0; display: flex; align-items: center; gap: 6px;">
+                    <i class="bi bi-bar-chart-steps text-teal"></i> Top Medicamentos Más Vendidos
                   </h3>
                   <small style="color: var(--text-muted); font-size: 11px;">Mayor rotación por unidades y facturación</small>
                 </div>
@@ -960,11 +960,11 @@
           <div class="procurement-section-box">
             <div class="box-title-row">
               <div>
-                <h3><i class="bi bi-cart-check-fill text-blue"></i> 🛒 Reposición Urgente a Droguerías (Próximas 48h)</h3>
+                <h3><i class="bi bi-cart-check text-blue"></i> Reposición Urgente a Droguerías (Próximas 48h)</h3>
                 <span class="badge-sub">El sistema calculó qué medicinas se van a acabar para que nunca pierdas ventas</span>
               </div>
               <button type="button" class="btn-action-solid" id="btnSendWhatsAppOrderAction" onclick="window.managementApp ? window.managementApp.openWhatsAppOrderModal(event) : window.openWhatsAppOrderModal(event)">
-                <span>📲 Enviar Pedido por WhatsApp</span>
+                <i class="bi bi-whatsapp"></i> <span>Enviar Pedido por WhatsApp</span>
               </button>
             </div>
 
@@ -987,7 +987,7 @@
                     <td>MedPharma Labs</td>
                     <td><span class="stock-danger-chip">2 cajas (80 past.)</span></td>
                     <td>1.5 cajas / día</td>
-                    <td><strong class="text-danger">⏳ 32 horas</strong></td>
+                    <td><strong class="text-danger">32 horas</strong></td>
                     <td><strong>15 Cajas</strong></td>
                     <td>S/ 315.00</td>
                   </tr>
@@ -996,7 +996,7 @@
                     <td>Laboratorios Farmatec S.A.</td>
                     <td>4 cajas</td>
                     <td>2.0 cajas / día</td>
-                    <td><strong class="text-warning">⏳ 48 horas</strong></td>
+                    <td><strong class="text-warning">48 horas</strong></td>
                     <td><strong>20 Cajas</strong></td>
                     <td>S/ 480.00</td>
                   </tr>
@@ -1005,7 +1005,7 @@
                     <td>BioFarma Perú</td>
                     <td>5 cajas</td>
                     <td>1.2 cajas / día</td>
-                    <td>⏳ 96 horas</td>
+                    <td>96 horas</td>
                     <td><strong>10 Cajas</strong></td>
                     <td>S/ 345.00</td>
                   </tr>
@@ -1018,10 +1018,10 @@
           <div class="audit-stream-box">
             <div class="box-title-row">
               <div>
-                <h3><i class="bi bi-shield-check text-teal"></i> 🛡️ Auditoría Anti-Fraude en Vivo</h3>
+                <h3><i class="bi bi-shield-check text-teal"></i> Auditoría Anti-Fraude en Vivo</h3>
                 <span class="badge-sub">Registro en tiempo real de cobros, egresos de caja y aperturas de turno</span>
               </div>
-              <span class="badge-audit-ok"><span>🟢 Todo en Orden (Sin anomalías)</span></span>
+              <span class="badge-audit-ok"><span class="status-dot active"></span> <span>Todo en Orden (Sin anomalías)</span></span>
             </div>
 
             <div class="audit-feed-list">
@@ -1063,7 +1063,7 @@
   <div class="modal-backdrop-valetec" id="openShiftModal">
     <div class="modal-dialog-valetec" style="max-width: 480px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3><i class="bi bi-box-arrow-in-right text-teal"></i> 🪙 Apertura de Turno de Caja</h3>
+        <h3><i class="bi bi-box-arrow-in-right"></i> Apertura de Turno de Caja</h3>
         <button type="button" class="btn-close-modal" id="btnCloseOpenShiftModal"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="modal-body-valetec">
@@ -1072,7 +1072,7 @@
           <input type="text" id="openShiftTerminalInput" value="Caja 01" readonly style="background-color: #f1f5f9;">
         </div>
         <div class="form-group-valetec mt-2">
-          <label>💵 Fondo Inicial de Sencillo (S/.):</label>
+          <label>Fondo Inicial de Sencillo (S/.):</label>
           <input type="number" id="openShiftBalanceInput" placeholder="350.00" value="350.00" step="10.00" min="0">
           <small style="display: block; color: var(--text-muted, #64748b); font-size: 11px; margin-top: 4px;">
             Monto en monedas y billetes entregado al cajero para comenzar a atender y dar vuelto.
@@ -1080,9 +1080,9 @@
         </div>
       </div>
       <div class="modal-footer-valetec">
-        <button type="button" class="btn-action-outline" id="btnCancelOpenShift">❌ Cancelar</button>
-        <button type="button" class="btn-action-solid" id="btnConfirmOpenShift" style="background: linear-gradient(135deg, #0d9488, #059669); color: white; border: none;">
-          <span>✅ Iniciar Turno</span>
+        <button type="button" class="btn-action-outline" id="btnCancelOpenShift">Cancelar</button>
+        <button type="button" class="btn-action-solid" id="btnConfirmOpenShift">
+          <i class="bi bi-check-lg"></i> <span>Iniciar Turno</span>
         </button>
       </div>
     </div>
@@ -1092,22 +1092,22 @@
   <div class="modal-backdrop-valetec" id="expenseModal">
     <div class="modal-dialog-valetec" style="max-width: 480px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3>💸 Registrar Salida de Dinero (Gasto Menor)</h3>
+        <h3><i class="bi bi-cash-stack"></i> Registrar Salida de Dinero (Gasto Menor)</h3>
         <button type="button" class="btn-close-modal" id="btnCloseExpenseModal"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="modal-body-valetec">
         <div class="form-group-valetec">
-          <label>💵 Monto del Gasto (S/.):</label>
+          <label>Monto del Gasto (S/.):</label>
           <input type="number" id="expenseAmountInput" placeholder="0.00" step="0.50">
         </div>
         <div class="form-group-valetec mt-2">
           <label>Motivo del Gasto:</label>
           <select id="expenseConceptSelect">
-            <option value="limpieza">🧹 Útiles de Limpieza / Aseo</option>
-            <option value="delivery">🛵 Pago de Delivery / Movilidad</option>
-            <option value="refrigerio">🥪 Refrigerio del Personal</option>
-            <option value="cambio">🪙 Canje de Monedas / Sencillo</option>
-            <option value="otro">📦 Otro Gasto Operativo Menor</option>
+            <option value="limpieza">Útiles de Limpieza / Aseo</option>
+            <option value="delivery">Pago de Delivery / Movilidad</option>
+            <option value="refrigerio">Refrigerio del Personal</option>
+            <option value="cambio">Canje de Monedas / Sencillo</option>
+            <option value="otro">Otro Gasto Operativo Menor</option>
           </select>
         </div>
         <div class="form-group-valetec mt-2">
@@ -1116,8 +1116,10 @@
         </div>
       </div>
       <div class="modal-footer-valetec">
-        <button type="button" class="btn-action-outline" id="btnCancelExpense">❌ Cancelar</button>
-        <button type="button" class="btn-action-solid" id="btnSaveExpense">💾 Guardar Gasto</button>
+        <button type="button" class="btn-action-outline" id="btnCancelExpense">Cancelar</button>
+        <button type="button" class="btn-action-solid" id="btnSaveExpense">
+          <i class="bi bi-check-lg"></i> <span>Guardar Gasto</span>
+        </button>
       </div>
     </div>
   </div>
@@ -1126,7 +1128,7 @@
   <div class="modal-backdrop-valetec" id="receiveModal">
     <div class="modal-dialog-valetec" style="max-width: 620px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3>📥 Recibir Mercadería de Droguería</h3>
+        <h3><i class="bi bi-box-seam"></i> Recibir Mercadería de Droguería</h3>
         <button type="button" class="btn-close-modal" id="btnCloseReceiveModal"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="modal-body-valetec">
@@ -1170,8 +1172,10 @@
         </div>
       </div>
       <div class="modal-footer-valetec">
-        <button type="button" class="btn-action-outline" id="btnCancelReceive">❌ Cancelar</button>
-        <button type="button" class="btn-action-solid" id="btnSaveReceive">💾 Guardar en Almacén</button>
+        <button type="button" class="btn-action-outline" id="btnCancelReceive">Cancelar</button>
+        <button type="button" class="btn-action-solid" id="btnSaveReceive">
+          <i class="bi bi-check-lg"></i> <span>Guardar en Almacén</span>
+        </button>
       </div>
     </div>
   </div>
@@ -1180,20 +1184,20 @@
   <div class="modal-backdrop-valetec" id="prescriptionViewerModal">
     <div class="modal-dialog-valetec" style="max-width: 640px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3>📑 Expediente de Receta Médica DIGEMID</h3>
+        <h3><i class="bi bi-file-earmark-medical"></i> Expediente de Receta Médica DIGEMID</h3>
         <button type="button" class="btn-close-modal" id="btnCloseRxModal"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="modal-body-valetec" id="prescriptionViewerContent">
         <!-- Renderizado dinámico -->
       </div>
       <div class="modal-footer-valetec" style="display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap;">
-        <button type="button" class="btn-action-outline" id="btnCloseRxBtn">❌ Cerrar</button>
+        <button type="button" class="btn-action-outline" id="btnCloseRxBtn">Cerrar</button>
         <div style="display: flex; gap: 8px;">
-          <button type="button" class="btn-action-solid" id="btnDispenseRecipe" style="display: none; background: linear-gradient(135deg, #0369a1, #0284c7); color: white; border: none;">
-            <i class="bi bi-check2-all"></i> <span>💊 Dispensar al Paciente</span>
+          <button type="button" class="btn-action-solid" id="btnDispenseRecipe" style="display: none; background: #0284c7; color: white; border: none;">
+            <i class="bi bi-check2-all"></i> <span>Dispensar al Paciente</span>
           </button>
           <button type="button" class="btn-action-solid" id="btnApproveAndFill">
-            <i class="bi bi-check2-circle"></i> <span>✅ Aprobar y Cargar al Carrito</span>
+            <i class="bi bi-check2-circle"></i> <span>Aprobar y Cargar al Carrito</span>
           </button>
         </div>
       </div>
@@ -1204,16 +1208,16 @@
   <div class="modal-backdrop-valetec" id="receiptModal">
     <div class="modal-dialog-valetec" style="max-width: 440px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3><i class="bi bi-receipt"></i> 🧾 Comprobante de Venta</h3>
+        <h3><i class="bi bi-receipt"></i> Comprobante de Venta</h3>
         <button type="button" class="btn-close-modal" id="btnCloseReceiptModal" title="Cerrar ventana"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="modal-body-valetec" id="receiptModalBody" style="background-color: #f8fafc; max-height: 72vh; overflow-y: auto; padding: 14px;">
         <!-- Renderizado dinámico del comprobante térmico -->
       </div>
       <div class="modal-footer-valetec" style="display: flex; gap: 8px; justify-content: space-between;">
-        <button type="button" class="btn-action-outline" id="btnCloseReceiptBtn">❌ Cerrar [Esc]</button>
+        <button type="button" class="btn-action-outline" id="btnCloseReceiptBtn">Cerrar [Esc]</button>
         <button type="button" class="btn-action-solid" id="btnPrintReceiptBtn">
-          <i class="bi bi-printer-fill"></i> <span>🖨️ Imprimir Ticket (80mm)</span>
+          <i class="bi bi-printer"></i> <span>Imprimir Ticket (80mm)</span>
         </button>
       </div>
     </div>
@@ -1223,7 +1227,7 @@
   <div class="modal-backdrop-valetec" id="zReportModal">
     <div class="modal-dialog-valetec" style="max-width: 460px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3><i class="bi bi-file-earmark-lock-fill"></i> 🔒 Reporte Z de Cierre de Turno</h3>
+        <h3><i class="bi bi-file-earmark-lock"></i> Cierre de Turno y Reporte Z</h3>
         <button type="button" class="btn-close-modal" id="btnCloseZReportModal" title="Cerrar ventana"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="modal-body-valetec" id="zReportModalBody" style="background-color: #f8fafc; max-height: 75vh; overflow-y: auto; padding: 14px;">
@@ -1231,14 +1235,14 @@
         <!-- Panel Interactivo de Auditoría y Verificación de Efectivo (v4.1) -->
         <div class="z-audit-verification-box" id="zAuditVerificationBox">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <strong style="color: var(--valetec-navy); font-size: 13px;"><i class="bi bi-calculator-fill text-teal"></i> 🧮 Auditoría de Efectivo en Gaveta</strong>
+            <strong style="color: var(--valetec-navy); font-size: 13px; display: flex; align-items: center; gap: 6px;"><i class="bi bi-calculator text-teal"></i> Auditoría de Efectivo en Gaveta</strong>
             <span class="badge-tab-notify live" style="font-size: 10px;">EN VIVO</span>
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
             <div>
               <label style="font-size: 11px; font-weight: 700; color: #64748b; display: block; margin-bottom: 2px;">
-                🎯 Efectivo Esperado:
+                Efectivo Esperado:
               </label>
               <div id="zExpectedCashDisplay" style="font-size: 15px; font-weight: 900; color: var(--valetec-navy); padding: 6px 10px; background: #f1f5f9; border-radius: 6px;">
                 S/ 2,005.50
@@ -1246,7 +1250,7 @@
             </div>
             <div>
               <label style="font-size: 11px; font-weight: 700; color: #64748b; display: block; margin-bottom: 2px;">
-                💵 Efectivo Ingresado (Cajero):
+                Efectivo Ingresado (Cajero):
               </label>
               <input type="number" id="zCountedCashInput" step="0.10" min="0" class="form-control" style="font-size: 15px; font-weight: 900; color: #0a2540;" value="2005.50">
             </div>
@@ -1254,15 +1258,15 @@
 
           <!-- Banner Dinámico de Diferencia en Tiempo Real -->
           <div class="z-diff-indicator cuadre-diff-exact" id="zLiveDiffBanner">
-            <i class="bi bi-check-circle-fill" id="zLiveDiffIcon" style="font-size: 18px;"></i>
+            <i class="bi bi-check-circle" id="zLiveDiffIcon" style="font-size: 18px;"></i>
             <div>
-              <div id="zLiveDiffTitle" style="font-weight: 800;">✅ CUADRE PERFECTO: S/ 0.00</div>
+              <div id="zLiveDiffTitle" style="font-weight: 800;">CUADRE PERFECTO: S/ 0.00</div>
               <small id="zLiveDiffDesc" style="font-size: 11px; display: block; font-weight: 500;">El efectivo ingresado coincide exactamente con el registrado.</small>
             </div>
           </div>
 
-          <button type="button" class="btn-action-solid mt-2" id="btnConfirmZCloseAction" style="width: 100%; justify-content: center; background: linear-gradient(135deg, #0d9488, #059669); border: none; padding: 10px; font-weight: 800;">
-            <i class="bi bi-shield-lock-fill"></i> <span>🔒 Sellar Turno y Emitir Reporte Z</span>
+          <button type="button" class="btn-action-solid mt-2" id="btnConfirmZCloseAction" style="width: 100%; justify-content: center; padding: 10px; font-weight: 800;">
+            <i class="bi bi-shield-lock"></i> <span>Sellar Turno y Emitir Reporte Z</span>
           </button>
         </div>
 
@@ -1270,9 +1274,9 @@
         <div id="zPrintableContainer"></div>
       </div>
       <div class="modal-footer-valetec" style="display: flex; gap: 8px; justify-content: space-between;">
-        <button type="button" class="btn-action-outline" id="btnCloseZReportBtn">❌ Cerrar [Esc]</button>
+        <button type="button" class="btn-action-outline" id="btnCloseZReportBtn">Cerrar [Esc]</button>
         <button type="button" class="btn-action-solid" id="btnPrintZReportBtn">
-          <i class="bi bi-printer-fill"></i> <span>🖨️ Imprimir Reporte Z (80mm)</span>
+          <i class="bi bi-printer"></i> <span>Imprimir Reporte Z (80mm)</span>
         </button>
       </div>
     </div>
@@ -1282,41 +1286,41 @@
   <div class="modal-backdrop-valetec" id="newRecipeModal">
     <div class="modal-dialog-valetec" style="max-width: 520px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3><i class="bi bi-journal-plus text-blue"></i> 📝 Foliar Nueva Receta en Libro Oficial</h3>
+        <h3><i class="bi bi-journal-plus text-blue"></i> Foliar Nueva Receta en Libro Oficial</h3>
         <button type="button" class="btn-close-modal" id="btnCloseNewRecipeModal" title="Cerrar"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="modal-body-valetec">
         <div class="form-grid-valetec">
           <div class="form-group-valetec" style="grid-column: 1 / -1;">
-            <label>👤 Nombre Completo del Paciente:</label>
+            <label>Nombre Completo del Paciente:</label>
             <input type="text" id="recipePatientName" placeholder="Ej. Juan Pérez Ramos" required>
           </div>
           <div class="form-group-valetec">
-            <label>🆔 DNI / Doc. Paciente:</label>
+            <label>DNI / Doc. Paciente:</label>
             <input type="text" id="recipePatientDni" placeholder="8 dígitos" maxlength="12" required>
           </div>
           <div class="form-group-valetec">
-            <label>🩺 Colegio Médico (CMP):</label>
+            <label>Colegio Médico (CMP):</label>
             <input type="text" id="recipeDoctorCmp" placeholder="Ej. CMP-48291" required>
           </div>
           <div class="form-group-valetec" style="grid-column: 1 / -1;">
-            <label>👨‍⚕️ Nombre del Médico Tratante:</label>
+            <label>Nombre del Médico Tratante:</label>
             <input type="text" id="recipeDoctorName" placeholder="Ej. Dr. Manuel Ramos Castillo" required>
           </div>
           <div class="form-group-valetec" style="grid-column: 1 / -1;">
-            <label>💊 Medicamento Prescrito & Posología:</label>
+            <label>Medicamento Prescrito & Posología:</label>
             <input type="text" id="recipeMedicationDetails" placeholder="Ej. Sedafarma 2mg (Clonazepam) - 1 caja x 30 unidades" required>
           </div>
           <div class="form-group-valetec" style="grid-column: 1 / -1;">
-            <label>📌 Notas de Custodia o Diagnóstico:</label>
+            <label>Notas de Custodia o Diagnóstico:</label>
             <input type="text" id="recipeNotes" placeholder="Ej. Receta retenida archivada en expediente de psicotrópicos">
           </div>
         </div>
       </div>
       <div class="modal-footer-valetec" style="display: flex; gap: 8px; justify-content: space-between;">
-        <button type="button" class="btn-action-outline" id="btnCancelNewRecipe">❌ Cancelar</button>
+        <button type="button" class="btn-action-outline" id="btnCancelNewRecipe">Cancelar</button>
         <button type="button" class="btn-action-solid" id="btnSaveNewRecipe">
-          <i class="bi bi-shield-check"></i> <span>💾 Foliar en Libro Oficial</span>
+          <i class="bi bi-shield-check"></i> <span>Foliar en Libro Oficial</span>
         </button>
       </div>
     </div>
@@ -1326,16 +1330,16 @@
   <div class="modal-backdrop-valetec" id="digemidBalanceModal">
     <div class="modal-dialog-valetec" style="max-width: 540px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3><i class="bi bi-shield-shaded text-teal"></i> 📋 Balance Sanitario Oficial DIGEMID</h3>
+        <h3><i class="bi bi-file-earmark-ruled text-teal"></i> Balance Sanitario Oficial DIGEMID</h3>
         <button type="button" class="btn-close-modal" id="btnCloseBalanceModal" title="Cerrar"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="modal-body-valetec" id="digemidBalanceModalBody" style="background-color: #f8fafc; max-height: 75vh; overflow-y: auto; padding: 14px;">
         <!-- Renderizado dinámico del balance sanitario -->
       </div>
       <div class="modal-footer-valetec" style="display: flex; gap: 8px; justify-content: space-between;">
-        <button type="button" class="btn-action-outline" id="btnCloseBalanceBtn">❌ Cerrar [Esc]</button>
+        <button type="button" class="btn-action-outline" id="btnCloseBalanceBtn">Cerrar [Esc]</button>
         <button type="button" class="btn-action-solid" id="btnPrintBalanceBtn">
-          <i class="bi bi-printer-fill"></i> <span>🖨️ Imprimir Balance Sanitario</span>
+          <i class="bi bi-printer"></i> <span>Imprimir Balance Sanitario</span>
         </button>
       </div>
     </div>
@@ -1344,17 +1348,18 @@
   <div class="modal-backdrop-valetec" id="salesHistoryModal">
     <div class="modal-dialog-valetec" style="max-width: 860px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3><i class="bi bi-clock-history text-blue"></i> 🧾 Historial de Ventas del Turno</h3>
+        <h3><i class="bi bi-clock-history text-blue"></i> Historial de Ventas del Turno</h3>
         <button type="button" class="btn-close-modal" id="btnCloseSalesHistoryModal" title="Cerrar"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="modal-body-valetec" style="background-color: #f8fafc; max-height: 75vh; overflow-y: auto; padding: 16px;">
         <div style="display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; justify-content: space-between; align-items: center;">
-          <div style="display: flex; gap: 8px; flex: 1; min-width: 240px;">
-            <input type="text" id="salesHistorySearch" class="form-control" placeholder="🔍 Buscar por N° correlativo (ej. B001), cliente o documento..." style="font-size: 13px; padding: 6px 12px; border-radius: 6px; border: 1px solid #cbd5e1; width: 100%;">
+          <div style="display: flex; gap: 8px; flex: 1; min-width: 240px; position: relative;">
+            <input type="text" id="salesHistorySearch" class="form-control" placeholder="Buscar por N° correlativo (ej. B001), cliente o documento..." style="font-size: 13px; padding: 6px 12px 6px 32px; border-radius: 6px; border: 1px solid #cbd5e1; width: 100%;">
+            <i class="bi bi-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
           </div>
           <div style="display: flex; gap: 8px;">
             <button type="button" class="btn-action-outline" id="btnRefreshSalesHistory" style="padding: 6px 12px; font-size: 12px;">
-              <i class="bi bi-arrow-clockwise"></i> 🔄 Actualizar
+              <i class="bi bi-arrow-clockwise"></i> Actualizar
             </button>
           </div>
         </div>
@@ -1380,8 +1385,8 @@
         </div>
       </div>
       <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; align-items: center;">
-        <small style="color: #64748b;">💡 Al anular un comprobante, el stock se reintegra a los lotes FEFO y se deduce de la gaveta de caja.</small>
-        <button type="button" class="btn-action-outline" id="btnCloseSalesHistoryBtn">❌ Cerrar [Esc]</button>
+        <small style="color: #64748b;">Al anular un comprobante, el stock se reintegra a los lotes FEFO y se deduce de la gaveta de caja.</small>
+        <button type="button" class="btn-action-outline" id="btnCloseSalesHistoryBtn">Cerrar [Esc]</button>
       </div>
     </div>
   </div>
@@ -1390,47 +1395,47 @@
   <div class="modal-backdrop-valetec" id="settingsModal">
     <div class="modal-dialog-valetec" style="max-width: 640px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3><i class="bi bi-buildings-fill text-teal"></i> 🏢 Configuración General de la Botica</h3>
+        <h3><i class="bi bi-buildings text-teal"></i> Configuración General de la Botica</h3>
         <button type="button" class="btn-close-modal" id="btnCloseSettingsModal" title="Cerrar"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="modal-body-valetec" style="max-height: 75vh; overflow-y: auto; padding: 18px;">
         <div style="background: #eff6ff; border-left: 4px solid var(--valetec-blue); padding: 8px 12px; border-radius: 4px; margin-bottom: 14px; font-size: 11.5px; color: #1e3a8a;">
-          <i class="bi bi-info-circle-fill"></i> Los datos aquí configurados se imprimen en los <strong>Tickets Térmicos UBL 2.1</strong>, membretes de balances sanitarios DIGEMID y reportes gerenciales.
+          <i class="bi bi-info-circle"></i> Los datos aquí configurados se imprimen en los <strong>Tickets Térmicos UBL 2.1</strong>, membretes de balances sanitarios DIGEMID y reportes gerenciales.
         </div>
         <form id="settingsForm" class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
           
           <div class="form-group-valetec" style="grid-column: 1 / -1;">
-            <label>🏢 Razón Social Oficial (SUNAT):</label>
+            <label>Razón Social Oficial (SUNAT):</label>
             <input type="text" id="settingCompanyName" placeholder="Ej. BOTICA VALETEC PHARMA S.A.C." required class="form-control">
           </div>
 
           <div class="form-group-valetec">
-            <label>🏷️ Nombre Comercial:</label>
+            <label>Nombre Comercial:</label>
             <input type="text" id="settingCommercialName" placeholder="Ej. VALETEC PHARMA" class="form-control">
           </div>
 
           <div class="form-group-valetec">
-            <label>🆔 RUC (11 dígitos):</label>
+            <label>RUC (11 dígitos):</label>
             <input type="text" id="settingRuc" placeholder="20601234567" maxlength="11" required class="form-control">
           </div>
 
           <div class="form-group-valetec" style="grid-column: 1 / -1;">
-            <label>📍 Dirección Fiscal de la Botica:</label>
+            <label>Dirección Fiscal de la Botica:</label>
             <input type="text" id="settingAddress" placeholder="Av. Aviación 2450, San Borja, Lima" class="form-control">
           </div>
 
           <div class="form-group-valetec">
-            <label>📞 Teléfono / Central:</label>
+            <label>Teléfono / Central:</label>
             <input type="text" id="settingPhone" placeholder="(01) 500-8900" class="form-control">
           </div>
 
           <div class="form-group-valetec">
-            <label>✉️ Correo de Contacto:</label>
+            <label>Correo de Contacto:</label>
             <input type="email" id="settingEmail" placeholder="contacto@valetec.pe" class="form-control">
           </div>
 
           <div class="form-group-valetec">
-            <label>💵 Moneda & Símbolo:</label>
+            <label>Moneda & Símbolo:</label>
             <div style="display: flex; gap: 6px;">
               <input type="text" id="settingCurrencySymbol" value="S/" style="width: 70px; text-align: center;" class="form-control">
               <input type="text" id="settingCurrencyCode" value="PEN" style="flex: 1; text-align: center;" class="form-control">
@@ -1438,7 +1443,7 @@
           </div>
 
           <div class="form-group-valetec">
-            <label>📊 Impuesto General a las Ventas (IGV %):</label>
+            <label>Impuesto General a las Ventas (IGV %):</label>
             <div style="position: relative;">
               <input type="number" id="settingIgvPercent" step="0.01" min="0" max="100" value="18.00" class="form-control" style="padding-right: 30px;">
               <span style="position: absolute; right: 10px; top: 7px; color: #64748b; font-weight: 700; font-size: 13px;">%</span>
@@ -1446,17 +1451,17 @@
           </div>
 
           <div class="form-group-valetec">
-            <label>📜 Licencia Sanitaria DIGEMID:</label>
+            <label>Licencia Sanitaria DIGEMID:</label>
             <input type="text" id="settingSanitaryLicense" placeholder="DIRIS-LC N° 10842-FAR" class="form-control">
           </div>
 
           <div class="form-group-valetec">
-            <label>👩‍⚕️ Directora Técnica (Regente Q.F.):</label>
+            <label>Directora Técnica (Regente Q.F.):</label>
             <input type="text" id="settingTechnicalDirector" placeholder="Dra. Elena Vega (Q.F. Reg. CQFP 18492)" class="form-control">
           </div>
 
           <div class="form-group-valetec" style="grid-column: 1 / -1;">
-            <label>🧾 Texto al pie de Tickets Térmicos:</label>
+            <label>Texto al pie de Tickets Térmicos:</label>
             <textarea id="settingInvoiceFooterText" rows="2" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; font-size: 12px; font-family: inherit;" placeholder="Mensaje de agradecimiento o políticas de comprobante..."></textarea>
           </div>
 
@@ -1464,15 +1469,15 @@
           <div style="grid-column: 1 / -1; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px; margin-top: 4px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
               <div>
-                <strong style="color: var(--valetec-navy); font-size: 12.5px;">
-                  <i class="bi bi-database-fill-down text-blue"></i> 💾 Copia de Seguridad PostgreSQL 16
+                <strong style="color: var(--valetec-navy); font-size: 12.5px; display: flex; align-items: center; gap: 6px;">
+                  <i class="bi bi-database-down text-blue"></i> Copia de Seguridad PostgreSQL 16
                 </strong>
                 <p style="margin: 2px 0 0 0; font-size: 11px; color: var(--text-muted);">
                   Genera un volcado completo (.sql) con todas las 14 tablas, ventas, catálogo y recetas.
                 </p>
               </div>
-              <button type="button" class="btn-action-solid" id="btnDownloadBackup" style="background: linear-gradient(135deg, #0284c7, #0369a1); border: none; padding: 6px 14px; font-size: 11.5px; font-weight: 700;">
-                <i class="bi bi-cloud-arrow-down-fill"></i> <span>Descargar Respaldo .SQL</span>
+              <button type="button" class="btn-action-solid" id="btnDownloadBackup" style="padding: 6px 14px; font-size: 11.5px; font-weight: 700;">
+                <i class="bi bi-cloud-arrow-down"></i> <span>Descargar Respaldo .SQL</span>
               </button>
             </div>
           </div>
@@ -1480,9 +1485,9 @@
         </form>
       </div>
       <div class="modal-footer-valetec" style="display: flex; gap: 8px; justify-content: space-between;">
-        <button type="button" class="btn-action-outline" id="btnCancelSettingsModal">❌ Cancelar</button>
+        <button type="button" class="btn-action-outline" id="btnCancelSettingsModal">Cancelar</button>
         <button type="button" class="btn-action-solid" id="btnSaveSettings">
-          <i class="bi bi-floppy-fill"></i> <span>💾 Guardar Cambios</span>
+          <i class="bi bi-check-lg"></i> <span>Guardar Cambios</span>
         </button>
       </div>
     </div>
@@ -1492,7 +1497,7 @@
   <div class="modal-backdrop-valetec" id="medicineFormModal">
     <div class="modal-dialog-valetec" style="max-width: 680px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3 id="medModalTitle"><i class="bi bi-capsule-pill text-teal"></i> 💊 Alta de Nuevo Medicamento</h3>
+        <h3 id="medModalTitle"><i class="bi bi-capsule text-teal"></i> Alta de Nuevo Medicamento</h3>
         <button type="button" class="btn-close-modal" id="btnCloseMedicineModal" onclick="warehouseApp.closeMedicineModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
       </div>
       <form id="medicineForm" onsubmit="warehouseApp.saveMedicine(event)">
@@ -1504,34 +1509,34 @@
           </div>
           <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
             <div class="form-group-valetec">
-              <label>🏷️ Nombre Comercial:</label>
+              <label>Nombre Comercial:</label>
               <input type="text" id="medName" placeholder="Ej. Valetec-Dol Forte 500mg" required class="form-control">
             </div>
             <div class="form-group-valetec">
-              <label>🔬 DCI / Principio Activo:</label>
+              <label>DCI / Principio Activo:</label>
               <input type="text" id="medGenericDci" placeholder="Ej. Paracetamol + Cafeína" required class="form-control">
             </div>
             <div class="form-group-valetec">
-              <label>📊 Código de Barras (EAN-13):</label>
+              <label>Código de Barras (EAN-13):</label>
               <input type="text" id="medBarcode" placeholder="Escanear o autogenerar" class="form-control">
             </div>
             <div class="form-group-valetec">
-              <label>🏭 Laboratorio:</label>
+              <label>Laboratorio:</label>
               <input type="text" id="medLaboratory" placeholder="Ej. Laboratorios Bagó" required class="form-control">
             </div>
             <div class="form-group-valetec">
-              <label>📁 Categoría Farmacéutica:</label>
+              <label>Categoría Farmacéutica:</label>
               <select id="medCategoryId" class="form-select-valetec" required>
-                <option value="1">💊 Dolor y Fiebre</option>
-                <option value="2">🛡️ Antibióticos y Antivirales</option>
-                <option value="3">🍵 Gastrointestinal y Digestivos</option>
-                <option value="4">🔒 Psicotrópicos y Controlados</option>
-                <option value="5">✨ Vitaminas y Suplementos</option>
-                <option value="6">🫁 Respiratorio y Alergias</option>
+                <option value="1">Dolor y Fiebre</option>
+                <option value="2">Antibióticos y Antivirales</option>
+                <option value="3">Gastrointestinal y Digestivos</option>
+                <option value="4">Psicotrópicos y Controlados</option>
+                <option value="5">Vitaminas y Suplementos</option>
+                <option value="6">Respiratorio y Alergias</option>
               </select>
             </div>
             <div class="form-group-valetec">
-              <label>📍 Ubicación en Anaquel:</label>
+              <label>Ubicación en Anaquel:</label>
               <input type="text" id="medLocation" placeholder="Ej. Pasillo 1 • Anaquel A-1" value="Pasillo 1 • Anaquel A-1" required class="form-control">
             </div>
           </div>
@@ -1541,15 +1546,15 @@
           </div>
           <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
             <div class="form-group-valetec">
-              <label>📜 Registro Sanitario DIGEMID:</label>
+              <label>Registro Sanitario DIGEMID:</label>
               <input type="text" id="medSanitaryRegistry" placeholder="Ej. EE-04812" class="form-control">
             </div>
             <div class="form-group-valetec">
-              <label>⚖️ Condición de Venta:</label>
+              <label>Condición de Venta:</label>
               <select id="medPrescriptionType" class="form-select-valetec" required>
-                <option value="free">🟢 Venta Libre</option>
-                <option value="required">🟡 Receta Médica Simple</option>
-                <option value="retained">🔒 Receta Retenida (Controlado / Psicotrópico)</option>
+                <option value="free">Venta Libre</option>
+                <option value="required">Receta Médica Simple</option>
+                <option value="retained">Receta Retenida (Controlado / Psicotrópico)</option>
               </select>
             </div>
           </div>
@@ -1559,15 +1564,15 @@
           </div>
           <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
             <div class="form-group-valetec">
-              <label>📦 Precio Caja (S/):</label>
+              <label>Precio Caja (S/):</label>
               <input type="number" step="0.10" min="0" id="medBoxPrice" placeholder="0.00" required class="form-control" oninput="warehouseApp.autoCalcPrices()">
             </div>
             <div class="form-group-valetec">
-              <label>💊 Precio Blíster (S/):</label>
+              <label>Precio Blíster (S/):</label>
               <input type="number" step="0.10" min="0" id="medBlisterPrice" placeholder="0.00" required class="form-control">
             </div>
             <div class="form-group-valetec">
-              <label>🔵 Precio Pastilla/U (S/):</label>
+              <label>Precio Pastilla/U (S/):</label>
               <input type="number" step="0.05" min="0" id="medUnitPrice" placeholder="0.00" required class="form-control">
             </div>
             <div class="form-group-valetec">
@@ -1605,9 +1610,9 @@
 
         </div>
         <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; gap: 8px; padding: 12px 18px;">
-          <button type="button" class="btn-action-outline" onclick="warehouseApp.closeMedicineModal()">❌ Cancelar [Esc]</button>
-          <button type="submit" class="btn-action-solid" id="btnSaveMedicineSubmit" style="background: linear-gradient(135deg, #0d9488, #059669); color: white; border: none;">
-            <i class="bi bi-check-circle-fill"></i> <span>💾 Guardar Fármaco</span>
+          <button type="button" class="btn-action-outline" onclick="warehouseApp.closeMedicineModal()">Cancelar [Esc]</button>
+          <button type="submit" class="btn-action-solid" id="btnSaveMedicineSubmit">
+            <i class="bi bi-check-lg"></i> <span>Guardar Fármaco</span>
           </button>
         </div>
       </form>
@@ -1618,7 +1623,7 @@
   <div class="modal-backdrop-valetec" id="classificationModal">
     <div class="modal-dialog-valetec" style="max-width: 820px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3><i class="bi bi-tags-fill text-blue"></i> 🏷️ Clasificación Farmacéutica (Categorías & Laboratorios)</h3>
+        <h3><i class="bi bi-tags text-blue"></i> Clasificación Farmacéutica (Categorías & Laboratorios)</h3>
         <button type="button" class="btn-close-modal" onclick="classificationApp.closeModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="modal-body-valetec" style="max-height: 75vh; overflow-y: auto; padding: 18px;">
@@ -1626,22 +1631,22 @@
         <!-- Pestañas internas -->
         <div style="display: flex; gap: 8px; border-bottom: 2px solid #e2e8f0; margin-bottom: 16px;">
           <button type="button" id="tabBtnCategories" class="btn-action-solid" style="padding: 6px 14px; font-size: 13px;" onclick="classificationApp.switchTab('categories')">
-            📁 Categorías Farmacéuticas
+            Categorías Farmacéuticas
           </button>
           <button type="button" id="tabBtnLaboratories" class="btn-action-outline" style="padding: 6px 14px; font-size: 13px;" onclick="classificationApp.switchTab('laboratories')">
-            🏭 Laboratorios Farmacéuticos
+            Laboratorios Farmacéuticos
           </button>
         </div>
 
         <!-- Vista Pestaña 1: Categorías -->
         <div id="classificationCategoriesTab">
           <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
-            <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #1e293b;"><i class="bi bi-plus-circle-fill text-teal"></i> Nueva Categoría</h4>
+            <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #1e293b; display: flex; align-items: center; gap: 6px;"><i class="bi bi-plus-circle text-teal"></i> Nueva Categoría</h4>
             <form id="newCategoryForm" onsubmit="classificationApp.createCategory(event)" style="display: flex; gap: 10px; flex-wrap: wrap;">
               <input type="text" id="newCatName" placeholder="Nombre (ej. Oftalmología)" required class="form-control" style="flex: 2; min-width: 200px;">
               <input type="text" id="newCatIcon" placeholder="Icono (ej. bi-eye)" value="bi-capsule" class="form-control" style="flex: 1; min-width: 140px;">
-              <button type="submit" class="btn-action-solid" style="background: #0d9488; color: white; border: none; padding: 6px 16px;">
-                ➕ Registrar
+              <button type="submit" class="btn-action-solid" style="padding: 6px 16px;">
+                <i class="bi bi-plus-lg"></i> <span>Registrar</span>
               </button>
             </form>
           </div>
@@ -1667,13 +1672,13 @@
         <!-- Vista Pestaña 2: Laboratorios -->
         <div id="classificationLaboratoriesTab" style="display: none;">
           <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
-            <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #1e293b;"><i class="bi bi-plus-circle-fill text-teal"></i> Nuevo Laboratorio</h4>
+            <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #1e293b; display: flex; align-items: center; gap: 6px;"><i class="bi bi-plus-circle text-teal"></i> Nuevo Laboratorio</h4>
             <form id="newLaboratoryForm" onsubmit="classificationApp.createLaboratory(event)" style="display: flex; gap: 10px; flex-wrap: wrap;">
               <input type="text" id="newLabName" placeholder="Nombre (ej. Laboratorios Roemmers)" required class="form-control" style="flex: 2; min-width: 200px;">
               <input type="text" id="newLabCountry" placeholder="País (ej. Argentina)" value="Perú" class="form-control" style="flex: 1; min-width: 120px;">
               <input type="text" id="newLabContact" placeholder="Contacto / Teléfono" class="form-control" style="flex: 1; min-width: 140px;">
-              <button type="submit" class="btn-action-solid" style="background: #0d9488; color: white; border: none; padding: 6px 16px;">
-                ➕ Registrar
+              <button type="submit" class="btn-action-solid" style="padding: 6px 16px;">
+                <i class="bi bi-plus-lg"></i> <span>Registrar</span>
               </button>
             </form>
           </div>
@@ -1698,8 +1703,8 @@
 
       </div>
       <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px;">
-        <small style="color: #64748b;">🔒 Las categorías o laboratorios con medicamentos asignados no pueden eliminarse sin antes reasignarlos.</small>
-        <button type="button" class="btn-action-outline" onclick="classificationApp.closeModal()">❌ Cerrar [Esc]</button>
+        <small style="color: #64748b;">Las categorías o laboratorios con medicamentos asignados no pueden eliminarse sin antes reasignarlos.</small>
+        <button type="button" class="btn-action-outline" onclick="classificationApp.closeModal()">Cerrar [Esc]</button>
       </div>
     </div>
   </div>
@@ -1708,14 +1713,14 @@
   <div class="modal-backdrop-valetec" id="stockAdjustmentModal">
     <div class="modal-dialog-valetec" style="max-width: 650px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3><i class="bi bi-shield-exclamation text-danger"></i> ⚖️ Ajuste de Stock & Registro de Mermas</h3>
+        <h3><i class="bi bi-sliders text-teal"></i> Ajuste de Stock & Registro de Mermas</h3>
         <button type="button" class="btn-close-modal" onclick="warehouseApp.closeAdjustmentModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
       </div>
       <form id="stockAdjustmentForm" onsubmit="warehouseApp.submitAdjustment(event)">
         <div class="modal-body-valetec" style="padding: 20px;">
           
           <div class="form-group-valetec" style="margin-bottom: 14px;">
-            <label>💊 Medicamento a Ajustar:</label>
+            <label>Medicamento a Ajustar:</label>
             <select id="adjProductId" class="form-select-valetec" required onchange="warehouseApp.onAdjustmentProductChange()">
               <option value="">-- Seleccionar Medicamento --</option>
             </select>
@@ -1724,28 +1729,28 @@
           <div id="adjProductInfo" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 13px;">
             <div style="display: flex; justify-content: space-between;">
               <span>Stock actual total: <strong id="adjCurrentStock">0 unid.</strong></span>
-              <span id="adjLocationBadge" class="shelf-tag">📍 Anaquel</span>
+              <span id="adjLocationBadge" class="shelf-tag"><i class="bi bi-geo-alt"></i> Anaquel</span>
             </div>
           </div>
 
           <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
             <div class="form-group-valetec">
-              <label>📦 Lote Afectado:</label>
+              <label>Lote Afectado:</label>
               <select id="adjLotId" class="form-select-valetec" required>
                 <option value="">-- Primer Lote Disponible --</option>
               </select>
             </div>
             <div class="form-group-valetec">
-              <label>📋 Tipo de Movimiento / Motivo:</label>
+              <label>Tipo de Movimiento / Motivo:</label>
               <select id="adjType" class="form-select-valetec" required>
-                <optgroup label="🔴 Salidas y Bajas (Disminuye Stock)">
+                <optgroup label="Salidas y Bajas (Disminuye Stock)">
                   <option value="spoilage">Merma / Frasco Quebrado / Fuga</option>
                   <option value="expired">Vencimiento / Baja DIGEMID</option>
                   <option value="breakage">Deterioro / Blíster Roto</option>
                   <option value="diff_out">Diferencia de Inventario (Faltante)</option>
                   <option value="donation">Muestra Médica / Donación</option>
                 </optgroup>
-                <optgroup label="🟢 Ingresos Extraordinarios (Aumenta Stock)">
+                <optgroup label="Ingresos Extraordinarios (Aumenta Stock)">
                   <option value="diff_in">Diferencia de Inventario (Sobrante)</option>
                   <option value="return_customer">Devolución / Reingreso</option>
                 </optgroup>
@@ -1755,11 +1760,11 @@
 
           <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
             <div class="form-group-valetec">
-              <label>🔢 Cantidad:</label>
+              <label>Cantidad:</label>
               <input type="number" min="1" id="adjQuantity" value="1" required class="form-control" style="font-size: 16px; font-weight: 700;">
             </div>
             <div class="form-group-valetec">
-              <label>📐 Unidad de Medida:</label>
+              <label>Unidad de Medida:</label>
               <select id="adjUnitType" class="form-select-valetec" required>
                 <option value="unit">Pastillas / Unidades sueltas</option>
                 <option value="blister">Blísters completos</option>
@@ -1769,14 +1774,14 @@
           </div>
 
           <div class="form-group-valetec" style="margin-bottom: 14px;">
-            <label>📝 Justificación Sanitaria Obligatoria (Auditoría BPA / Kardex):</label>
+            <label>Justificación Sanitaria Obligatoria (Auditoría BPA / Kardex):</label>
             <textarea id="adjReason" rows="2" class="form-control" placeholder="Describa con exactitud el incidente (ej. Rotura al reponer en góndola por caída accidental)..." required minlength="4"></textarea>
           </div>
 
         </div>
         <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; gap: 10px; padding: 12px 18px;">
-          <button type="button" class="btn-action-outline" onclick="warehouseApp.closeAdjustmentModal()">❌ Cancelar</button>
-          <button type="submit" class="btn-action-solid" style="background: linear-gradient(135deg, #e11d48, #be123c); color: white; border: none;">
+          <button type="button" class="btn-action-outline" onclick="warehouseApp.closeAdjustmentModal()">Cancelar</button>
+          <button type="submit" class="btn-action-solid" style="background: #e11d48; color: white; border: none;">
             <i class="bi bi-check2-circle"></i> <span>Aplicar Ajuste en Kardex</span>
           </button>
         </div>
@@ -1788,7 +1793,7 @@
   <div class="modal-backdrop-valetec" id="fefoAlertsModal">
     <div class="modal-dialog-valetec" style="max-width: 850px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3><i class="bi bi-clock-history text-warning"></i> ⏳ Semáforo FEFO: Control Integral de Vencimientos</h3>
+        <h3><i class="bi bi-clock-history text-warning"></i> Semáforo FEFO: Control Integral de Vencimientos</h3>
         <button type="button" class="btn-close-modal" onclick="warehouseApp.closeFefoAlertsModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="modal-body-valetec" style="max-height: 75vh; overflow-y: auto; padding: 18px;">
@@ -1796,19 +1801,19 @@
         <!-- Resumen de Semáforo -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 18px;">
           <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px; text-align: center;">
-            <span style="font-size: 20px;">🔴</span>
+            <span class="status-dot retained" style="width: 10px; height: 10px; margin-bottom: 4px;"></span>
             <div style="font-size: 22px; font-weight: 800; color: #dc2626;" id="fefoSummaryExpired">0</div>
-            <small style="color: #991b1b; font-weight: 600;">Vencidos / < 30 días</small>
+            <small style="color: #991b1b; font-weight: 600;">Vencidos / &lt; 30 días</small>
           </div>
           <div style="background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 12px; text-align: center;">
-            <span style="font-size: 20px;">🟡</span>
+            <span class="status-dot required" style="width: 10px; height: 10px; margin-bottom: 4px;"></span>
             <div style="font-size: 22px; font-weight: 800; color: #d97706;" id="fefoSummaryWarning">0</div>
             <small style="color: #92400e; font-weight: 600;">Próximo canje (31-90 días)</small>
           </div>
           <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; text-align: center;">
-            <span style="font-size: 20px;">🟢</span>
+            <span class="status-dot free" style="width: 10px; height: 10px; margin-bottom: 4px;"></span>
             <div style="font-size: 22px; font-weight: 800; color: #16a34a;" id="fefoSummarySafe">0</div>
-            <small style="color: #166534; font-weight: 600;">Vigente (> 90 días)</small>
+            <small style="color: #166534; font-weight: 600;">Vigente (&gt; 90 días)</small>
           </div>
         </div>
 
@@ -1834,8 +1839,8 @@
 
       </div>
       <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px;">
-        <small style="color: #64748b;">🛡️ Sistema FEFO automatizado conforme a normativa DIGEMID y Buenas Prácticas de Almacenamiento (BPA).</small>
-        <button type="button" class="btn-action-outline" onclick="warehouseApp.closeFefoAlertsModal()">❌ Cerrar [Esc]</button>
+        <small style="color: #64748b;">Sistema FEFO automatizado conforme a normativa DIGEMID y Buenas Prácticas de Almacenamiento (BPA).</small>
+        <button type="button" class="btn-action-outline" onclick="warehouseApp.closeFefoAlertsModal()">Cerrar [Esc]</button>
       </div>
     </div>
   </div>
@@ -1845,7 +1850,7 @@
     <div class="modal-dialog-valetec" style="max-width: 960px; width: 95%;">
       <div class="modal-header-valetec">
         <div>
-          <h3 id="kardexModalTitle"><i class="bi bi-journal-medical text-teal"></i> 📋 Ficha de Kardex Físico y Valorizado</h3>
+          <h3 id="kardexModalTitle"><i class="bi bi-journal-medical text-teal"></i> Ficha de Kardex Físico y Valorizado</h3>
           <small id="kardexModalSubtitle" style="color: #64748b;">Cargando información sanitaria...</small>
         </div>
         <button type="button" class="btn-close-modal" onclick="warehouseApp.closeKardexModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
@@ -1867,7 +1872,7 @@
           <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 14px;">
             <small style="color: #166534; font-weight: 600;">Valor Total Venta:</small>
             <div style="font-size: 18px; font-weight: 800; color: #15803d;" id="kardexValuedSaleDisplay">S/ 0.00</div>
-            <small style="color: #16a34a;">Capital estimado en tienda</small>
+            <small style="color: #166534;">Capital estimado en tienda</small>
           </div>
           <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 14px;">
             <small style="color: #1e40af; font-weight: 600;">Margen Potencial:</small>
@@ -1904,9 +1909,9 @@
       </div>
       <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px;">
         <button type="button" class="btn-action-outline" onclick="warehouseApp.printKardex()">
-          <i class="bi bi-printer-fill"></i> <span>🖨️ Imprimir Ficha Kardex</span>
+          <i class="bi bi-printer"></i> <span>Imprimir Ficha Kardex</span>
         </button>
-        <button type="button" class="btn-action-outline" onclick="warehouseApp.closeKardexModal()">❌ Cerrar [Esc]</button>
+        <button type="button" class="btn-action-outline" onclick="warehouseApp.closeKardexModal()">Cerrar [Esc]</button>
       </div>
     </div>
   </div>
@@ -1915,7 +1920,7 @@
   <div class="modal-backdrop-valetec" id="valuedInventoryModal">
     <div class="modal-dialog-valetec" style="max-width: 980px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3><i class="bi bi-bar-chart-fill text-teal"></i> 📊 Inventario General Físico & Valorizado</h3>
+        <h3><i class="bi bi-bar-chart text-teal"></i> Inventario General Físico & Valorizado</h3>
         <button type="button" class="btn-close-modal" onclick="warehouseApp.closeValuedInventoryModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="modal-body-valetec" style="max-height: 75vh; overflow-y: auto; padding: 18px;">
@@ -1967,9 +1972,9 @@
       </div>
       <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px;">
         <button type="button" class="btn-action-outline" onclick="window.print()">
-          <i class="bi bi-printer-fill"></i> <span>🖨️ Imprimir Inventario</span>
+          <i class="bi bi-printer"></i> <span>Imprimir Inventario</span>
         </button>
-        <button type="button" class="btn-action-outline" onclick="warehouseApp.closeValuedInventoryModal()">❌ Cerrar [Esc]</button>
+        <button type="button" class="btn-action-outline" onclick="warehouseApp.closeValuedInventoryModal()">Cerrar [Esc]</button>
       </div>
     </div>
   </div>
@@ -1978,7 +1983,7 @@
   <div class="modal-backdrop-valetec" id="quickClientModal">
     <div class="modal-dialog-valetec" style="max-width: 580px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3><i class="bi bi-person-plus-fill text-teal"></i> 👤 Registro Rápido de Cliente (DNI / RUC)</h3>
+        <h3><i class="bi bi-person-plus text-teal"></i> Registro Rápido de Cliente (DNI / RUC)</h3>
         <button type="button" class="btn-close-modal" onclick="clientsApp.closeQuickModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
       </div>
       <form id="quickClientForm" onsubmit="clientsApp.saveClient(event)">
@@ -1986,53 +1991,53 @@
 
           <!-- Alerta visual de validación de error -->
           <div id="quickClientAlert" style="display: none; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; border-radius: 6px; padding: 10px 12px; margin-bottom: 14px; font-size: 12.5px; font-weight: 600;">
-            <i class="bi bi-exclamation-triangle-fill"></i> <span id="quickClientAlertMsg">Error de validación</span>
+            <i class="bi bi-exclamation-triangle"></i> <span id="quickClientAlertMsg">Error de validación</span>
           </div>
 
           <div class="form-grid-valetec" style="display: grid; grid-template-columns: 150px 1fr; gap: 12px; margin-bottom: 12px;">
             <div class="form-group-valetec">
-              <label>📄 Tipo Doc:</label>
+              <label>Tipo Doc:</label>
               <select id="quickClientDocType" class="form-select-valetec" onchange="clientsApp.onDocTypeChange()">
                 <option value="DNI" selected>DNI (8 dígitos)</option>
                 <option value="RUC">RUC (11 dígitos)</option>
               </select>
             </div>
             <div class="form-group-valetec">
-              <label>🔢 N° de Documento:</label>
+              <label>N° de Documento:</label>
               <input type="text" id="quickClientDocNumber" required maxlength="8" placeholder="Ej. 45892147" class="form-control" style="font-weight: 700; font-size: 15px;" oninput="clientsApp.clearAlert()">
             </div>
           </div>
 
           <div class="form-group-valetec" style="margin-bottom: 12px;">
-            <label>👤 Nombre Completo o Razón Social:</label>
+            <label>Nombre Completo o Razón Social:</label>
             <input type="text" id="quickClientFullName" required placeholder="Ej. Carlos Mendoza Silva" class="form-control" style="font-size: 14px;" oninput="clientsApp.clearAlert()">
           </div>
 
           <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
             <div class="form-group-valetec">
-              <label>📞 Teléfono / Celular:</label>
+              <label>Teléfono / Celular:</label>
               <input type="text" id="quickClientPhone" placeholder="Ej. 984512365" class="form-control">
             </div>
             <div class="form-group-valetec">
-              <label>📧 Correo Electrónico:</label>
+              <label>Correo Electrónico:</label>
               <input type="email" id="quickClientEmail" placeholder="Ej. cliente@gmail.com" class="form-control">
             </div>
           </div>
 
           <div class="form-group-valetec" style="margin-bottom: 8px;">
-            <label>📍 Dirección / Domicilio Fiscal:</label>
+            <label>Dirección / Domicilio Fiscal:</label>
             <input type="text" id="quickClientAddress" placeholder="Ej. Av. Las Flores 123, San Borja, Lima" class="form-control">
           </div>
 
           <small style="color: #64748b; font-size: 11px; display: block; margin-top: 6px;">
-            🔒 Los clientes registrados acumulan puntos de fidelización y quedan guardados permanentemente en PostgreSQL.
+            Los clientes registrados acumulan puntos de fidelización y quedan guardados permanentemente en PostgreSQL.
           </small>
 
         </div>
         <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; gap: 8px; padding: 12px 18px;">
-          <button type="button" class="btn-action-outline" onclick="clientsApp.closeQuickModal()">❌ Cancelar</button>
-          <button type="submit" class="btn-action-solid" id="btnSaveClientSubmit" style="background: linear-gradient(135deg, #0d9488, #059669); color: white; border: none;">
-            <i class="bi bi-check-circle-fill"></i> <span>💾 Guardar & Asignar a Carrito</span>
+          <button type="button" class="btn-action-outline" onclick="clientsApp.closeQuickModal()">Cancelar</button>
+          <button type="submit" class="btn-action-solid" id="btnSaveClientSubmit">
+            <i class="bi bi-check-lg"></i> <span>Guardar & Asignar a Carrito</span>
           </button>
         </div>
       </form>
@@ -2043,7 +2048,7 @@
   <div class="modal-backdrop-valetec" id="clientsDirectoryModal">
     <div class="modal-dialog-valetec" style="max-width: 960px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3><i class="bi bi-people-fill text-blue"></i> 👥 Directorio de Clientes & Padrón Fiscal DNI / RUC</h3>
+        <h3><i class="bi bi-people text-blue"></i> Directorio de Clientes & Padrón Fiscal DNI / RUC</h3>
         <button type="button" class="btn-close-modal" onclick="clientsApp.closeDirectoryModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="modal-body-valetec" style="max-height: 75vh; overflow-y: auto; padding: 18px;">
@@ -2054,15 +2059,15 @@
             <input 
               type="text" 
               id="directoryClientSearch" 
-              placeholder="🔍 Buscar por DNI, RUC o Nombre..." 
+              placeholder="Buscar por DNI, RUC o Nombre..." 
               class="form-control" 
               style="padding-left: 34px; font-size: 13.5px;"
               oninput="clientsApp.onSearchInput(event)"
             >
             <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b;"></i>
           </div>
-          <button type="button" class="btn-action-solid" style="background: #0d9488; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 700;" onclick="clientsApp.openQuickModal()">
-            <span>➕ + Nuevo Cliente</span>
+          <button type="button" class="btn-action-solid" style="padding: 8px 16px; border-radius: 6px; font-weight: 700;" onclick="clientsApp.openQuickModal()">
+            <i class="bi bi-plus-lg"></i> <span>Nuevo Cliente</span>
           </button>
         </div>
 
@@ -2087,8 +2092,8 @@
 
       </div>
       <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px;">
-        <small style="color: #64748b;">🛡️ Padrón conectado a PostgreSQL 16. Validación SUNAT 8 dígitos DNI / 11 dígitos RUC.</small>
-        <button type="button" class="btn-action-outline" onclick="clientsApp.closeDirectoryModal()">❌ Cerrar [Esc]</button>
+        <small style="color: #64748b;">Padrón conectado a PostgreSQL 16. Validación SUNAT 8 dígitos DNI / 11 dígitos RUC.</small>
+        <button type="button" class="btn-action-outline" onclick="clientsApp.closeDirectoryModal()">Cerrar [Esc]</button>
       </div>
     </div>
   </div>
@@ -2097,40 +2102,40 @@
   <div class="modal-backdrop-valetec" id="exchangeModal">
     <div class="modal-dialog-valetec" style="max-width: 620px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3><i class="bi bi-arrow-repeat text-warning"></i> 🔄 Solicitud Formal de Canje por Vencimiento</h3>
+        <h3><i class="bi bi-arrow-repeat text-warning"></i> Solicitud Formal de Canje por Vencimiento</h3>
         <button type="button" class="btn-close-modal" onclick="warehouseApp.closeExchangeModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="modal-body-valetec" style="padding: 20px;">
         <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 10px 14px; border-radius: 4px; margin-bottom: 16px; font-size: 12px; color: #78350f;">
-          <strong>🛡️ Política Sanitaria DIGEMID / BPA:</strong> Esta solicitud formal ampara el canje por rotación ante droguerías y laboratorios para lotes con vigencia menor a 90 días.
+          <strong>Política Sanitaria DIGEMID / BPA:</strong> Esta solicitud formal ampara el canje por rotación ante droguerías y laboratorios para lotes con vigencia menor a 90 días.
         </div>
         <form id="exchangeForm" onsubmit="warehouseApp.submitExchange(event)">
           <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
             <div class="form-group-valetec">
-              <label>💊 Medicamento:</label>
+              <label>Medicamento:</label>
               <input type="text" id="exchangeProductName" value="Bio-Amoxil 500mg Cápsulas" required class="form-control" readonly>
             </div>
             <div class="form-group-valetec">
-              <label>🏭 Droguería / Proveedor:</label>
+              <label>Droguería / Proveedor:</label>
               <input type="text" id="exchangeSupplier" value="Droguería Andina S.A.C. / MedPharma" required class="form-control">
             </div>
           </div>
           <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px;">
             <div class="form-group-valetec">
-              <label>📦 N° Lote:</label>
+              <label>N° Lote:</label>
               <input type="text" id="exchangeLotCode" value="L-24115" required class="form-control" readonly>
             </div>
             <div class="form-group-valetec">
-              <label>📅 Vencimiento:</label>
+              <label>Vencimiento:</label>
               <input type="text" id="exchangeExpireDate" value="15/11/2026 (< 60 días)" required class="form-control" readonly>
             </div>
             <div class="form-group-valetec">
-              <label>🔢 Cajas a Canjear:</label>
+              <label>Cajas a Canjear:</label>
               <input type="number" id="exchangeQuantity" value="15" min="1" required class="form-control" style="font-weight: 800; font-size: 14px; color: #b45309;">
             </div>
           </div>
           <div class="form-group-valetec" style="margin-bottom: 12px;">
-            <label>📋 Motivo Sanitario del Canje:</label>
+            <label>Motivo Sanitario del Canje:</label>
             <select id="exchangeReasonSelect" class="form-select-valetec">
               <option value="rotacion">Próximo Vencimiento por Baja Rotación (&lt; 90 días)</option>
               <option value="bpa">Cumplimiento Normativo BPA DIGEMID - Retiro Preventivo</option>
@@ -2138,22 +2143,22 @@
             </select>
           </div>
           <div class="form-group-valetec" style="margin-bottom: 8px;">
-            <label>📝 Observaciones / Instrucciones de Recojo:</label>
+            <label>Observaciones / Instrucciones de Recojo:</label>
             <textarea id="exchangeNotes" rows="2" class="form-control" placeholder="Indicar fecha coordinada con el visitador o droguería para la entrega física del lote y recepción de nota de crédito o producto canjeado...">Lote separado en gaveta de cuarentena de Regencia. Coordinar entrega con visitador médico.</textarea>
           </div>
         </form>
       </div>
       <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; gap: 8px; padding: 12px 18px; flex-wrap: wrap;">
-        <button type="button" class="btn-action-outline" onclick="warehouseApp.closeExchangeModal()">❌ Cerrar</button>
+        <button type="button" class="btn-action-outline" onclick="warehouseApp.closeExchangeModal()">Cerrar</button>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
           <button type="button" class="btn-action-outline" onclick="warehouseApp.printExchangeLetter()">
-            <i class="bi bi-printer-fill"></i> <span>🖨️ Imprimir Carta</span>
+            <i class="bi bi-printer"></i> <span>Imprimir Carta</span>
           </button>
-          <button type="button" class="btn-action-outline" style="background: #25d366; color: white; border-color: #128c7e;" onclick="warehouseApp.sendExchangeWhatsApp()">
-            <i class="bi bi-whatsapp"></i> <span>📲 WhatsApp Proveedor</span>
+          <button type="button" class="btn-action-outline" onclick="warehouseApp.sendExchangeWhatsApp()">
+            <i class="bi bi-whatsapp"></i> <span>WhatsApp Proveedor</span>
           </button>
-          <button type="button" class="btn-action-solid" onclick="warehouseApp.submitExchange(event)" style="background: linear-gradient(135deg, #0d9488, #059669); color: white; border: none;">
-            <i class="bi bi-check-circle-fill"></i> <span>✅ Registrar Acta</span>
+          <button type="button" class="btn-action-solid" onclick="warehouseApp.submitExchange(event)">
+            <i class="bi bi-check2-circle"></i> <span>Registrar Acta</span>
           </button>
         </div>
       </div>
@@ -2164,33 +2169,33 @@
   <div class="modal-backdrop-valetec" id="newStaffModal">
     <div class="modal-dialog-valetec" style="max-width: 580px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3><i class="bi bi-person-plus-fill text-teal"></i> 👤 Registrar Nuevo Colaborador</h3>
+        <h3><i class="bi bi-person-plus text-teal"></i> Registrar Nuevo Colaborador</h3>
         <button type="button" class="btn-close-modal" onclick="staffApp.closeNewStaffModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
       </div>
       <form id="newStaffForm" onsubmit="staffApp.saveNewStaff(event)">
         <div class="modal-body-valetec" style="padding: 20px;">
           <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
             <div class="form-group-valetec">
-              <label>👤 Nombre y Apellidos:</label>
+              <label>Nombre y Apellidos:</label>
               <input type="text" id="staffNewName" placeholder="Ej. Luis García Torres" required class="form-control">
             </div>
             <div class="form-group-valetec">
-              <label>🆔 DNI (8 dígitos):</label>
+              <label>DNI (8 dígitos):</label>
               <input type="text" id="staffNewDni" placeholder="47829103" maxlength="8" required class="form-control">
             </div>
           </div>
           <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
             <div class="form-group-valetec">
-              <label>🏷️ Puesto / Rol en el Sistema:</label>
+              <label>Puesto / Rol en el Sistema:</label>
               <select id="staffNewRole" class="form-select-valetec" required onchange="staffApp.onRoleChange()">
-                <option value="tech" selected>🩺 Técnico Mostrador (Ventas Rápidas)</option>
-                <option value="cashier">💵 Cajero de Turno (Cobro & Arqueo)</option>
-                <option value="qf">🔬 Químico Farmacéutico (Regencia & DIGEMID)</option>
-                <option value="admin">👑 Dueño / Gerente (Acceso Total)</option>
+                <option value="tech" selected>Técnico Mostrador (Ventas Rápidas)</option>
+                <option value="cashier">Cajero de Turno (Cobro & Arqueo)</option>
+                <option value="qf">Químico Farmacéutico (Regencia & DIGEMID)</option>
+                <option value="admin">Dueño / Gerente (Acceso Total)</option>
               </select>
             </div>
             <div class="form-group-valetec">
-              <label>💻 Caja o Terminal Asignado:</label>
+              <label>Caja o Terminal Asignado:</label>
               <select id="staffNewTerminal" class="form-select-valetec" required>
                 <option value="Terminal 01" selected>Terminal 01 (Mostrador)</option>
                 <option value="Terminal 02">Terminal 02 (Mostrador)</option>
@@ -2202,7 +2207,7 @@
           </div>
           <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
             <div class="form-group-valetec">
-              <label>⏰ Horario de Turno:</label>
+              <label>Horario de Turno:</label>
               <select id="staffNewShift" class="form-select-valetec" required>
                 <option value="Mañana (08:00 - 16:00)" selected>Mañana (08:00 - 16:00)</option>
                 <option value="Tarde (14:00 - 22:00)">Tarde (14:00 - 22:00)</option>
@@ -2211,28 +2216,28 @@
               </select>
             </div>
             <div class="form-group-valetec">
-              <label>🎯 Meta Comercial del Día (S/.):</label>
+              <label>Meta Comercial del Día (S/.):</label>
               <input type="text" id="staffNewTarget" value="S/ 1,500.00" class="form-control">
             </div>
           </div>
           <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
             <div class="form-group-valetec">
-              <label>🔑 Clave / PIN de Acceso (4-8 dígitos):</label>
+              <label>Clave / PIN de Acceso (4-8 dígitos):</label>
               <input type="password" id="staffNewPin" placeholder="••••" value="1234" required class="form-control">
             </div>
             <div class="form-group-valetec">
-              <label>🟢 Estado Inicial:</label>
+              <label>Estado Inicial:</label>
               <select id="staffNewStatus" class="form-select-valetec">
-                <option value="active" selected>🟢 En Turno (Activo)</option>
-                <option value="pending">🟡 Pausa / Fuera de Turno</option>
+                <option value="active" selected>En Turno (Activo)</option>
+                <option value="pending">Pausa / Fuera de Turno</option>
               </select>
             </div>
           </div>
         </div>
         <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; gap: 8px; padding: 12px 18px;">
-          <button type="button" class="btn-action-outline" onclick="staffApp.closeNewStaffModal()">❌ Cancelar</button>
-          <button type="submit" class="btn-action-solid" style="background: linear-gradient(135deg, #0d9488, #059669); color: white; border: none;">
-            <i class="bi bi-person-check-fill"></i> <span>💾 Guardar Trabajador</span>
+          <button type="button" class="btn-action-outline" onclick="staffApp.closeNewStaffModal()">Cancelar</button>
+          <button type="submit" class="btn-action-solid" id="btnSaveStaffSubmit">
+            <i class="bi bi-person-check"></i> <span>Guardar Trabajador</span>
           </button>
         </div>
       </form>
@@ -2243,7 +2248,7 @@
   <div class="modal-backdrop-valetec" id="staffPermissionsModal">
     <div class="modal-dialog-valetec" style="max-width: 600px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3><i class="bi bi-shield-lock-fill text-blue"></i> ⚙️ Permisos y Horarios del Colaborador</h3>
+        <h3><i class="bi bi-shield-lock text-blue"></i> Permisos y Horarios del Colaborador</h3>
         <button type="button" class="btn-close-modal" onclick="staffApp.closePermissionsModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
       </div>
       <form id="staffPermissionsForm" onsubmit="staffApp.savePermissions(event)">
@@ -2259,7 +2264,7 @@
 
           <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
             <div class="form-group-valetec">
-              <label>⏰ Horario Asignado:</label>
+              <label>Horario Asignado:</label>
               <select id="permShiftSelect" class="form-select-valetec">
                 <option value="Mañana (08:00 - 16:00)">Mañana (08:00 - 16:00)</option>
                 <option value="Tarde (14:00 - 22:00)">Tarde (14:00 - 22:00)</option>
@@ -2268,7 +2273,7 @@
               </select>
             </div>
             <div class="form-group-valetec">
-              <label>💻 Terminal / Punto:</label>
+              <label>Terminal / Punto:</label>
               <select id="permTerminalSelect" class="form-select-valetec">
                 <option value="Terminal 01">Terminal 01</option>
                 <option value="Terminal 02">Terminal 02</option>
@@ -2280,34 +2285,34 @@
           </div>
 
           <label style="font-size: 12px; font-weight: 800; color: var(--valetec-navy); display: block; margin-bottom: 8px;">
-            🔒 Módulos y Accesos Habilitados (RBAC):
+            Módulos y Accesos Habilitados (RBAC):
           </label>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 12px;">
             <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
-              <input type="checkbox" id="permModuleCounter" value="viewCounter"> ⚡ Mostrador & Ventas
+              <input type="checkbox" id="permModuleCounter" value="viewCounter"> Mostrador & Ventas
             </label>
             <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
-              <input type="checkbox" id="permModuleCash" value="viewCash"> 💵 Caja & Cuadre
+              <input type="checkbox" id="permModuleCash" value="viewCash"> Caja & Cuadre
             </label>
             <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
-              <input type="checkbox" id="permModuleWarehouse" value="viewWarehouse"> 📦 Almacén & Lotes FEFO
+              <input type="checkbox" id="permModuleWarehouse" value="viewWarehouse"> Almacén & Lotes FEFO
             </label>
             <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
-              <input type="checkbox" id="permModuleDigemid" value="viewDigemid"> 📋 Recetas DIGEMID
+              <input type="checkbox" id="permModuleDigemid" value="viewDigemid"> Recetas DIGEMID
             </label>
             <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
-              <input type="checkbox" id="permModuleStaff" value="viewStaff"> 👥 Personal & Turnos
+              <input type="checkbox" id="permModuleStaff" value="viewStaff"> Personal & Turnos
             </label>
             <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
-              <input type="checkbox" id="permModuleManagement" value="viewManagement"> 📊 Torre de Control
+              <input type="checkbox" id="permModuleManagement" value="viewManagement"> Torre de Control
             </label>
           </div>
-          <small style="color: #64748b; font-size: 11px;">💡 Los cambios de permisos se aplican de inmediato en la sesión activa y en la navegación del colaborador.</small>
+          <small style="color: #64748b; font-size: 11px;">Los cambios de permisos se aplican de inmediato en la sesión activa y en la navegación del colaborador.</small>
         </div>
         <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; gap: 8px; padding: 12px 18px;">
-          <button type="button" class="btn-action-outline" onclick="staffApp.closePermissionsModal()">❌ Cancelar</button>
-          <button type="submit" class="btn-action-solid" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: white; border: none;">
-            <i class="bi bi-shield-check"></i> <span>💾 Guardar Permisos</span>
+          <button type="button" class="btn-action-outline" onclick="staffApp.closePermissionsModal()">Cancelar</button>
+          <button type="submit" class="btn-action-solid" style="background: #0284c7; color: white; border: none;">
+            <i class="bi bi-shield-check"></i> <span>Guardar Permisos</span>
           </button>
         </div>
       </form>
@@ -2318,26 +2323,26 @@
   <div class="modal-backdrop-valetec" id="whatsappOrderModal">
     <div class="modal-dialog-valetec" style="max-width: 620px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3><i class="bi bi-whatsapp" style="color: #25d366;"></i> 📲 Enviar Pedido Urgente a Droguerías (WhatsApp)</h3>
+        <h3><i class="bi bi-whatsapp" style="color: #25d366;"></i> Enviar Pedido Urgente a Droguerías (WhatsApp)</h3>
         <button type="button" class="btn-close-modal" onclick="managementApp.closeWhatsAppModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="modal-body-valetec" style="padding: 20px;">
         <div style="display: flex; gap: 10px; margin-bottom: 14px; align-items: center; flex-wrap: wrap;">
           <div style="flex: 1; min-width: 200px;">
             <label style="font-size: 11.5px; font-weight: 700; color: var(--valetec-navy); display: block; margin-bottom: 4px;">
-              📱 Número WhatsApp de la Droguería / Visitador:
+              Número WhatsApp de la Droguería / Visitador:
             </label>
             <div style="position: relative;">
               <input type="text" id="whatsappPhoneInput" value="+51 984 512 890" class="form-control" style="font-weight: 700; font-size: 13.5px; padding-left: 36px;">
-              <i class="bi bi-telephone-fill" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b;"></i>
+              <i class="bi bi-telephone" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b;"></i>
             </div>
           </div>
           <div style="flex: 1; min-width: 200px;">
             <label style="font-size: 11.5px; font-weight: 700; color: var(--valetec-navy); display: block; margin-bottom: 4px;">
-              🏭 Proveedor Destino:
+              Proveedor Destino:
             </label>
             <select id="whatsappSupplierSelect" class="form-select-valetec" onchange="managementApp.updateWhatsAppMessage()">
-              <option value="all">📦 Pedido Global (Todas las droguerías)</option>
+              <option value="all">Pedido Global (Todas las droguerías)</option>
               <option value="Droguería Andina S.A.C.">Droguería Andina S.A.C.</option>
               <option value="MedPharma Labs">MedPharma Labs</option>
               <option value="Laboratorios Farmatec S.A.">Laboratorios Farmatec S.A.</option>
@@ -2347,25 +2352,25 @@
         </div>
 
         <label style="font-size: 11.5px; font-weight: 700; color: var(--valetec-navy); display: block; margin-bottom: 4px;">
-          📝 Vista Previa del Mensaje a Enviar:
+          Vista Previa del Mensaje a Enviar:
         </label>
         <textarea id="whatsappMessagePreview" rows="8" class="form-control" style="font-family: monospace; font-size: 12px; line-height: 1.45; background: #f8fafc; resize: vertical;"></textarea>
 
         <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
-          <small style="color: #64748b; font-size: 11px;">⚡ Se abrirá WhatsApp Web o la App oficial con el pedido listo para despachar.</small>
+          <small style="color: #64748b; font-size: 11px;">Se abrirá WhatsApp Web o la App oficial con el pedido listo para despachar.</small>
           <button type="button" class="btn-action-outline" style="padding: 4px 10px; font-size: 11px;" onclick="managementApp.copyWhatsAppMessage()">
-            <i class="bi bi-clipboard-check"></i> <span>📋 Copiar Texto</span>
+            <i class="bi bi-clipboard-check"></i> <span>Copiar Texto</span>
           </button>
         </div>
       </div>
       <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; gap: 8px; padding: 12px 18px; flex-wrap: wrap;">
-        <button type="button" class="btn-action-outline" onclick="managementApp.closeWhatsAppModal()">❌ Cancelar</button>
+        <button type="button" class="btn-action-outline" onclick="managementApp.closeWhatsAppModal()">Cancelar</button>
         <div style="display: flex; gap: 8px;">
           <button type="button" class="btn-action-outline" onclick="managementApp.printOrderSheet()">
-            <i class="bi bi-printer-fill"></i> <span>🖨️ Imprimir Pedido</span>
+            <i class="bi bi-printer"></i> <span>Imprimir Pedido</span>
           </button>
           <button type="button" class="btn-action-solid" style="background: #25d366; color: white; border: none;" onclick="managementApp.sendWhatsAppDirect()">
-            <i class="bi bi-whatsapp"></i> <span>📲 Abrir en WhatsApp</span>
+            <i class="bi bi-whatsapp"></i> <span>Abrir en WhatsApp</span>
           </button>
         </div>
       </div>
@@ -2377,7 +2382,7 @@
   ============================================================= -->
   <!-- Botón Flotante UserWay -->
   <button type="button" class="userway-floating-btn" id="btnOpenUserway" title="Menú de Ayuda Visual y Accesibilidad" aria-label="Abrir Menú de Accesibilidad">
-    <span style="font-size:24px; pointer-events: none;">♿</span>
+    <i class="bi bi-universal-access" style="font-size:22px; pointer-events: none;"></i>
     <span class="userway-pulse-dot" style="pointer-events: none;"></span>
   </button>
 
@@ -2385,7 +2390,7 @@
   <div class="userway-drawer-panel" id="userwayDrawer" role="dialog" aria-modal="true" aria-label="Ayuda Visual y Accesibilidad">
     <div class="userway-header">
       <div class="userway-title-wrap">
-        <span style="font-size:26px;">♿</span>
+        <i class="bi bi-universal-access" style="font-size:24px;"></i>
         <div>
           <h4>Ayuda Visual & Accesibilidad</h4>
           <small>Herramientas sencillas para personas de toda edad</small>
@@ -2398,7 +2403,7 @@
       
       <!-- 1. Tamaño del Texto -->
       <div class="userway-widget-card">
-        <div class="uw-widget-label">🔤 Tamaño del Texto:</div>
+        <div class="uw-widget-label">Tamaño del Texto:</div>
         <div class="uw-btn-group">
           <button type="button" class="btn-uw-ctrl active" onclick="accessibilityEngine.setFontSize('normal', this)">A (Normal)</button>
           <button type="button" class="btn-uw-ctrl" onclick="accessibilityEngine.setFontSize('lg', this)">A+ (Grande)</button>
@@ -2408,33 +2413,33 @@
 
       <!-- 2. Modos de Pantalla y Lectura -->
       <div class="userway-widget-card mt-2">
-        <div class="uw-widget-label">🎨 Modo de Pantalla & Lectura:</div>
+        <div class="uw-widget-label">Modo de Pantalla & Lectura:</div>
         <div class="uw-grid-2">
           <button type="button" class="btn-uw-feature" id="btnToggleDarkMode" onclick="accessibilityEngine.toggleDarkMode()">
-            <span>🌙 Modo Noche</span>
+            <i class="bi bi-moon"></i> <span>Modo Noche</span>
           </button>
           <button type="button" class="btn-uw-feature" id="btnToggleDyslexia" onclick="accessibilityEngine.toggleDyslexia()">
-            <span>📖 Lectura Fácil</span>
+            <i class="bi bi-book"></i> <span>Lectura Fácil</span>
           </button>
         </div>
       </div>
 
       <!-- 3. Espaciado y Botones -->
       <div class="userway-widget-card mt-2">
-        <div class="uw-widget-label">👁️ Comodidad Visual:</div>
+        <div class="uw-widget-label">Comodidad Visual:</div>
         <div class="uw-grid-2">
           <button type="button" class="btn-uw-feature" id="btnToggleSpacedText" onclick="accessibilityEngine.toggleSpacedText()">
-            <span>↔️ Separar Letras</span>
+            <i class="bi bi-arrows-expand"></i> <span>Separar Letras</span>
           </button>
           <button type="button" class="btn-uw-feature" id="btnToggleHighlightLinks" onclick="accessibilityEngine.toggleHighlightLinks()">
-            <span>🔘 Resaltar Botones</span>
+            <i class="bi bi-bounding-box"></i> <span>Resaltar Botones</span>
           </button>
         </div>
       </div>
 
       <!-- Botón de Restablecer -->
       <button type="button" class="btn-userway-reset mt-2" onclick="accessibilityEngine.resetAll()">
-        <span>🔄 Volver a Modo Normal</span>
+        <i class="bi bi-arrow-counterclockwise"></i> <span>Volver a Modo Normal</span>
       </button>
 
     </div>
