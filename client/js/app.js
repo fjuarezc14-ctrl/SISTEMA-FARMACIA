@@ -227,7 +227,7 @@ let mockStaffProfiles = {
     roleLabel: "Dueño / Gerente General",
     avatar: "bi-briefcase",
     email: "gerencia@valetec.pe",
-    allowedViews: ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement"],
+    allowedViews: ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement", "viewClients"],
     defaultView: "viewManagement"
   },
   qf: {
@@ -235,7 +235,7 @@ let mockStaffProfiles = {
     roleLabel: "Química Farmacéutica (Regente)",
     avatar: "bi-file-earmark-medical",
     email: "regencia@valetec.pe",
-    allowedViews: ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement"],
+    allowedViews: ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement", "viewClients"],
     defaultView: "viewDigemid"
   },
   tech: {
@@ -243,7 +243,7 @@ let mockStaffProfiles = {
     roleLabel: "Técnico de Mostrador",
     avatar: "bi-capsule",
     email: "mostrador@valetec.pe",
-    allowedViews: ["viewCounter", "viewWarehouse", "viewDigemid"],
+    allowedViews: ["viewCounter", "viewWarehouse", "viewDigemid", "viewClients"],
     defaultView: "viewCounter"
   },
   cashier: {
@@ -251,7 +251,7 @@ let mockStaffProfiles = {
     roleLabel: "Cajero de Turno",
     avatar: "bi-cash-stack",
     email: "caja@valetec.pe",
-    allowedViews: ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid"],
+    allowedViews: ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewClients"],
     defaultView: "viewCash"
   }
 };
@@ -380,6 +380,8 @@ class AuthManager {
       appNav.applyRolePermissions(res.user.roleKey);
 
       showValetecToast(`¡Sesión autorizada por JWT! Bienvenido, ${res.user.name}.`, "success");
+      // Sincronizar catálogo y datos del backend tras login exitoso
+      syncWithBackend();
     } catch (err) {
       showValetecToast(err.message || "Error al autenticar credenciales.", "danger");
     } finally {
@@ -411,6 +413,9 @@ class AuthManager {
   }
 
   async checkActiveSession() {
+    const token = localStorage.getItem('valetec_token');
+    if (!token) return; // No hay sesión guardada
+
     try {
       const user = await window.api.getMe();
       if (user) {
@@ -434,9 +439,12 @@ class AuthManager {
         appNav.applyRolePermissions(user.roleKey);
 
         showValetecToast(`Sesión activa recuperada por JWT: ${user.name}.`, "info");
+        // Sincronizar catálogo y datos protegidos
+        syncWithBackend();
       }
     } catch (e) {
-      // Sesión no activa, permanece en login
+      // Sesión expirada o token inválido
+      if (window.api && window.api.logout) window.api.logout();
     }
   }
 
@@ -685,10 +693,44 @@ class NavigationController {
   }
 
   initEvents() {
-    this.tabs.forEach(tab => {
+    // 1. Botones de pestañas directas (ej. Dashboard)
+    document.querySelectorAll('.nav-tab-btn').forEach(tab => {
       tab.addEventListener('click', () => {
         const targetView = tab.dataset.view;
-        this.navigateTo(targetView);
+        if (targetView) this.navigateTo(targetView);
+      });
+    });
+
+    // 2. Encabezados de módulos acordeón (Plegar / Desplegar)
+    document.querySelectorAll('.nav-module-header').forEach(header => {
+      header.addEventListener('click', (e) => {
+        e.preventDefault();
+        const group = header.closest('.nav-module-group');
+        if (group) {
+          group.classList.toggle('open');
+        }
+      });
+    });
+
+    // 3. Submódulos internos (Navegación o Acción)
+    document.querySelectorAll('.nav-sub-btn').forEach(subBtn => {
+      subBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.querySelectorAll('.nav-sub-btn, .nav-tab-btn').forEach(el => el.classList.remove('active'));
+        subBtn.classList.add('active');
+
+        const parentGroup = subBtn.closest('.nav-module-group');
+        if (parentGroup) parentGroup.classList.add('open');
+
+        if (subBtn.dataset.view) {
+          this.navigateTo(subBtn.dataset.view);
+          return;
+        }
+
+        const action = subBtn.dataset.action;
+        if (action) {
+          this.handleSubmoduleAction(action);
+        }
       });
     });
 
@@ -826,11 +868,11 @@ class NavigationController {
     if (!profile) return;
 
     if (roleKey === 'admin' || roleKey === 'qf') {
-      profile.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement"];
+      profile.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement", "viewClients"];
     } else if (roleKey === 'cashier') {
-      profile.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid"];
+      profile.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewClients"];
     } else if (roleKey === 'tech') {
-      profile.allowedViews = ["viewCounter", "viewWarehouse", "viewDigemid"];
+      profile.allowedViews = ["viewCounter", "viewWarehouse", "viewDigemid", "viewClients"];
     }
 
     const avatarEl = document.getElementById('activeUserAvatar');
@@ -847,14 +889,23 @@ class NavigationController {
     if (nameEl) nameEl.innerText = profile.name;
     if (roleEl) roleEl.innerText = profile.roleLabel;
 
-    this.tabs.forEach(tab => {
+    document.querySelectorAll('.nav-tab-btn').forEach(tab => {
       const viewId = tab.dataset.view;
-      if (profile.allowedViews.includes(viewId)) {
+      if (!viewId || profile.allowedViews.includes(viewId)) {
         tab.classList.remove('d-none');
         tab.removeAttribute('disabled');
       } else {
         tab.classList.add('d-none');
         tab.setAttribute('disabled', 'true');
+      }
+    });
+
+    document.querySelectorAll('.nav-module-group').forEach(group => {
+      const roles = group.dataset.roles;
+      if (!roles || roles === 'all' || roles.split(',').includes(roleKey) || roleKey === 'admin') {
+        group.classList.remove('d-none');
+      } else {
+        group.classList.add('d-none');
       }
     });
 
@@ -864,6 +915,133 @@ class NavigationController {
       showValetecToast(`Acceso restringido para ${profile.roleLabel}. Vista redirigida.`, "warning");
     } else {
       showValetecToast(`Perfil activo: ${profile.roleLabel}`, "info");
+    }
+  }
+
+  handleSubmoduleAction(action) {
+    switch (action) {
+      case 'openSalesHistory':
+        this.navigateTo('viewCounter');
+        setTimeout(() => {
+          if (typeof counterApp !== 'undefined' && counterApp) {
+            counterApp.toggleSalesHistoryModal(true);
+            counterApp.loadSalesHistory();
+          }
+        }, 150);
+        break;
+      case 'openShift':
+        this.navigateTo('viewCash');
+        setTimeout(() => {
+          document.getElementById('btnOpenShiftModal')?.click();
+        }, 150);
+        break;
+      case 'openExpense':
+        this.navigateTo('viewCash');
+        setTimeout(() => {
+          document.getElementById('btnOpenExpenseModal')?.click();
+        }, 150);
+        break;
+      case 'triggerZClose':
+        this.navigateTo('viewCash');
+        setTimeout(() => {
+          document.getElementById('btnTriggerZClose')?.click();
+        }, 150);
+        break;
+      case 'openClientsDirectory':
+        this.navigateTo('viewClients');
+        if (typeof window.clientsApp !== 'undefined' && window.clientsApp) {
+          window.clientsApp.setFilter('all');
+          window.clientsApp.loadClients();
+        }
+        break;
+      case 'openClientsPoints':
+      case 'openClientPoints':
+        this.navigateTo('viewClients');
+        if (typeof window.clientsApp !== 'undefined' && window.clientsApp) {
+          window.clientsApp.setFilter('points');
+          window.clientsApp.loadClients();
+        }
+        break;
+      case 'openFefoAlerts':
+        this.navigateTo('viewWarehouse');
+        setTimeout(() => {
+          if (typeof warehouseApp !== 'undefined' && warehouseApp) {
+            warehouseApp.openFefoAlertsModal();
+          }
+        }, 150);
+        break;
+      case 'openKardex':
+        this.navigateTo('viewWarehouse');
+        setTimeout(() => {
+          if (typeof warehouseApp !== 'undefined' && warehouseApp) {
+            warehouseApp.openKardexModal();
+          }
+        }, 150);
+        break;
+      case 'openCategories':
+        if (typeof classificationApp !== 'undefined' && classificationApp) {
+          classificationApp.openModal('categories');
+        } else {
+          showValetecToast("Categorías & Familias farmacéuticas.", "info");
+        }
+        break;
+      case 'openAdjustments':
+        this.navigateTo('viewWarehouse');
+        setTimeout(() => {
+          if (typeof warehouseApp !== 'undefined' && warehouseApp) {
+            warehouseApp.openAdjustmentModal();
+          }
+        }, 150);
+        break;
+      case 'openReceiveModal':
+        this.navigateTo('viewWarehouse');
+        setTimeout(() => {
+          document.getElementById('btnOpenReceiveModal')?.click();
+        }, 150);
+        break;
+      case 'openSuppliers':
+        if (typeof classificationApp !== 'undefined' && classificationApp) {
+          classificationApp.openModal('laboratories');
+        } else {
+          showValetecToast("Laboratorios y Droguerías registradas.", "info");
+        }
+        break;
+      case 'openExchanges':
+        this.navigateTo('viewWarehouse');
+        setTimeout(() => {
+          document.getElementById('btnExchangeFefoAction')?.click();
+        }, 150);
+        break;
+      case 'openVault':
+        this.navigateTo('viewDigemid');
+        showValetecToast("Bóveda DIGEMID: Custodia bajo llave de Psicotrópicos Lista IV.", "info");
+        break;
+      case 'openDigemidBalance':
+        this.navigateTo('viewDigemid');
+        setTimeout(() => {
+          document.getElementById('btnPrintDigemidBalance')?.click();
+        }, 150);
+        break;
+      case 'openAccountantReport':
+        this.navigateTo('viewManagement');
+        showValetecToast("Reporte Contable: Facturación consolidada mensual e IGV.", "info");
+        break;
+      case 'openRestockReport':
+        this.navigateTo('viewManagement');
+        setTimeout(() => {
+          document.querySelector('.procurement-section-box')?.scrollIntoView({ behavior: 'smooth' });
+        }, 150);
+        break;
+      case 'openSettingsBotica':
+      case 'openSettingsSunat':
+        document.getElementById('btnOpenSettingsHeader')?.click();
+        break;
+      case 'downloadBackup':
+        document.getElementById('btnDownloadBackupMgmt')?.click();
+        break;
+      default:
+        showValetecToast(`Módulo: ${action}`, "info");
+        break;
     }
   }
 
@@ -895,10 +1073,15 @@ class NavigationController {
         warehouseApp.closeAdjustmentModal?.();
         warehouseApp.closeKardexModal?.();
         warehouseApp.closeMedicineModal?.();
+        warehouseApp.closeFefoAlertsModal?.();
       }
       if (typeof window.clientsApp !== 'undefined' && window.clientsApp) {
+        window.clientsApp.closeClientDrawer?.();
         window.clientsApp.closeQuickModal?.();
         window.clientsApp.closeDirectoryModal?.();
+      }
+      if (typeof classificationApp !== 'undefined' && classificationApp) {
+        classificationApp.closeModal?.();
       }
     } catch (modalErr) {
       // No interrumpir la navegación si algún modal ya no existe en el DOM
@@ -917,11 +1100,21 @@ class NavigationController {
     this.views.forEach(v => v.classList.remove('active'));
     targetElement.classList.add('active');
 
-    this.tabs.forEach(t => {
+    document.querySelectorAll('.nav-tab-btn').forEach(t => {
       if (t.dataset.view === viewId) {
         t.classList.add('active');
       } else {
         t.classList.remove('active');
+      }
+    });
+
+    document.querySelectorAll('.nav-sub-btn').forEach(s => {
+      if (s.dataset.view === viewId) {
+        s.classList.add('active');
+        const parentGroup = s.closest('.nav-module-group');
+        if (parentGroup) parentGroup.classList.add('open');
+      } else {
+        s.classList.remove('active');
       }
     });
 
@@ -1005,6 +1198,17 @@ class CounterModule {
     this.patientInput = document.getElementById('patientDocInput');
     this.btnQuery = document.getElementById('btnQueryPatient');
     this.patientStatus = document.getElementById('patientStatusLine');
+
+    // Elementos de canje de puntos de fidelización
+    this.patientPointsBox = document.getElementById('patientPointsRedeemBox');
+    this.lblAvailablePoints = document.getElementById('lblAvailablePoints');
+    this.lblPointsSolValue = document.getElementById('lblPointsSolValue');
+    this.btnRedeemPoints = document.getElementById('btnRedeemPointsAction');
+    this.btnRedeemPointsText = document.getElementById('btnRedeemPointsText');
+    this.ticketDiscountRow = document.getElementById('ticketDiscountRow');
+    this.ticketDiscountAmount = document.getElementById('ticketDiscountAmount');
+    this.activeClient = null;
+    this.redeemedDiscount = 0;
 
     this.baseEl = document.getElementById('ticketBaseAmount');
     this.igvEl = document.getElementById('ticketIgvAmount');
@@ -1152,6 +1356,8 @@ class CounterModule {
         if (this.order.length === 0) return;
         if (confirm("¿Limpiar y descartar la orden actual de mostrador?")) {
           this.order = [];
+          this.redeemedDiscount = 0;
+          this.updatePointsRedeemBox();
           this.updateUi();
           showValetecToast("Orden cancelada.", "info");
         }
@@ -1232,12 +1438,14 @@ class CounterModule {
       if (res && res.data && Array.isArray(res.data) && res.data.length > 0) {
         const client = res.data.find(c => c.documentNumber === doc) || res.data[0];
         if (client) {
+          this.activeClient = client;
           this.patientInput.value = client.documentNumber;
           this.patientStatus.innerHTML = `
-            <span class="p-name"><i class="bi bi-person"></i> ${client.fullName}</span>
+            <span class="p-name"><i class="bi bi-person"></i> ${escHtml(client.fullName)}</span>
             <span class="p-points"><i class="bi bi-star"></i> ${client.pointsBalance || 0} Pts</span>
           `;
-          showValetecToast(`Cliente "${client.fullName}" identificado en padrón.`, "success");
+          this.updatePointsRedeemBox();
+          showValetecToast(`Cliente "${escHtml(client.fullName)}" identificado en padrón.`, "success");
           return;
         }
       }
@@ -1501,8 +1709,60 @@ class CounterModule {
   }
 
 
+  updatePointsRedeemBox() {
+    if (!this.patientPointsBox) this.patientPointsBox = document.getElementById('patientPointsRedeemBox');
+    if (!this.lblAvailablePoints) this.lblAvailablePoints = document.getElementById('lblAvailablePoints');
+    if (!this.lblPointsSolValue) this.lblPointsSolValue = document.getElementById('lblPointsSolValue');
+    if (!this.btnRedeemPointsText) this.btnRedeemPointsText = document.getElementById('btnRedeemPointsText');
+
+    const pts = parseInt(this.activeClient?.pointsBalance, 10) || 0;
+    if (this.patientPointsBox) {
+      if (pts > 0) {
+        this.patientPointsBox.style.display = 'flex';
+        if (this.lblAvailablePoints) this.lblAvailablePoints.innerText = pts;
+        if (this.lblPointsSolValue) this.lblPointsSolValue.innerText = (pts * 0.10).toFixed(2);
+
+        if (this.redeemedDiscount > 0) {
+          if (this.btnRedeemPointsText) this.btnRedeemPointsText.innerText = 'Quitar Canje';
+        } else {
+          if (this.btnRedeemPointsText) this.btnRedeemPointsText.innerText = 'Aplicar Canje';
+        }
+      } else {
+        this.patientPointsBox.style.display = 'none';
+        this.redeemedDiscount = 0;
+      }
+    }
+  }
+
+  togglePointsRedeem() {
+    const pts = parseInt(this.activeClient?.pointsBalance, 10) || 0;
+    if (pts <= 0) {
+      showValetecToast("Este cliente no cuenta con saldo de puntos disponible.", "warning");
+      return;
+    }
+
+    if (this.redeemedDiscount > 0) {
+      this.redeemedDiscount = 0;
+      showValetecToast("Canje de puntos removido del ticket.", "info");
+    } else {
+      const subtotal = this.order.reduce((s, i) => s + (i.price * i.qty), 0);
+      if (subtotal <= 0) {
+        showValetecToast("Agrega productos al carrito antes de aplicar el canje de puntos.", "warning");
+        return;
+      }
+      const maxDiscountFromPoints = pts * 0.10;
+      this.redeemedDiscount = Math.min(subtotal, maxDiscountFromPoints);
+      const pointsUsed = Math.round(this.redeemedDiscount / 0.10);
+      showValetecToast(`¡Canje aplicado! Descuento de S/ ${this.redeemedDiscount.toFixed(2)} (${pointsUsed} Puntos).`, "success");
+    }
+
+    this.updatePointsRedeemBox();
+    this.updateUi();
+  }
+
   calcTotal() {
-    return this.order.reduce((s, i) => s + (i.price * i.qty), 0);
+    const subtotal = this.order.reduce((s, i) => s + (i.price * i.qty), 0);
+    return Math.max(0, subtotal - (this.redeemedDiscount || 0));
   }
 
   setPaymentMethod(method) {
@@ -1575,6 +1835,17 @@ class CounterModule {
     const total = this.calcTotal();
     const base = total / 1.18;
     const igv = total - base;
+
+    if (this.ticketDiscountRow) {
+      if (this.redeemedDiscount > 0) {
+        this.ticketDiscountRow.style.display = 'flex';
+        if (this.ticketDiscountAmount) {
+          this.ticketDiscountAmount.innerText = `- S/ ${this.redeemedDiscount.toFixed(2)}`;
+        }
+      } else {
+        this.ticketDiscountRow.style.display = 'none';
+      }
+    }
 
     if (this.baseEl) this.baseEl.innerText = `S/ ${base.toFixed(2)}`;
     if (this.igvEl) this.igvEl.innerText = `S/ ${igv.toFixed(2)}`;
@@ -2909,8 +3180,15 @@ class WarehouseModule {
     this.btnCancel = document.getElementById('btnCancelReceive');
     this.btnSave = document.getElementById('btnSaveReceive');
 
-    // Modal de Alta / Edición de Medicamento (Fase A - Módulo 1)
-    this.medicineModal = document.getElementById('medicineFormModal');
+    // Drawer de Alta / Edición de Medicamento (Diseño SaaS 2026)
+    this.productDrawer = document.getElementById('productDrawer');
+    this.productDrawerBackdrop = document.getElementById('productDrawerBackdrop');
+    this.toggleBox = document.getElementById('toggleSellBox');
+    this.toggleBlister = document.getElementById('toggleSellBlister');
+    this.toggleUnit = document.getElementById('toggleSellUnit');
+    this.cardBox = document.getElementById('cardPresentationBox');
+    this.cardBlister = document.getElementById('cardPresentationBlister');
+    this.cardUnit = document.getElementById('cardPresentationUnit');
 
     this.initEvents();
     this.render();
@@ -2924,6 +3202,31 @@ class WarehouseModule {
     if (this.btnOpen) this.btnOpen.addEventListener('click', () => this.toggleModal(true));
     if (this.btnClose) this.btnClose.addEventListener('click', () => this.toggleModal(false));
     if (this.btnCancel) this.btnCancel.addEventListener('click', () => this.toggleModal(false));
+
+    // Cerrar Drawers con tecla ESC
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (this.productDrawer?.classList.contains('active')) {
+          this.closeMedicineDrawer();
+        }
+        const fefo = document.getElementById('fefoDrawer');
+        if (fefo && fefo.classList.contains('active')) {
+          this.closeFefoAlertsModal();
+        }
+        const kardex = document.getElementById('kardexDrawer');
+        if (kardex && kardex.classList.contains('active')) {
+          this.closeKardexModal();
+        }
+        const classification = document.getElementById('classificationDrawer');
+        if (classification && classification.classList.contains('active')) {
+          window.classificationApp?.closeModal();
+        }
+        const adj = document.getElementById('stockAdjustmentDrawer');
+        if (adj && adj.classList.contains('active')) {
+          this.closeAdjustmentModal();
+        }
+      }
+    });
 
     if (this.btnSave) {
       this.btnSave.addEventListener('click', () => {
@@ -2970,14 +3273,45 @@ class WarehouseModule {
     else this.modal?.classList.remove('active');
   }
 
+  handlePresentationToggle(type) {
+    if (type === 'box') {
+      const on = !!this.toggleBox?.checked;
+      this.cardBox?.classList.toggle('active', on);
+      const inBox = document.getElementById('medBoxPrice');
+      if (inBox) { inBox.disabled = !on; if (!on) inBox.value = ''; }
+    } else if (type === 'blister') {
+      const on = !!this.toggleBlister?.checked;
+      this.cardBlister?.classList.toggle('active', on);
+      const inBli = document.getElementById('medBlisterPrice');
+      if (inBli) { inBli.disabled = !on; if (!on) inBli.value = ''; }
+    } else if (type === 'unit') {
+      const on = !!this.toggleUnit?.checked;
+      this.cardUnit?.classList.toggle('active', on);
+      const inU = document.getElementById('medUnitPrice');
+      if (inU) { inU.disabled = !on; if (!on) inU.value = ''; }
+    }
+  }
+
   openCreateModal() {
-    const form = document.getElementById('medicineForm');
+    const form = document.getElementById('productDrawerForm');
     if (form) form.reset();
     document.getElementById('medId').value = '';
-    document.getElementById('medModalTitle').innerHTML = '<i class="bi bi-capsule text-teal"></i> Alta de Nuevo Medicamento';
+    document.getElementById('productDrawerTitle').innerHTML = '<i class="bi bi-capsule text-teal"></i> Alta de Nuevo Medicamento';
+
+    // Por defecto activar las 3 presentaciones para nueva medicina
+    if (this.toggleBox) this.toggleBox.checked = true;
+    if (this.toggleBlister) this.toggleBlister.checked = true;
+    if (this.toggleUnit) this.toggleUnit.checked = true;
+    this.handlePresentationToggle('box');
+    this.handlePresentationToggle('blister');
+    this.handlePresentationToggle('unit');
+
     const initSec = document.getElementById('medInitialStockSection');
     if (initSec) initSec.style.display = 'block';
-    this.medicineModal?.classList.add('active');
+
+    this.productDrawer?.classList.add('active');
+    this.productDrawerBackdrop?.classList.add('active');
+    setTimeout(() => document.getElementById('medName')?.focus(), 150);
   }
 
   openEditModal(id) {
@@ -2985,7 +3319,7 @@ class WarehouseModule {
     if (!prod) return;
 
     document.getElementById('medId').value = prod.id;
-    document.getElementById('medModalTitle').innerHTML = `<i class="bi bi-pencil-square text-blue"></i> Editar Fármaco: ${escHtml(prod.name)}`;
+    document.getElementById('productDrawerTitle').innerHTML = `<i class="bi bi-pencil-square text-teal"></i> Editar Fármaco: ${escHtml(prod.name)}`;
     document.getElementById('medName').value = prod.name || '';
     document.getElementById('medGenericDci').value = prod.genericDci || '';
     document.getElementById('medBarcode').value = prod.barcode || '';
@@ -2994,28 +3328,49 @@ class WarehouseModule {
     // Categoría
     const catMap = { 'dolor': 1, 'antibioticos': 2, 'digestivos': 3, 'controlados': 4, 'vitaminas': 5, 'respiratorio': 6 };
     const catSelect = document.getElementById('medCategoryId');
-    if (catSelect) catSelect.value = catMap[prod.category] || 1;
+    if (catSelect) catSelect.value = catMap[prod.category] || prod.categoryId || 1;
 
     document.getElementById('medLocation').value = prod.location || 'Pasillo 1 • Anaquel A-1';
     document.getElementById('medSanitaryRegistry').value = prod.sanitaryRegistry || '';
     document.getElementById('medPrescriptionType').value = prod.prescriptionType || 'free';
-    document.getElementById('medBoxPrice').value = prod.boxPrice || '';
-    document.getElementById('medBlisterPrice').value = prod.blisterPrice || '';
-    document.getElementById('medUnitPrice').value = prod.unitPrice || '';
+
+    // Determinar presentaciones activas según si tienen precio > 0
+    const hasBox = prod.boxPrice !== null && prod.boxPrice !== undefined && Number(prod.boxPrice) > 0;
+    const hasBlister = prod.blisterPrice !== null && prod.blisterPrice !== undefined && Number(prod.blisterPrice) > 0;
+    const hasUnit = prod.unitPrice !== null && prod.unitPrice !== undefined && Number(prod.unitPrice) > 0;
+
+    if (this.toggleBox) this.toggleBox.checked = hasBox || (!hasBlister && !hasUnit);
+    if (this.toggleBlister) this.toggleBlister.checked = hasBlister;
+    if (this.toggleUnit) this.toggleUnit.checked = hasUnit;
+
+    this.handlePresentationToggle('box');
+    this.handlePresentationToggle('blister');
+    this.handlePresentationToggle('unit');
+
+    document.getElementById('medBoxPrice').value = hasBox ? prod.boxPrice : '';
+    document.getElementById('medBlisterPrice').value = hasBlister ? prod.blisterPrice : '';
+    document.getElementById('medUnitPrice').value = hasUnit ? prod.unitPrice : '';
     document.getElementById('medUnitsPerBox').value = prod.unitsPerBox || 100;
     document.getElementById('medUnitsPerBlister').value = prod.unitsPerBlister || 10;
 
     const initSec = document.getElementById('medInitialStockSection');
     if (initSec) initSec.style.display = 'none';
 
-    this.medicineModal?.classList.add('active');
+    this.productDrawer?.classList.add('active');
+    this.productDrawerBackdrop?.classList.add('active');
+  }
+
+  closeMedicineDrawer() {
+    this.productDrawer?.classList.remove('active');
+    this.productDrawerBackdrop?.classList.remove('active');
   }
 
   closeMedicineModal() {
-    this.medicineModal?.classList.remove('active');
+    this.closeMedicineDrawer();
   }
 
   autoCalcPrices() {
+    if (!this.toggleBox?.checked) return;
     const box = parseFloat(document.getElementById('medBoxPrice').value || 0);
     const uBox = parseInt(document.getElementById('medUnitsPerBox').value || 100, 10);
     const uBli = parseInt(document.getElementById('medUnitsPerBlister').value || 10, 10);
@@ -3024,10 +3379,10 @@ class WarehouseModule {
 
     if (box > 0 && uBox > 0) {
       const blisInBox = uBox / uBli;
-      if (!blisterInp.value || parseFloat(blisterInp.value) === 0) {
+      if (this.toggleBlister?.checked && (!blisterInp.value || parseFloat(blisterInp.value) === 0)) {
         blisterInp.value = ((box / blisInBox) * 1.15).toFixed(2);
       }
-      if (!unitInp.value || parseFloat(unitInp.value) === 0) {
+      if (this.toggleUnit?.checked && (!unitInp.value || parseFloat(unitInp.value) === 0)) {
         unitInp.value = ((box / uBox) * 1.25).toFixed(2);
       }
     }
@@ -3044,9 +3399,48 @@ class WarehouseModule {
     const location = document.getElementById('medLocation').value.trim() || 'Pasillo 1 • Anaquel A-1';
     const sanitaryRegistry = document.getElementById('medSanitaryRegistry').value.trim();
     const prescriptionType = document.getElementById('medPrescriptionType').value;
-    const boxPrice = parseFloat(document.getElementById('medBoxPrice').value || 0);
-    const blisterPrice = parseFloat(document.getElementById('medBlisterPrice').value || 0);
-    const unitPrice = parseFloat(document.getElementById('medUnitPrice').value || 0);
+
+    // Validación de Presentaciones de Venta Opcionales
+    const sellBox = !!this.toggleBox?.checked;
+    const sellBlister = !!this.toggleBlister?.checked;
+    const sellUnit = !!this.toggleUnit?.checked;
+
+    if (!sellBox && !sellBlister && !sellUnit) {
+      showValetecToast("Debes activar al menos una presentación de venta (Caja, Blíster o Unidad).", "warning");
+      return;
+    }
+
+    let boxPrice = null;
+    let blisterPrice = null;
+    let unitPrice = null;
+
+    if (sellBox) {
+      boxPrice = parseFloat(document.getElementById('medBoxPrice')?.value || 0);
+      if (isNaN(boxPrice) || boxPrice <= 0) {
+        showValetecToast("Has activado la venta por Caja: ingresa un precio mayor a S/ 0.00.", "warning");
+        document.getElementById('medBoxPrice')?.focus();
+        return;
+      }
+    }
+
+    if (sellBlister) {
+      blisterPrice = parseFloat(document.getElementById('medBlisterPrice')?.value || 0);
+      if (isNaN(blisterPrice) || blisterPrice <= 0) {
+        showValetecToast("Has activado la venta por Blíster: ingresa un precio mayor a S/ 0.00.", "warning");
+        document.getElementById('medBlisterPrice')?.focus();
+        return;
+      }
+    }
+
+    if (sellUnit) {
+      unitPrice = parseFloat(document.getElementById('medUnitPrice')?.value || 0);
+      if (isNaN(unitPrice) || unitPrice <= 0) {
+        showValetecToast("Has activado la venta por Unidad/Pastilla: ingresa un precio mayor a S/ 0.00.", "warning");
+        document.getElementById('medUnitPrice')?.focus();
+        return;
+      }
+    }
+
     const unitsPerBox = parseInt(document.getElementById('medUnitsPerBox').value || 100, 10);
     const unitsPerBlister = parseInt(document.getElementById('medUnitsPerBlister').value || 10, 10);
 
@@ -3086,7 +3480,7 @@ class WarehouseModule {
         const expireDate = document.getElementById('medExpireDate')?.value;
         if (initBoxes > 0) {
           payload.initialBoxes = initBoxes;
-          payload.lotNumber = lotNumber;
+          payload.lotNumber = lotNumber || `L-${Math.floor(10000 + Math.random() * 90000)}`;
           payload.expireDate = expireDate || '2028-12-31';
         }
 
@@ -3096,10 +3490,10 @@ class WarehouseModule {
         showValetecToast(`Medicamento "${name}" creado exitosamente en catálogo.`, "success");
       }
 
-      this.closeMedicineModal();
+      this.closeMedicineDrawer();
       await syncWithBackend();
     } catch (err) {
-      showValetecToast("Error al guardar medicamento: " + err.message, "error");
+      showValetecToast("Error al guardar medicamento: " + err.message, "danger");
     } finally {
       if (submitBtn) {
         submitBtn.disabled = false;
@@ -3146,6 +3540,18 @@ class WarehouseModule {
 
       const isInactive = p.status === 'inactive';
 
+      const badges = [];
+      if (p.boxPrice && Number(p.boxPrice) > 0) {
+        badges.push(`<span style="background: #e0f2fe; color: #0369a1; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; border: 1px solid #bae6fd;">Caja: S/ ${Number(p.boxPrice).toFixed(2)}</span>`);
+      }
+      if (p.blisterPrice && Number(p.blisterPrice) > 0) {
+        badges.push(`<span style="background: #f0fdf4; color: #15803d; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; border: 1px solid #bbf7d0;">Blíster: S/ ${Number(p.blisterPrice).toFixed(2)}</span>`);
+      }
+      if (p.unitPrice && Number(p.unitPrice) > 0) {
+        badges.push(`<span style="background: #fef3c7; color: #b45309; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; border: 1px solid #fde68a;">Pastilla: S/ ${Number(p.unitPrice).toFixed(2)}</span>`);
+      }
+      const badgesHtml = badges.length > 0 ? `<div style="margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap;">${badges.join('')}</div>` : '';
+
       return `
         <tr style="${isInactive ? 'opacity: 0.65; background-color: #f8fafc;' : ''}">
           <td><code>${escHtml(p.barcode)}</code></td>
@@ -3153,6 +3559,7 @@ class WarehouseModule {
             <strong>${escHtml(p.name)}</strong>
             ${isInactive ? '<span style="background:#fee2e2; color:#b91c1c; font-size:10px; font-weight:800; margin-left:6px; padding:2px 6px; border-radius:4px;">INACTIVO</span>' : ''}
             <br><small style="color: var(--text-muted);">${escHtml(p.genericDci)}</small>
+            ${badgesHtml}
           </td>
           <td>${escHtml(p.laboratory)}</td>
           <td><span class="shelf-tag"><i class="bi bi-geo-alt"></i> ${escHtml(p.location)}</span></td>
@@ -3180,11 +3587,19 @@ class WarehouseModule {
   }
 
   openAdjustmentModal(productId = null) {
+    const drawer = document.getElementById('stockAdjustmentDrawer');
+    const backdrop = document.getElementById('stockAdjustmentDrawerBackdrop');
+    if (drawer) drawer.classList.add('active');
+    if (backdrop) backdrop.classList.add('active');
+
     if (!this.adjModal) this.adjModal = document.getElementById('stockAdjustmentModal');
+    if (this.adjModal) this.adjModal.classList.add('active');
+
     const select = document.getElementById('adjProductId');
-    if (select && testPharmacyCatalog) {
+    const prods = (Array.isArray(this.catalog) && this.catalog.length > 0) ? this.catalog : testPharmacyCatalog;
+    if (select && prods) {
       select.innerHTML = '<option value="">-- Seleccionar Medicamento --</option>' +
-        testPharmacyCatalog.map(p => `<option value="${p.id}" ${productId && p.id === productId ? 'selected' : ''}>${escHtml(p.name)} (${escHtml(p.genericDci || '')}) - Stock: ${p.stockUnits} un.</option>`).join('');
+        prods.map(p => `<option value="${p.id}" ${productId && p.id === productId ? 'selected' : ''}>${escHtml(p.name)} (${escHtml(p.genericDci || '')}) - Stock: ${p.stockUnits} un.</option>`).join('');
     }
 
     if (productId) {
@@ -3194,14 +3609,27 @@ class WarehouseModule {
       if (info) info.style.display = 'none';
       const lotSelect = document.getElementById('adjLotId');
       if (lotSelect) lotSelect.innerHTML = '<option value="">-- Seleccionar producto primero --</option>';
+      const preview = document.getElementById('adjPreviewBalance');
+      if (preview) preview.innerHTML = 'Seleccione medicamento';
     }
 
-    if (this.adjModal) this.adjModal.classList.add('active');
+    const qtyIn = document.getElementById('adjQuantity');
+    if (qtyIn) qtyIn.value = '1';
+    const reasonIn = document.getElementById('adjReason');
+    if (reasonIn) reasonIn.value = '';
+
+    this.updateAdjustmentPreview();
   }
 
   closeAdjustmentModal() {
+    const drawer = document.getElementById('stockAdjustmentDrawer');
+    const backdrop = document.getElementById('stockAdjustmentDrawerBackdrop');
+    if (drawer) drawer.classList.remove('active');
+    if (backdrop) backdrop.classList.remove('active');
+
     if (!this.adjModal) this.adjModal = document.getElementById('stockAdjustmentModal');
     if (this.adjModal) this.adjModal.classList.remove('active');
+
     const form = document.getElementById('stockAdjustmentForm');
     if (form) form.reset();
   }
@@ -3215,20 +3643,59 @@ class WarehouseModule {
 
     if (!pId) {
       if (info) info.style.display = 'none';
+      this.updateAdjustmentPreview();
       return;
     }
 
-    const prod = testPharmacyCatalog.find(p => p.id === pId);
+    const prods = (Array.isArray(this.catalog) && this.catalog.length > 0) ? this.catalog : testPharmacyCatalog;
+    const prod = prods.find(p => p.id === pId);
     if (!prod) return;
 
     if (info) info.style.display = 'block';
-    if (stockEl) stockEl.innerText = `${prod.stockBoxes} cajas (${prod.stockBlisters} blísters / ${prod.stockUnits} unid.)`;
-    if (locBadge) locBadge.innerHTML = `<i class="bi bi-geo-alt"></i> ${escHtml(prod.location || 'Sin ubicación')}`;
+    if (stockEl) stockEl.innerText = `${prod.stockBoxes || 0} cajas (${prod.stockBlisters || 0} blísters / ${prod.stockUnits || 0} unid.)`;
+    if (locBadge) locBadge.innerHTML = `<i class="bi bi-geo-alt"></i> ${escHtml(prod.location || 'Góndola Principal')}`;
 
     if (lotSelect) {
       lotSelect.innerHTML = `
-        <option value="">Lote Principal: ${escHtml(prod.lotNumber || 'L-Default')} (Vence: ${escHtml(prod.expireDate || 'N/A')})</option>
+        <option value="${escHtml(prod.lotNumber || 'L-PRINCIPAL')}">Lote Activo: ${escHtml(prod.lotNumber || 'L-24115')} (Vence: ${escHtml(prod.expireDate || '2028-12-31')})</option>
       `;
+    }
+
+    this.updateAdjustmentPreview();
+  }
+
+  updateAdjustmentPreview() {
+    const previewEl = document.getElementById('adjPreviewBalance');
+    if (!previewEl) return;
+
+    const pId = parseInt(document.getElementById('adjProductId')?.value, 10);
+    if (!pId) {
+      previewEl.innerHTML = '<span style="color: #64748b;">Seleccione medicamento</span>';
+      return;
+    }
+
+    const prods = (Array.isArray(this.catalog) && this.catalog.length > 0) ? this.catalog : testPharmacyCatalog;
+    const prod = prods.find(p => p.id === pId);
+    if (!prod) return;
+
+    const currentUnits = prod.stockUnits || 0;
+    const adjType = document.getElementById('adjType')?.value || 'spoilage';
+    const quantity = parseInt(document.getElementById('adjQuantity')?.value || '1', 10);
+    const unitType = document.getElementById('adjUnitType')?.value || 'unit';
+
+    let factor = 1;
+    if (unitType === 'box' || unitType === 'boxes') factor = prod.unitsPerBox || 100;
+    if (unitType === 'blister' || unitType === 'blisters') factor = prod.unitsPerBlister || 10;
+    const changeUnits = (quantity || 0) * factor;
+
+    const isAddition = ['diff_in', 'return_customer'].includes(adjType);
+    const projectedUnits = isAddition ? (currentUnits + changeUnits) : (currentUnits - changeUnits);
+
+    if (projectedUnits < 0) {
+      previewEl.innerHTML = `<span style="color: #dc2626; font-weight: 800;">${currentUnits} - ${changeUnits} = ${projectedUnits} un. (⚠️ Stock insuficiente)</span>`;
+    } else {
+      const sign = isAddition ? '+' : '-';
+      previewEl.innerHTML = `<span style="color: #0d9488; font-weight: 800;">${currentUnits} ${sign} ${changeUnits} un. = ${projectedUnits} un. en Kardex</span>`;
     }
   }
 
@@ -3246,12 +3713,12 @@ class WarehouseModule {
     }
 
     if (!quantity || quantity <= 0) {
-      showValetecToast("La cantidad debe ser mayor a 0.", "warning");
+      showValetecToast("La cantidad a ajustar debe ser mayor a 0.", "warning");
       return;
     }
 
     if (!reason || reason.length < 4) {
-      showValetecToast("Debe ingresar una justificación sanitaria obligatoria.", "warning");
+      showValetecToast("Debe ingresar una justificación sanitaria obligatoria (mínimo 4 caracteres).", "warning");
       return;
     }
 
@@ -3265,25 +3732,24 @@ class WarehouseModule {
           reason,
           userName: (window.api.currentUser && window.api.currentUser.name) ? window.api.currentUser.name : 'Operador Almacén'
         });
-        showValetecToast(res.message || "Ajuste de stock registrado en Kardex.", "success");
+        showValetecToast(res.message || "Ajuste de stock registrado exitosamente en Kardex.", "success");
         this.closeAdjustmentModal();
         await syncWithBackend();
         this.loadFefoAlerts();
       } else {
-        // Hotfix V-10: Modo contingencia offline — aplicar ajuste al catálogo local en memoria.
-        // Antes, en modo offline el ajuste se ignoraba silenciosamente mostrando toast de éxito falso.
-        const prod = testPharmacyCatalog.find(p => p.id === productId);
+        const prods = (Array.isArray(this.catalog) && this.catalog.length > 0) ? this.catalog : testPharmacyCatalog;
+        const prod = prods.find(p => p.id === productId);
         if (prod) {
-          const unitsToAdjust = unitType === 'boxes'
+          const unitsToAdjust = (unitType === 'box' || unitType === 'boxes')
             ? quantity * (prod.unitsPerBox || 100)
-            : unitType === 'blisters'
+            : (unitType === 'blister' || unitType === 'blisters')
               ? quantity * (prod.unitsPerBlister || 10)
               : quantity;
 
-          if (adjustmentType === 'out' || adjustmentType === 'spoilage' || adjustmentType === 'expired') {
-            prod.stockUnits = Math.max(0, prod.stockUnits - unitsToAdjust);
+          if (adjustmentType === 'diff_in' || adjustmentType === 'return_customer') {
+            prod.stockUnits = (prod.stockUnits || 0) + unitsToAdjust;
           } else {
-            prod.stockUnits = prod.stockUnits + unitsToAdjust;
+            prod.stockUnits = Math.max(0, (prod.stockUnits || 0) - unitsToAdjust);
           }
           prod.stockBoxes = Math.floor(prod.stockUnits / (prod.unitsPerBox || 100));
           prod.stockBlisters = Math.floor(prod.stockUnits / (prod.unitsPerBlister || 10));
@@ -3291,25 +3757,61 @@ class WarehouseModule {
           this.closeAdjustmentModal();
           this.render();
           if (typeof counterApp !== 'undefined') counterApp.renderProducts();
-          showValetecToast(`Ajuste local aplicado (modo contingencia): ${quantity} ${unitType} de "${prod.name}". Sincronizar con PostgreSQL al reconectar.`, "warning");
+          showValetecToast(`Ajuste local aplicado: ${quantity} ${unitType} de "${prod.name}". Saldo Kardex actualizado.`, "warning");
         } else {
           showValetecToast("Error: Medicamento no encontrado en el catálogo local.", "danger");
         }
       }
     } catch (err) {
-      showValetecToast("Error al aplicar ajuste: " + err.message, "error");
+      showValetecToast("Error al aplicar ajuste: " + err.message, "danger");
     }
   }
 
   openFefoAlertsModal() {
+    const drawer = document.getElementById('fefoDrawer');
+    const backdrop = document.getElementById('fefoDrawerBackdrop');
+    if (drawer) drawer.classList.add('active');
+    if (backdrop) backdrop.classList.add('active');
+
+    // Fallback si existiese el modal clásico
     if (!this.fefoModal) this.fefoModal = document.getElementById('fefoAlertsModal');
     if (this.fefoModal) this.fefoModal.classList.add('active');
+
+    // Restablecer filtros
+    this.fefoActiveTab = 'all';
+    this.fefoSearchQuery = '';
+    const searchInput = document.getElementById('fefoSearchInput');
+    if (searchInput) searchInput.value = '';
+    this.updateFefoTabsUI('all');
+
     this.loadFefoAlerts();
   }
 
   closeFefoAlertsModal() {
+    const drawer = document.getElementById('fefoDrawer');
+    const backdrop = document.getElementById('fefoDrawerBackdrop');
+    if (drawer) drawer.classList.remove('active');
+    if (backdrop) backdrop.classList.remove('active');
+
     if (!this.fefoModal) this.fefoModal = document.getElementById('fefoAlertsModal');
     if (this.fefoModal) this.fefoModal.classList.remove('active');
+  }
+
+  updateFefoTabsUI(activeTab) {
+    document.querySelectorAll('.fefo-tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === activeTab);
+    });
+  }
+
+  filterFefoByTab(tab) {
+    this.fefoActiveTab = tab || 'all';
+    this.updateFefoTabsUI(this.fefoActiveTab);
+    this.renderFefoTable();
+  }
+
+  handleFefoSearch(query) {
+    this.fefoSearchQuery = (query || '').toLowerCase().trim();
+    this.renderFefoTable();
   }
 
   async loadFefoAlerts() {
@@ -3317,61 +3819,133 @@ class WarehouseModule {
     try {
       const res = await window.api.getExpiringLots();
       if (res && res.data) {
+        this.fefoLotsData = Array.isArray(res.data) ? res.data : [];
         const sum = res.summary || {};
+
         const countBadge = document.getElementById('fefoCriticalCount');
         const expEl = document.getElementById('fefoSummaryExpired');
         const warnEl = document.getElementById('fefoSummaryWarning');
         const safeEl = document.getElementById('fefoSummarySafe');
+        const totalEl = document.getElementById('fefoSummaryTotal');
 
         const totalCritical = (sum.expired || 0) + (sum.critical || 0) + (sum.warning || 0);
         if (countBadge) countBadge.innerText = totalCritical;
         if (expEl) expEl.innerText = (sum.expired || 0) + (sum.critical || 0);
         if (warnEl) warnEl.innerText = sum.warning || 0;
         if (safeEl) safeEl.innerText = sum.safe || 0;
+        if (totalEl) totalEl.innerText = this.fefoLotsData.length;
 
-        const tbody = document.getElementById('fefoAlertsTableBody');
-        if (tbody) {
-          if (res.data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-3 text-muted">No hay lotes registrados con stock activo.</td></tr>';
-            return;
-          }
-
-          tbody.innerHTML = res.data.map(l => {
-            let badgeClass = '#dcfce7; color:#15803d';
-            let label = '<span class="status-dot free"></span> Vigente';
-            if (l.fefoAlert === 'expired') {
-              badgeClass = '#fee2e2; color:#b91c1c';
-              label = '<span class="status-dot retained"></span> Vencido';
-            } else if (l.fefoAlert === 'critical') {
-              badgeClass = '#fee2e2; color:#b91c1c';
-              label = '<span class="status-dot retained"></span> Crítico (<30d)';
-            } else if (l.fefoAlert === 'warning') {
-              badgeClass = '#fef3c7; color:#b45309';
-              label = '<span class="status-dot required"></span> Canje (<90d)';
-            }
-
-            return `
-              <tr>
-                <td><span class="badge" style="background:${badgeClass}; font-weight:800; padding:4px 8px; border-radius:6px; display: inline-flex; align-items: center; gap: 4px;">${label}</span></td>
-                <td><strong>${escHtml(l.productName)}</strong><br><small class="text-muted">${escHtml(l.genericDci || '')}</small></td>
-                <td>${escHtml(l.laboratory)}</td>
-                <td><code>${escHtml(l.lotNumber)}</code></td>
-                <td><strong>${escHtml(l.expireDate)}</strong></td>
-                <td><strong style="color:${l.daysLeft <= 30 ? '#dc2626' : (l.daysLeft <= 90 ? '#d97706' : '#16a34a')}">${l.daysLeft} días</strong></td>
-                <td><strong>${l.stockBoxes} cajas</strong> (${l.stockUnits} un.)</td>
-                <td style="text-align: right; white-space: nowrap;">
-                  <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; color:#be123c;" onclick="warehouseApp.closeFefoAlertsModal(); warehouseApp.openAdjustmentModal(${l.productId})" title="Registrar Merma / Baja">
-                    <i class="bi bi-trash3"></i> <span>Dar de Baja</span>
-                  </button>
-                </td>
-              </tr>
-            `;
-          }).join('');
-        }
+        this.renderFefoTable();
       }
     } catch (err) {
       console.warn("Error cargando alertas FEFO:", err.message);
     }
+  }
+
+  renderFefoTable() {
+    const tbody = document.getElementById('fefoAlertsTableBody');
+    if (!tbody) return;
+
+    const data = this.fefoLotsData || [];
+    const tab = this.fefoActiveTab || 'all';
+    const q = this.fefoSearchQuery || '';
+
+    // Filtrar por pestaña seleccionada
+    let filtered = data.filter(l => {
+      const days = typeof l.daysLeft === 'number' ? l.daysLeft : 999;
+      if (tab === 'critical') {
+        return l.fefoAlert === 'expired' || l.fefoAlert === 'critical' || days <= 30;
+      }
+      if (tab === 'warning') {
+        return l.fefoAlert === 'warning' || (days > 30 && days <= 90);
+      }
+      if (tab === 'safe') {
+        return l.fefoAlert === 'safe' || days > 90;
+      }
+      return true;
+    });
+
+    // Filtrar por texto de búsqueda
+    if (q) {
+      filtered = filtered.filter(l => {
+        const name = (l.productName || '').toLowerCase();
+        const dci = (l.genericDci || '').toLowerCase();
+        const lot = (l.lotNumber || '').toLowerCase();
+        const lab = (l.laboratory || '').toLowerCase();
+        return name.includes(q) || dci.includes(q) || lot.includes(q) || lab.includes(q);
+      });
+    }
+
+    this.fefoFilteredLots = filtered;
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 36px 16px; color: #64748b;">
+            <i class="bi bi-shield-check text-teal" style="font-size: 32px; display: block; margin-bottom: 8px;"></i>
+            <strong>No se encontraron lotes para los filtros seleccionados.</strong>
+            <p style="font-size: 12px; margin: 4px 0 0 0;">Verifique los criterios de búsqueda o cambie de pestaña.</p>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map((l, idx) => {
+      let badgeClass = '#dcfce7; color:#15803d';
+      let label = '<span class="status-dot free"></span> Vigente';
+      if (l.fefoAlert === 'expired' || (typeof l.daysLeft === 'number' && l.daysLeft <= 0)) {
+        badgeClass = '#fee2e2; color:#b91c1c';
+        label = '<span class="status-dot retained pulse"></span> Vencido';
+      } else if (l.fefoAlert === 'critical' || (typeof l.daysLeft === 'number' && l.daysLeft <= 30)) {
+        badgeClass = '#fee2e2; color:#b91c1c';
+        label = '<span class="status-dot retained"></span> Crítico (&lt;30d)';
+      } else if (l.fefoAlert === 'warning' || (typeof l.daysLeft === 'number' && l.daysLeft <= 90)) {
+        badgeClass = '#fef3c7; color:#b45309';
+        label = '<span class="status-dot required"></span> Canje (&lt;90d)';
+      }
+
+      const daysColor = l.daysLeft <= 30 ? '#dc2626' : (l.daysLeft <= 90 ? '#d97706' : '#16a34a');
+
+      return `
+        <tr>
+          <td><span class="badge" style="background:${badgeClass}; font-weight:800; padding:4px 8px; border-radius:6px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px;">${label}</span></td>
+          <td>
+            <strong>${escHtml(l.productName)}</strong>
+            ${l.genericDci ? `<br><small class="text-muted" style="font-size: 11px;">${escHtml(l.genericDci)}</small>` : ''}
+          </td>
+          <td><small style="color: #475569; font-weight: 500;">${escHtml(l.laboratory || '—')}</small></td>
+          <td><code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 700; color: #0f172a;">${escHtml(l.lotNumber)}</code></td>
+          <td><strong>${escHtml(l.expireDate)}</strong></td>
+          <td><strong style="color: ${daysColor};">${l.daysLeft} d</strong></td>
+          <td><strong>${l.stockBoxes} cj.</strong> <small class="text-muted">(${l.stockUnits} un.)</small></td>
+          <td style="text-align: right; white-space: nowrap;">
+            <div class="fefo-action-group">
+              <button type="button" class="btn-fefo-action btn-fefo-canje" onclick="warehouseApp.handleCanjeClick(${idx})" title="Tramitar Canje con Proveedor">
+                <i class="bi bi-arrow-repeat"></i> <span>Canje</span>
+              </button>
+              <button type="button" class="btn-fefo-action btn-fefo-baja" onclick="warehouseApp.handleBajaClick(${idx})" title="Dar de Baja en Kardex / Merma">
+                <i class="bi bi-trash3"></i> <span>Baja</span>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  handleCanjeClick(index) {
+    const lot = this.fefoFilteredLots?.[index];
+    if (!lot) return;
+    this.closeFefoAlertsModal();
+    this.openExchangeModal(null, lot.productName, lot.lotNumber, lot.laboratory, lot.stockBoxes || 0);
+  }
+
+  handleBajaClick(index) {
+    const lot = this.fefoFilteredLots?.[index];
+    if (!lot) return;
+    this.closeFefoAlertsModal();
+    this.openAdjustmentModal(lot.productId);
   }
 
   openExchangeModal(e, medName, lot, supplier, qty) {
@@ -3464,22 +4038,117 @@ class WarehouseModule {
     showValetecToast(`Acta de canje generada: ${qty} cajas de ${med} (Lote: ${lot}) pasadas a custodia.`, 'success');
   }
 
-  async openKardexModal(productId) {
-    if (!this.kardexModal) this.kardexModal = document.getElementById('kardexViewerModal');
-    if (!window.api) return;
+  populateKardexProductSelect(selectedId) {
+    const select = document.getElementById('kardexProductSelect');
+    if (!select) return;
 
+    let prods = [];
+    if (Array.isArray(this.catalog) && this.catalog.length > 0) {
+      prods = this.catalog;
+    } else if (typeof testPharmacyCatalog !== 'undefined' && Array.isArray(testPharmacyCatalog)) {
+      prods = testPharmacyCatalog;
+    }
+
+    select.innerHTML = prods.map(p => `
+      <option value="${p.id}" ${p.id === Number(selectedId) ? 'selected' : ''}>
+        ${escHtml(p.name)} (${escHtml(p.laboratory || 'Lab')}) - Stock: ${p.stockBoxes || p.stock || 0} cj.
+      </option>
+    `).join('');
+  }
+
+  async openKardexModal(productId = null) {
+    const drawer = document.getElementById('kardexDrawer');
+    const backdrop = document.getElementById('kardexDrawerBackdrop');
+    if (drawer) drawer.classList.add('active');
+    if (backdrop) backdrop.classList.add('active');
+
+    // Fallback legado si existiese el modal
+    if (!this.kardexModal) this.kardexModal = document.getElementById('kardexViewerModal');
+    if (this.kardexModal) this.kardexModal.classList.add('active');
+
+    // Determinar producto por defecto si no se pasa ID
+    if (!productId) {
+      if (this.currentKardexProductId) {
+        productId = this.currentKardexProductId;
+      } else if (Array.isArray(this.catalog) && this.catalog[0]) {
+        productId = this.catalog[0].id;
+      } else if (typeof testPharmacyCatalog !== 'undefined' && testPharmacyCatalog[0]) {
+        productId = testPharmacyCatalog[0].id;
+      } else {
+        productId = 1;
+      }
+    }
+
+    this.currentKardexProductId = Number(productId);
+    this.populateKardexProductSelect(this.currentKardexProductId);
+
+    // Restablecer filtros
+    this.kardexActiveTab = 'all';
+    this.kardexSearchQuery = '';
+    const searchInput = document.getElementById('kardexMovementSearch');
+    if (searchInput) searchInput.value = '';
+    this.updateKardexTabsUI('all');
+
+    await this.loadKardexData(this.currentKardexProductId);
+  }
+
+  closeKardexModal() {
+    const drawer = document.getElementById('kardexDrawer');
+    const backdrop = document.getElementById('kardexDrawerBackdrop');
+    if (drawer) drawer.classList.remove('active');
+    if (backdrop) backdrop.classList.remove('active');
+
+    if (!this.kardexModal) this.kardexModal = document.getElementById('kardexViewerModal');
+    if (this.kardexModal) this.kardexModal.classList.remove('active');
+  }
+
+  updateKardexTabsUI(activeTab) {
+    const drawer = document.getElementById('kardexDrawer');
+    if (!drawer) return;
+    drawer.querySelectorAll('.fefo-tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === activeTab);
+    });
+  }
+
+  filterKardexByTab(tab) {
+    this.kardexActiveTab = tab || 'all';
+    this.updateKardexTabsUI(this.kardexActiveTab);
+    this.renderKardexMovements();
+  }
+
+  handleKardexSearch(query) {
+    this.kardexSearchQuery = (query || '').toLowerCase().trim();
+    this.renderKardexMovements();
+  }
+
+  async onKardexProductChange(productId) {
+    if (!productId) return;
+    this.currentKardexProductId = Number(productId);
+    await this.loadKardexData(this.currentKardexProductId);
+  }
+
+  async refreshCurrentKardex() {
+    if (this.currentKardexProductId) {
+      await this.loadKardexData(this.currentKardexProductId);
+      showValetecToast("Kardex actualizado correctamente.", "info");
+    }
+  }
+
+  async loadKardexData(productId) {
+    if (!window.api) return;
     try {
       const res = await window.api.getProductKardex(productId);
       if (res && res.data) {
+        this.currentKardexData = res.data;
         const d = res.data;
-        const p = d.product;
-        const stock = d.currentStock;
-        const val = d.valuation;
+        const p = d.product || {};
+        const stock = d.currentStock || {};
+        const val = d.valuation || {};
 
-        const titleEl = document.getElementById('kardexModalTitle');
-        const subEl = document.getElementById('kardexModalSubtitle');
-        if (titleEl) titleEl.innerHTML = `<i class="bi bi-journal-medical text-teal"></i> Kardex: ${escHtml(p.name)}`;
-        if (subEl) subEl.innerText = `${p.genericDci || ''} • Lab: ${p.laboratory} • Ubic: ${p.location} • Cód: ${p.barcode}`;
+        const titleEl = document.getElementById('kardexDrawerTitle') || document.getElementById('kardexModalTitle');
+        const subEl = document.getElementById('kardexDrawerSubtitle') || document.getElementById('kardexModalSubtitle');
+        if (titleEl) titleEl.innerHTML = `<i class="bi bi-journal-medical text-teal"></i> Kardex: ${escHtml(p.name || 'Medicamento')}`;
+        if (subEl) subEl.innerText = `${p.genericDci || ''} • Lab: ${p.laboratory || '—'} • Ubic: ${p.location || 'Góndola'} • Cód: ${p.barcode || '—'}`;
 
         const stockEl = document.getElementById('kardexStockDisplay');
         const boxEl = document.getElementById('kardexBoxesDisplay');
@@ -3488,65 +4157,109 @@ class WarehouseModule {
         const valSaleEl = document.getElementById('kardexValuedSaleDisplay');
         const marginEl = document.getElementById('kardexMarginDisplay');
 
-        if (stockEl) stockEl.innerText = `${stock.totalUnits} un.`;
-        if (boxEl) boxEl.innerText = `${stock.totalBoxes} cajas (${stock.totalBlisters} blíst.)`;
+        if (stockEl) stockEl.innerText = `${stock.totalUnits || 0} un.`;
+        if (boxEl) boxEl.innerText = `${stock.totalBoxes || 0} cajas (${stock.totalBlisters || 0} blíst.)`;
 
-        if (unitEl) unitEl.innerText = `S/ ${val.unitPrice.toFixed(2)}`;
-        if (costEl) costEl.innerText = `Costo est: S/ ${val.estimatedCostUnit.toFixed(2)}`;
+        if (unitEl) unitEl.innerText = `S/ ${(val.unitPrice || 0).toFixed(2)}`;
+        if (costEl) costEl.innerText = `Costo est: S/ ${(val.estimatedCostUnit || 0).toFixed(2)}`;
 
-        if (valSaleEl) valSaleEl.innerText = `S/ ${val.totalValuedSale.toFixed(2)}`;
-        if (marginEl) marginEl.innerText = `S/ ${val.potentialMargin.toFixed(2)}`;
+        if (valSaleEl) valSaleEl.innerText = `S/ ${(val.totalValuedSale || 0).toFixed(2)}`;
+        if (marginEl) marginEl.innerText = `S/ ${(val.potentialMargin || 0).toFixed(2)}`;
 
-        const tbody = document.getElementById('kardexTableBody');
-        if (tbody) {
-          if (!d.movements || d.movements.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" class="text-center py-3 text-muted">Sin movimientos registrados aún en Kardex.</td></tr>';
-          } else {
-            tbody.innerHTML = d.movements.map(m => {
-              let badgeColor = '#0d9488';
-              let badgeText = 'Entrada';
-
-              if (m.movementType === 'sale') {
-                badgeColor = '#0284c7';
-                badgeText = 'Venta Mostrador';
-              } else if (m.movementType.includes('adjustment_out') || m.movementType === 'spoilage') {
-                badgeColor = '#dc2626';
-                badgeText = 'Baja / Merma';
-              } else if (m.movementType === 'initial_stock') {
-                badgeColor = '#475569';
-                badgeText = 'Apertura / Inicial';
-              }
-
-              const inQty = m.quantity > 0 ? `+${m.quantity}` : '-';
-              const outQty = m.quantity < 0 ? Math.abs(m.quantity) : '-';
-
-              return `
-                <tr>
-                  <td><code>${escHtml(m.createdAt)}</code></td>
-                  <td><span class="badge" style="background:${badgeColor}20; color:${badgeColor}; font-weight:800; padding:4px 8px; border-radius:6px;">${badgeText}</span></td>
-                  <td><strong>${escHtml(m.referenceType)}</strong><br><small class="text-muted">${escHtml(m.referenceId || '')}</small></td>
-                  <td><code>${escHtml(m.lotNumber || 'N/A')}</code></td>
-                  <td style="text-align: right; color:#15803d; font-weight:700;">${inQty}</td>
-                  <td style="text-align: right; color:#b91c1c; font-weight:700;">${outQty}</td>
-                  <td style="text-align: right; font-weight:800;" title="Saldo anterior: ${m.previousStock} → Saldo nuevo: ${m.newStock}">${m.newStock} <small style="font-weight:400; color:#94a3b8; font-size:10px;">(ant:${m.previousStock})</small></td>
-                  <td><small>${escHtml(m.userName || 'Sistema')}</small></td>
-                  <td><small style="color: #475569;">${escHtml(m.reason || '')}</small></td>
-                </tr>
-              `;
-            }).join('');
-          }
-        }
-
-        if (this.kardexModal) this.kardexModal.classList.add('active');
+        this.renderKardexMovements();
       }
     } catch (err) {
-      showValetecToast("Error cargando Kardex: " + err.message, "error");
+      console.warn("Error cargando Kardex:", err.message);
+      showValetecToast("Error cargando Kardex: " + err.message, "danger");
     }
   }
 
-  closeKardexModal() {
-    if (!this.kardexModal) this.kardexModal = document.getElementById('kardexViewerModal');
-    if (this.kardexModal) this.kardexModal.classList.remove('active');
+  renderKardexMovements() {
+    const tbody = document.getElementById('kardexTableBody');
+    if (!tbody) return;
+
+    const movements = this.currentKardexData?.movements || [];
+    const tab = this.kardexActiveTab || 'all';
+    const q = this.kardexSearchQuery || '';
+
+    let filtered = movements.filter(m => {
+      const type = (m.movementType || '').toLowerCase();
+      const qty = typeof m.quantity === 'number' ? m.quantity : 0;
+
+      if (tab === 'in') {
+        return qty > 0 || type === 'initial_stock' || type.includes('purchase') || type.includes('diff_in') || type.includes('return_customer');
+      }
+      if (tab === 'sale') {
+        return type === 'sale';
+      }
+      if (tab === 'out') {
+        return type.includes('spoilage') || type.includes('expired') || type.includes('breakage') || type.includes('diff_out') || type.includes('adjustment_out');
+      }
+      return true;
+    });
+
+    if (q) {
+      filtered = filtered.filter(m => {
+        const lot = (m.lotNumber || '').toLowerCase();
+        const ref = (m.referenceId || '').toLowerCase();
+        const refType = (m.referenceType || '').toLowerCase();
+        const user = (m.userName || '').toLowerCase();
+        const reason = (m.reason || '').toLowerCase();
+        return lot.includes(q) || ref.includes(q) || refType.includes(q) || user.includes(q) || reason.includes(q);
+      });
+    }
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="9" style="text-align: center; padding: 36px 16px; color: #64748b;">
+            <i class="bi bi-journal-check text-teal" style="font-size: 32px; display: block; margin-bottom: 8px;"></i>
+            <strong>No hay movimientos que coincidan con los filtros.</strong>
+            <p style="font-size: 12px; margin: 4px 0 0 0;">Intente cambiar la pestaña de filtro o el término de búsqueda.</p>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(m => {
+      let badgeBg = '#f0fdfa; color: #0d9488; border: 1px solid #ccfbf1';
+      let badgeText = 'Entrada (+)';
+      const type = (m.movementType || '').toLowerCase();
+
+      if (type === 'sale') {
+        badgeBg = '#f0f9ff; color: #0284c7; border: 1px solid #e0f2fe';
+        badgeText = 'Venta Mostrador';
+      } else if (type.includes('spoilage') || type.includes('expired') || type.includes('breakage') || type.includes('diff_out') || type.includes('adjustment_out')) {
+        badgeBg = '#fef2f2; color: #dc2626; border: 1px solid #fee2e2';
+        badgeText = 'Baja / Merma';
+      } else if (type === 'initial_stock') {
+        badgeBg = '#f8fafc; color: #475569; border: 1px solid #e2e8f0';
+        badgeText = 'Apertura / Inicial';
+      } else if (type.includes('return')) {
+        badgeBg = '#fffbeb; color: #d97706; border: 1px solid #fef3c7';
+        badgeText = 'Devolución';
+      }
+
+      const inQty = m.quantity > 0 ? `+${m.quantity}` : '—';
+      const outQty = m.quantity < 0 ? `${Math.abs(m.quantity)}` : '—';
+
+      return `
+        <tr>
+          <td><code style="font-size: 11px; background: #f8fafc; padding: 2px 4px; border-radius: 4px;">${escHtml(m.createdAt)}</code></td>
+          <td><span class="badge" style="background:${badgeBg}; font-weight:700; padding:4px 8px; border-radius:6px; font-size: 11px;">${badgeText}</span></td>
+          <td><strong>${escHtml(m.referenceType || 'Ajuste')}</strong><br><small class="text-muted">${escHtml(m.referenceId || '')}</small></td>
+          <td><code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 700; color: #0f172a;">${escHtml(m.lotNumber || 'N/A')}</code></td>
+          <td style="text-align: right; color:#15803d; font-weight:800;">${inQty}</td>
+          <td style="text-align: right; color:#b91c1c; font-weight:800;">${outQty}</td>
+          <td style="text-align: right; font-weight:800; color: #0f172a;" title="Saldo anterior: ${m.previousStock} → Saldo nuevo: ${m.newStock}">
+            ${m.newStock} <small style="font-weight:400; color:#94a3b8; font-size:10px;">(ant: ${m.previousStock})</small>
+          </td>
+          <td><small style="color: #475569; font-weight: 600;">${escHtml(m.userName || 'Sistema')}</small></td>
+          <td><small style="color: #64748b;">${escHtml(m.reason || '—')}</small></td>
+        </tr>
+      `;
+    }).join('');
   }
 
   printKardex() {
@@ -4463,52 +5176,81 @@ class StaffManagementModule {
 // =============================================================
 class ClassificationModule {
   constructor() {
-    this.modal = document.getElementById('classificationModal');
+    this.drawer = document.getElementById('classificationDrawer');
+    this.backdrop = document.getElementById('classificationDrawerBackdrop');
+    this.modal = document.getElementById('classificationModal'); // Fallback legado
     this.categoriesTable = document.getElementById('categoriesTableBody');
     this.laboratoriesTable = document.getElementById('laboratoriesTableBody');
     this.tabCategories = document.getElementById('classificationCategoriesTab');
     this.tabLaboratories = document.getElementById('classificationLaboratoriesTab');
     this.btnTabCategories = document.getElementById('tabBtnCategories');
     this.btnTabLaboratories = document.getElementById('tabBtnLaboratories');
+    this.badgeEl = document.getElementById('classificationCountBadge');
     this.categories = [];
     this.laboratories = [];
+    this.categorySearchQuery = '';
+    this.laboratorySearchQuery = '';
+    this.activeTab = 'categories';
   }
 
-  openModal() {
+  openModal(initialTab = 'categories') {
+    if (!this.drawer) this.drawer = document.getElementById('classificationDrawer');
+    if (!this.backdrop) this.backdrop = document.getElementById('classificationDrawerBackdrop');
+
+    if (this.drawer) this.drawer.classList.add('active');
+    if (this.backdrop) this.backdrop.classList.add('active');
+
+    // Fallback legado si existiese
     if (this.modal) this.modal.classList.add('active');
-    this.switchTab('categories');
+
+    this.categorySearchQuery = '';
+    this.laboratorySearchQuery = '';
+    const catInput = document.getElementById('searchCategoriesInput');
+    const labInput = document.getElementById('searchLaboratoriesInput');
+    if (catInput) catInput.value = '';
+    if (labInput) labInput.value = '';
+
+    this.switchTab(initialTab);
     this.loadCategories();
     this.loadLaboratories();
   }
 
   closeModal() {
+    if (!this.drawer) this.drawer = document.getElementById('classificationDrawer');
+    if (!this.backdrop) this.backdrop = document.getElementById('classificationDrawerBackdrop');
+
+    if (this.drawer) this.drawer.classList.remove('active');
+    if (this.backdrop) this.backdrop.classList.remove('active');
+
     if (this.modal) this.modal.classList.remove('active');
   }
 
   switchTab(tab) {
-    if (tab === 'categories') {
+    this.activeTab = tab || 'categories';
+
+    if (this.activeTab === 'categories') {
       if (this.tabCategories) this.tabCategories.style.display = 'block';
       if (this.tabLaboratories) this.tabLaboratories.style.display = 'none';
-      if (this.btnTabCategories) {
-        this.btnTabCategories.className = 'btn-action-solid';
-        this.btnTabCategories.style.background = '#0a2540';
-      }
-      if (this.btnTabLaboratories) {
-        this.btnTabLaboratories.className = 'btn-action-outline';
-        this.btnTabLaboratories.style.background = 'transparent';
-      }
+      if (this.btnTabCategories) this.btnTabCategories.classList.add('active');
+      if (this.btnTabLaboratories) this.btnTabLaboratories.classList.remove('active');
+      if (this.badgeEl) this.badgeEl.innerText = `${this.categories.length} categorías registradas`;
     } else {
       if (this.tabCategories) this.tabCategories.style.display = 'none';
       if (this.tabLaboratories) this.tabLaboratories.style.display = 'block';
-      if (this.btnTabLaboratories) {
-        this.btnTabLaboratories.className = 'btn-action-solid';
-        this.btnTabLaboratories.style.background = '#0a2540';
-      }
-      if (this.btnTabCategories) {
-        this.btnTabCategories.className = 'btn-action-outline';
-        this.btnTabCategories.style.background = 'transparent';
-      }
+      if (this.btnTabLaboratories) this.btnTabLaboratories.classList.add('active');
+      if (this.btnTabCategories) this.btnTabCategories.classList.remove('active');
+      if (this.badgeEl) this.badgeEl.innerText = `${this.laboratories.length} laboratorios registrados`;
     }
+  }
+
+  handleCategorySearch(q) {
+    this.categorySearchQuery = (q || '').toLowerCase().trim();
+    this.renderCategories();
+  }
+
+  handleLaboratorySearch(q) {
+    this.laboratorySearchQuery = (q || '').toLowerCase().trim();
+    this.renderLaboratories();
   }
 
   async loadCategories() {
@@ -4519,6 +5261,9 @@ class ClassificationModule {
         this.categories = res.data;
         this.renderCategories();
         this.updateCategoryDropdowns();
+        if (this.activeTab === 'categories' && this.badgeEl) {
+          this.badgeEl.innerText = `${this.categories.length} categorías registradas`;
+        }
       }
     } catch (err) {
       console.warn("Error cargando categorías:", err.message);
@@ -4532,6 +5277,9 @@ class ClassificationModule {
       if (res && res.data) {
         this.laboratories = res.data;
         this.renderLaboratories();
+        if (this.activeTab === 'laboratories' && this.badgeEl) {
+          this.badgeEl.innerText = `${this.laboratories.length} laboratorios registrados`;
+        }
       }
     } catch (err) {
       console.warn("Error cargando laboratorios:", err.message);
@@ -4539,26 +5287,34 @@ class ClassificationModule {
   }
 
   renderCategories() {
+    if (!this.categoriesTable) this.categoriesTable = document.getElementById('categoriesTableBody');
     if (!this.categoriesTable) return;
-    if (this.categories.length === 0) {
-      this.categoriesTable.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Sin categorías registradas.</td></tr>';
+
+    const q = this.categorySearchQuery;
+    let list = this.categories;
+    if (q) {
+      list = list.filter(c => (c.name || '').toLowerCase().includes(q) || (c.slug || '').toLowerCase().includes(q));
+    }
+
+    if (list.length === 0) {
+      this.categoriesTable.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Sin categorías que coincidan con la búsqueda.</td></tr>';
       return;
     }
 
-    this.categoriesTable.innerHTML = this.categories.map(c => `
+    this.categoriesTable.innerHTML = list.map(c => `
       <tr>
         <td><code>#${c.id}</code></td>
         <td><strong><i class="bi ${escHtml(c.icon || 'bi-capsule')} text-teal"></i> ${escHtml(c.name)}</strong></td>
-        <td><code>${escHtml(c.slug)}</code></td>
-        <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:800; padding:4px 8px; border-radius:6px;">${c.productCount || 0} medicamentos</span></td>
+        <td><code style="background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:11px;">${escHtml(c.slug)}</code></td>
+        <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:800; padding:4px 8px; border-radius:6px; font-size:11px;">${c.productCount || 0} medicamentos</span></td>
         <td style="text-align: right; white-space: nowrap;">
-          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="classificationApp.editCategory(${c.id}, '${c.name.replace(/'/g, "\\'")}', '${c.icon || ''}')" title="Editar Categoría">
+          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="classificationApp.editCategoryById(${c.id})" title="Editar Categoría">
             <i class="bi bi-pencil"></i> Editar
           </button>
-          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px; color:#0284c7;" onclick="classificationApp.reassignCategory(${c.id}, '${c.name.replace(/'/g, "\\'")}')" title="Reasignar Medicamentos a otra categoría">
+          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px; color:#0284c7;" onclick="classificationApp.reassignCategoryById(${c.id})" title="Reasignar Medicamentos a otra categoría">
             <i class="bi bi-arrow-repeat"></i> Reasignar
           </button>
-          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; color:#dc2626;" onclick="classificationApp.deleteCategory(${c.id}, ${c.productCount || 0}, '${c.name.replace(/'/g, "\\'")}')" title="Eliminar Categoría">
+          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; color:#dc2626;" onclick="classificationApp.deleteCategoryById(${c.id})" title="Eliminar Categoría">
             <i class="bi bi-trash3"></i> Eliminar
           </button>
         </td>
@@ -4567,26 +5323,34 @@ class ClassificationModule {
   }
 
   renderLaboratories() {
+    if (!this.laboratoriesTable) this.laboratoriesTable = document.getElementById('laboratoriesTableBody');
     if (!this.laboratoriesTable) return;
-    if (this.laboratories.length === 0) {
-      this.laboratoriesTable.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Sin laboratorios registrados.</td></tr>';
+
+    const q = this.laboratorySearchQuery;
+    let list = this.laboratories;
+    if (q) {
+      list = list.filter(l => (l.name || '').toLowerCase().includes(q) || (l.country || '').toLowerCase().includes(q) || (l.contact || '').toLowerCase().includes(q));
+    }
+
+    if (list.length === 0) {
+      this.laboratoriesTable.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Sin laboratorios que coincidan con la búsqueda.</td></tr>';
       return;
     }
 
-    this.laboratoriesTable.innerHTML = this.laboratories.map(l => `
+    this.laboratoriesTable.innerHTML = list.map(l => `
       <tr>
         <td><code>#${l.id}</code></td>
         <td><strong><i class="bi bi-building text-blue"></i> ${escHtml(l.name)}</strong></td>
         <td><span><i class="bi bi-geo-alt" style="color: #64748b; margin-right: 3px;"></i>${escHtml(l.country || 'Perú')}</span></td>
-        <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:800; padding:4px 8px; border-radius:6px;">${l.productCount || 0} medicamentos</span></td>
+        <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:800; padding:4px 8px; border-radius:6px; font-size:11px;">${l.productCount || 0} medicamentos</span></td>
         <td style="text-align: right; white-space: nowrap;">
-          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="classificationApp.editLaboratory(${l.id}, '${l.name.replace(/'/g, "\\'")}', '${l.country || 'Perú'}', '${l.contact || ''}')" title="Editar Laboratorio">
+          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="classificationApp.editLaboratoryById(${l.id})" title="Editar Laboratorio">
             <i class="bi bi-pencil"></i> Editar
           </button>
-          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px; color:#0284c7;" onclick="classificationApp.reassignLaboratory('${l.name.replace(/'/g, "\\'")}')" title="Reasignar Medicamentos a otro laboratorio">
+          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px; color:#0284c7;" onclick="classificationApp.reassignLaboratoryById(${l.id})" title="Reasignar Medicamentos a otro laboratorio">
             <i class="bi bi-arrow-repeat"></i> Reasignar
           </button>
-          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; color:#dc2626;" onclick="classificationApp.deleteLaboratory(${l.id}, ${l.productCount || 0}, '${l.name.replace(/'/g, "\\'")}')" title="Eliminar Laboratorio">
+          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; color:#dc2626;" onclick="classificationApp.deleteLaboratoryById(${l.id})" title="Eliminar Laboratorio">
             <i class="bi bi-trash3"></i> Eliminar
           </button>
         </td>
@@ -4614,12 +5378,14 @@ class ClassificationModule {
     try {
       if (window.api) {
         const res = await window.api.createCategory({ name, icon });
-        showValetecToast(res.message || `Categoría "${name}" creada.`, "success");
-        document.getElementById('newCatName').value = '';
+        showValetecToast(res.message || `Categoría "${name}" creada exitosamente.`, "success");
+        const inName = document.getElementById('newCatName');
+        if (inName) inName.value = '';
         await this.loadCategories();
+        await syncWithBackend();
       }
     } catch (err) {
-      showValetecToast("Error al crear categoría: " + err.message, "error");
+      showValetecToast("Error al crear categoría: " + err.message, "danger");
     }
   }
 
@@ -4633,90 +5399,109 @@ class ClassificationModule {
     try {
       if (window.api) {
         const res = await window.api.createLaboratory({ name, country, contact });
-        showValetecToast(res.message || `Laboratorio "${name}" registrado.`, "success");
-        document.getElementById('newLabName').value = '';
-        document.getElementById('newLabContact').value = '';
+        showValetecToast(res.message || `Laboratorio "${name}" registrado exitosamente.`, "success");
+        const inName = document.getElementById('newLabName');
+        const inCont = document.getElementById('newLabContact');
+        if (inName) inName.value = '';
+        if (inCont) inCont.value = '';
         await this.loadLaboratories();
+        await syncWithBackend();
       }
     } catch (err) {
-      showValetecToast("Error al registrar laboratorio: " + err.message, "error");
+      showValetecToast("Error al registrar laboratorio: " + err.message, "danger");
     }
   }
 
-  async editCategory(id, currentName, currentIcon) {
-    const newName = prompt(`Editar nombre de la categoría:`, currentName);
-    if (!newName || newName.trim() === '' || newName.trim() === currentName) return;
+  async editCategoryById(id) {
+    const cat = this.categories.find(c => c.id === id);
+    if (!cat) return;
+    const newName = prompt(`Editar nombre de la categoría:`, cat.name);
+    if (!newName || newName.trim() === '' || newName.trim() === cat.name) return;
 
     try {
       if (window.api) {
-        const res = await window.api.updateCategory(id, { name: newName.trim(), icon: currentIcon });
+        const res = await window.api.updateCategory(id, { name: newName.trim(), icon: cat.icon || 'bi-capsule' });
         showValetecToast(res.message || "Categoría actualizada.", "success");
         await this.loadCategories();
+        await syncWithBackend();
       }
     } catch (err) {
-      showValetecToast("Error al editar categoría: " + err.message, "error");
+      showValetecToast("Error al editar categoría: " + err.message, "danger");
     }
   }
 
-  async editLaboratory(id, currentName, currentCountry, currentContact) {
-    const newName = prompt(`Editar nombre del laboratorio:`, currentName);
+  async editLaboratoryById(id) {
+    const lab = this.laboratories.find(l => l.id === id);
+    if (!lab) return;
+    const newName = prompt(`Editar nombre del laboratorio:`, lab.name);
     if (!newName || newName.trim() === '') return;
 
-    const newCountry = prompt(`País de origen:`, currentCountry) || 'Perú';
+    const newCountry = prompt(`País de origen:`, lab.country || 'Perú') || 'Perú';
 
     try {
       if (window.api) {
-        const res = await window.api.updateLaboratory(id, { name: newName.trim(), country: newCountry.trim(), contact: currentContact });
+        const res = await window.api.updateLaboratory(id, { name: newName.trim(), country: newCountry.trim(), contact: lab.contact });
         showValetecToast(res.message || "Laboratorio actualizado.", "success");
         await this.loadLaboratories();
         await syncWithBackend();
       }
     } catch (err) {
-      showValetecToast("Error al editar laboratorio: " + err.message, "error");
+      showValetecToast("Error al editar laboratorio: " + err.message, "danger");
     }
   }
 
-  async deleteCategory(id, count, name) {
-    if (count > 0) {
-      showValetecToast(`Operación denegada: La categoría "${name}" tiene ${count} fármacos asociados.`, "warning");
+  async deleteCategoryById(id) {
+    const cat = this.categories.find(c => c.id === id);
+    if (!cat) return;
+
+    if (cat.productCount > 0) {
+      showValetecToast(`Operación denegada: La categoría "${cat.name}" tiene ${cat.productCount} fármacos asociados. Use "Reasignar" primero.`, "warning");
       return;
     }
 
-    if (!confirm(`¿Estás seguro de eliminar la categoría "${name}"?`)) return;
+    if (!confirm(`¿Estás seguro de eliminar la categoría "${cat.name}"?`)) return;
 
     try {
       if (window.api) {
         const res = await window.api.deleteCategory(id);
         showValetecToast(res.message || "Categoría eliminada.", "success");
         await this.loadCategories();
+        await syncWithBackend();
       }
     } catch (err) {
       showValetecToast("Error al eliminar categoría: " + err.message, "danger");
     }
   }
 
-  async deleteLaboratory(id, count, name) {
-    if (count > 0) {
-      showValetecToast(`Operación denegada: El laboratorio "${name}" tiene ${count} fármacos asociados.`, "warning");
+  async deleteLaboratoryById(id) {
+    const lab = this.laboratories.find(l => l.id === id);
+    if (!lab) return;
+
+    if (lab.productCount > 0) {
+      showValetecToast(`Operación denegada: El laboratorio "${lab.name}" tiene ${lab.productCount} fármacos asociados. Use "Reasignar" primero.`, "warning");
       return;
     }
 
-    if (!confirm(`¿Estás seguro de eliminar el laboratorio "${name}"?`)) return;
+    if (!confirm(`¿Estás seguro de eliminar el laboratorio "${lab.name}"?`)) return;
 
     try {
       if (window.api) {
         const res = await window.api.deleteLaboratory(id);
         showValetecToast(res.message || "Laboratorio eliminado.", "success");
         await this.loadLaboratories();
+        await syncWithBackend();
       }
     } catch (err) {
-      showValetecToast("Error al eliminar laboratorio: " + err.message, "error");
+      showValetecToast("Error al eliminar laboratorio: " + err.message, "danger");
     }
   }
 
-  async reassignCategory(sourceId, name) {
+  async reassignCategoryById(sourceId) {
+    const source = this.categories.find(c => c.id === sourceId);
+    if (!source) return;
+
     const options = this.categories
-      .filter(c => c.id != sourceId)
+      .filter(c => c.id !== sourceId)
       .map(c => `#${c.id} - ${c.name}`)
       .join('\n');
 
@@ -4725,7 +5510,7 @@ class ClassificationModule {
       return;
     }
 
-    const input = prompt(`Mover TODOS los medicamentos de "${name}" hacia otra categoría.\n\nEscriba el ID de destino:\n${options}`);
+    const input = prompt(`Mover TODOS los medicamentos de "${source.name}" hacia otra categoría.\n\nEscriba el ID de destino:\n${options}`);
     if (!input) return;
 
     const targetId = parseInt(input.replace(/[^\d]/g, ''), 10);
@@ -4742,13 +5527,16 @@ class ClassificationModule {
         await syncWithBackend();
       }
     } catch (err) {
-      showValetecToast("Error al reasignar: " + err.message, "error");
+      showValetecToast("Error al reasignar: " + err.message, "danger");
     }
   }
 
-  async reassignLaboratory(sourceLabName) {
+  async reassignLaboratoryById(sourceId) {
+    const source = this.laboratories.find(l => l.id === sourceId);
+    if (!source) return;
+
     const otherLabs = this.laboratories
-      .filter(l => l.name.toLowerCase() !== sourceLabName.toLowerCase())
+      .filter(l => l.id !== sourceId)
       .map(l => l.name)
       .join('\n• ');
 
@@ -4757,89 +5545,246 @@ class ClassificationModule {
       return;
     }
 
-    const targetName = prompt(`Mover TODOS los medicamentos de "${sourceLabName}" hacia otro laboratorio.\n\nEscriba exactamente el nombre del laboratorio destino:\n• ${otherLabs}`);
-    if (!targetName || targetName.trim() === '' || targetName.trim().toLowerCase() === sourceLabName.toLowerCase()) return;
+    const targetName = prompt(`Mover TODOS los medicamentos de "${source.name}" hacia otro laboratorio.\n\nEscriba exactamente el nombre del laboratorio destino:\n• ${otherLabs}`);
+    if (!targetName || targetName.trim() === '' || targetName.trim().toLowerCase() === source.name.toLowerCase()) return;
 
     try {
       if (window.api) {
-        const res = await window.api.reassignLaboratory(sourceLabName, targetName.trim());
+        const res = await window.api.reassignLaboratory(source.name, targetName.trim());
         showValetecToast(res.message || "Medicamentos reasignados con éxito.", "success");
         await this.loadLaboratories();
         await syncWithBackend();
       }
     } catch (err) {
-      showValetecToast("Error al reasignar: " + err.message, "error");
+      showValetecToast("Error al reasignar: " + err.message, "danger");
     }
   }
 }
 
 // =============================================================
-// 10.1 MÓDULO DE CLIENTES & PADRÓN FISCAL DNI / RUC (MÓDULO 5)
+// =============================================================
+// 10.1 MÓDULO DE CLIENTES & PADRÓN FISCAL DNI / RUC (MÓDULO 4)
 // =============================================================
 class ClientsModule {
   constructor() {
-    this.quickModal = document.getElementById('quickClientModal');
-    this.directoryModal = document.getElementById('clientsDirectoryModal');
+    this.drawer = document.getElementById('clientDrawer');
+    this.backdrop = document.getElementById('clientDrawerBackdrop');
+    this.drawerTitle = document.getElementById('clientDrawerTitle');
+    this.drawerSubtitle = document.getElementById('clientDrawerSubtitle');
+    this.alertBox = document.getElementById('clientDrawerAlert');
+    this.alertMsg = document.getElementById('clientDrawerAlertMsg');
+    this.inEditId = document.getElementById('clientEditId');
+    this.inDocType = document.getElementById('clientDocType');
+    this.inDocNumber = document.getElementById('clientDocNumber');
+    this.inFullName = document.getElementById('clientFullName');
+    this.inPhone = document.getElementById('clientPhone');
+    this.inEmail = document.getElementById('clientEmail');
+    this.inAddress = document.getElementById('clientAddress');
+    this.pointsBadge = document.getElementById('clientPointsBadge');
+    this.pointsInput = document.getElementById('clientPointsBalanceInput');
+    this.loyaltyTierBadge = document.getElementById('clientLoyaltyTierBadge');
+    this.pointsSolValue = document.getElementById('clientPointsSolValue');
+    this.btnSaveSubmit = document.getElementById('btnSaveClientSubmit');
+    this.btnSaveText = document.getElementById('btnSaveClientText');
+    this.lblDocNumber = document.getElementById('lblClientDocNumber');
+
+    // Directorio y Tabla
     this.tableBody = document.getElementById('clientsTableBody');
-    this.alertBox = document.getElementById('quickClientAlert');
-    this.alertMsg = document.getElementById('quickClientAlertMsg');
-    this.inDocType = document.getElementById('quickClientDocType');
-    this.inDocNumber = document.getElementById('quickClientDocNumber');
-    this.inFullName = document.getElementById('quickClientFullName');
-    this.inPhone = document.getElementById('quickClientPhone');
-    this.inEmail = document.getElementById('quickClientEmail');
-    this.inAddress = document.getElementById('quickClientAddress');
-    this.inSearch = document.getElementById('directoryClientSearch');
+    this.inSearch = document.getElementById('clientDirectorySearchInput');
+
+    // KPIs y Filtros
+    this.kpiDni = document.getElementById('kpiTotalDni');
+    this.kpiRuc = document.getElementById('kpiTotalRuc');
+    this.kpiPoints = document.getElementById('kpiTotalPoints');
+    this.countFilterAll = document.getElementById('countFilterAll');
+    this.countFilterDni = document.getElementById('countFilterDni');
+    this.countFilterRuc = document.getElementById('countFilterRuc');
+    this.countFilterPoints = document.getElementById('countFilterPoints');
+
     this.clientsList = [];
+    this.currentFilter = 'all';
+    this.searchQuery = '';
     this.searchTimeout = null;
+    this.isCounterContext = false;
+
+    // Escucha tecla ESC para cerrar el drawer de cliente
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.drawer?.classList.contains('active')) {
+        this.closeClientDrawer();
+      }
+    });
   }
 
-  openQuickModal(defaultDoc = '') {
-    this.clearAlert();
-    const docClean = (typeof defaultDoc === 'string') ? defaultDoc.trim() : '';
-    if (this.inDocType && this.inDocNumber) {
-      if (docClean.length === 11 || docClean.startsWith('20') || docClean.startsWith('10')) {
-        this.inDocType.value = 'RUC';
-        this.inDocNumber.maxLength = 11;
-        this.inDocNumber.placeholder = 'Ej. 20514896321 (11 dígitos)';
-      } else {
-        this.inDocType.value = 'DNI';
-        this.inDocNumber.maxLength = 8;
-        this.inDocNumber.placeholder = 'Ej. 45892147 (8 dígitos)';
-      }
-      this.inDocNumber.value = docClean;
+  calculateLoyaltyTier(points) {
+    const pts = parseInt(points, 10) || 0;
+    if (pts >= 200) {
+      return {
+        name: 'Oro',
+        icon: '🥇',
+        badgeStyle: 'background: #fef3c7; color: #92400e; border: 1px solid #fde68a;',
+        discountPercent: 5
+      };
+    } else if (pts >= 50) {
+      return {
+        name: 'Plata',
+        icon: '🥈',
+        badgeStyle: 'background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;',
+        discountPercent: 2
+      };
+    } else {
+      return {
+        name: 'Bronce',
+        icon: '🥉',
+        badgeStyle: 'background: #fff7ed; color: #9a3412; border: 1px solid #ffedd5;',
+        discountPercent: 0
+      };
     }
-    if (this.inFullName) this.inFullName.value = '';
-    if (this.inPhone) this.inPhone.value = '';
-    if (this.inEmail) this.inEmail.value = '';
-    if (this.inAddress) this.inAddress.value = '';
+  }
 
-    if (this.quickModal) this.quickModal.classList.add('active');
+  onPointsInputChange() {
+    if (!this.pointsInput) this.pointsInput = document.getElementById('clientPointsBalanceInput');
+    if (!this.pointsBadge) this.pointsBadge = document.getElementById('clientPointsBadge');
+    if (!this.pointsSolValue) this.pointsSolValue = document.getElementById('clientPointsSolValue');
+    if (!this.loyaltyTierBadge) this.loyaltyTierBadge = document.getElementById('clientLoyaltyTierBadge');
+
+    const pts = Math.max(0, parseInt(this.pointsInput?.value || 0, 10));
+    if (this.pointsBadge) this.pointsBadge.innerText = `${pts} Pts`;
+    if (this.pointsSolValue) this.pointsSolValue.innerText = `Equivale a S/ ${(pts * 0.10).toFixed(2)}`;
+    const tier = this.calculateLoyaltyTier(pts);
+    if (this.loyaltyTierBadge) {
+      this.loyaltyTierBadge.innerHTML = `${tier.icon} ${tier.name}`;
+      this.loyaltyTierBadge.style.cssText = `${tier.badgeStyle} font-size: 11px; padding: 2px 6px; border-radius: 4px;`;
+    }
+  }
+
+  addBonusPoints(qty) {
+    if (!this.pointsInput) this.pointsInput = document.getElementById('clientPointsBalanceInput');
+    const current = parseInt(this.pointsInput?.value || 0, 10);
+    if (this.pointsInput) {
+      this.pointsInput.value = current + qty;
+    }
+    this.onPointsInputChange();
+  }
+
+  resetPoints() {
+    if (!this.pointsInput) this.pointsInput = document.getElementById('clientPointsBalanceInput');
+    if (this.pointsInput) {
+      this.pointsInput.value = 0;
+    }
+    this.onPointsInputChange();
+  }
+
+  openClientDrawer(clientId = null, defaultDoc = '', isCounterContext = false) {
+    this.isCounterContext = isCounterContext;
+    this.clearAlert();
+
+    // Reasociar elementos si el DOM se actualizó
+    if (!this.drawer) this.drawer = document.getElementById('clientDrawer');
+    if (!this.backdrop) this.backdrop = document.getElementById('clientDrawerBackdrop');
+    if (!this.inEditId) this.inEditId = document.getElementById('clientEditId');
+    if (!this.inDocType) this.inDocType = document.getElementById('clientDocType');
+    if (!this.inDocNumber) this.inDocNumber = document.getElementById('clientDocNumber');
+    if (!this.inFullName) this.inFullName = document.getElementById('clientFullName');
+    if (!this.inPhone) this.inPhone = document.getElementById('clientPhone');
+    if (!this.inEmail) this.inEmail = document.getElementById('clientEmail');
+    if (!this.inAddress) this.inAddress = document.getElementById('clientAddress');
+    if (!this.pointsBadge) this.pointsBadge = document.getElementById('clientPointsBadge');
+    if (!this.pointsInput) this.pointsInput = document.getElementById('clientPointsBalanceInput');
+    if (!this.loyaltyTierBadge) this.loyaltyTierBadge = document.getElementById('clientLoyaltyTierBadge');
+    if (!this.pointsSolValue) this.pointsSolValue = document.getElementById('clientPointsSolValue');
+    if (!this.btnSaveText) this.btnSaveText = document.getElementById('btnSaveClientText');
+
+    if (clientId) {
+      // Modo Edición: Cargar datos de cliente existente
+      const client = this.clientsList.find(c => c.id === clientId);
+      if (this.drawerTitle) {
+        this.drawerTitle.innerHTML = `<i class="bi bi-pencil-square text-teal"></i> <span>Editar Datos de Cliente</span>`;
+      }
+      if (this.drawerSubtitle) {
+        this.drawerSubtitle.innerText = 'Actualización de datos maestros en PostgreSQL 16';
+      }
+      if (this.inEditId) this.inEditId.value = clientId;
+      if (this.inDocType) this.inDocType.value = client?.documentType || 'DNI';
+      if (this.inDocNumber) this.inDocNumber.value = client?.documentNumber || '';
+      if (this.inFullName) this.inFullName.value = client?.fullName || '';
+      if (this.inPhone) this.inPhone.value = client?.phone || '';
+      if (this.inEmail) this.inEmail.value = client?.email || '';
+      if (this.inAddress) this.inAddress.value = client?.address || '';
+      if (this.pointsInput) this.pointsInput.value = parseInt(client?.pointsBalance, 10) || 0;
+      if (this.btnSaveText) this.btnSaveText.innerText = 'Actualizar Cliente';
+      this.onDocTypeChange(false);
+      this.onPointsInputChange();
+    } else {
+      // Modo Creación: Limpiar campos
+      const docClean = (typeof defaultDoc === 'string') ? defaultDoc.trim() : '';
+      if (this.drawerTitle) {
+        this.drawerTitle.innerHTML = `<i class="bi bi-person-plus text-teal"></i> <span>Registrar Nuevo Cliente</span>`;
+      }
+      if (this.drawerSubtitle) {
+        this.drawerSubtitle.innerText = 'Padrón fiscal y fidelización conectado a PostgreSQL 16';
+      }
+      if (this.inEditId) this.inEditId.value = '';
+      if (this.inDocType && this.inDocNumber) {
+        if (docClean.length === 11 || docClean.startsWith('20') || docClean.startsWith('10')) {
+          this.inDocType.value = 'RUC';
+        } else {
+          this.inDocType.value = 'DNI';
+        }
+        this.inDocNumber.value = docClean;
+      }
+      if (this.inFullName) this.inFullName.value = '';
+      if (this.inPhone) this.inPhone.value = '';
+      if (this.inEmail) this.inEmail.value = '';
+      if (this.inAddress) this.inAddress.value = '';
+      if (this.pointsInput) this.pointsInput.value = 0;
+      if (this.btnSaveText) this.btnSaveText.innerText = 'Guardar Cliente';
+      this.onDocTypeChange(false);
+      this.onPointsInputChange();
+    }
+
+    if (this.drawer) this.drawer.classList.add('active');
+    if (this.backdrop) this.backdrop.classList.add('active');
+
     setTimeout(() => {
-      if (docClean) {
+      if (this.inDocNumber?.value) {
         this.inFullName?.focus();
       } else {
         this.inDocNumber?.focus();
       }
-    }, 100);
+    }, 120);
   }
 
-  closeQuickModal() {
-    if (this.quickModal) this.quickModal.classList.remove('active');
+  closeClientDrawer() {
+    if (this.drawer) this.drawer.classList.remove('active');
+    if (this.backdrop) this.backdrop.classList.remove('active');
     this.clearAlert();
+    this.isCounterContext = false;
   }
 
-  onDocTypeChange() {
+  onDocTypeChange(clearNumber = true) {
     this.clearAlert();
     const type = this.inDocType?.value || 'DNI';
-    if (this.inDocNumber) {
-      if (type === 'RUC') {
-        this.inDocNumber.maxLength = 11;
-        this.inDocNumber.placeholder = 'Ej. 20514896321 (11 dígitos)';
-      } else {
-        this.inDocNumber.maxLength = 8;
-        this.inDocNumber.placeholder = 'Ej. 45892147 (8 dígitos)';
-      }
+    if (!this.inDocNumber) return;
+
+    if (type === 'RUC') {
+      this.inDocNumber.maxLength = 11;
+      this.inDocNumber.placeholder = 'Ej. 20514896321 (11 dígitos)';
+      if (this.lblDocNumber) this.lblDocNumber.innerText = 'N° de RUC (11 dígitos):';
+    } else if (type === 'DNI') {
+      this.inDocNumber.maxLength = 8;
+      this.inDocNumber.placeholder = 'Ej. 45892147 (8 dígitos)';
+      if (this.lblDocNumber) this.lblDocNumber.innerText = 'N° de DNI (8 dígitos):';
+    } else if (type === 'CE') {
+      this.inDocNumber.maxLength = 15;
+      this.inDocNumber.placeholder = 'Ej. 001248963';
+      if (this.lblDocNumber) this.lblDocNumber.innerText = 'N° Carnet de Extranjería:';
+    } else {
+      this.inDocNumber.maxLength = 20;
+      this.inDocNumber.placeholder = 'Ej. P-9845214';
+      if (this.lblDocNumber) this.lblDocNumber.innerText = 'N° Pasaporte:';
+    }
+
+    if (clearNumber && this.inDocNumber.value.length > this.inDocNumber.maxLength) {
       this.inDocNumber.value = this.inDocNumber.value.slice(0, this.inDocNumber.maxLength);
     }
   }
@@ -4862,12 +5807,14 @@ class ClientsModule {
     if (e) e.preventDefault();
     this.clearAlert();
 
+    const editId = this.inEditId?.value ? parseInt(this.inEditId.value, 10) : null;
     const docType = this.inDocType?.value || 'DNI';
     const docNum = this.inDocNumber?.value.trim() || '';
     const fullName = this.inFullName?.value.trim() || '';
     const phone = this.inPhone?.value.trim() || '';
     const email = this.inEmail?.value.trim() || '';
     const address = this.inAddress?.value.trim() || '';
+    const pointsBalance = this.pointsInput ? Math.max(0, parseInt(this.pointsInput.value || 0, 10)) : 0;
 
     if (!docNum) {
       this.showAlert("Por favor escribe el número de documento.");
@@ -4881,7 +5828,13 @@ class ClientsModule {
       return;
     }
 
-    // Validación visual de longitud DNI (8 dígitos)
+    if (fullName.length < 3) {
+      this.showAlert("El nombre o razón social debe tener al menos 3 caracteres.");
+      this.inFullName?.focus();
+      return;
+    }
+
+    // Validación DNI (8 dígitos)
     if (docType === 'DNI') {
       if (!/^\d{8}$/.test(docNum)) {
         this.showAlert("Error de validación: El DNI debe tener exactamente 8 dígitos numéricos.");
@@ -4890,7 +5843,7 @@ class ClientsModule {
       }
     }
 
-    // Validación visual de longitud RUC (11 dígitos y prefijo SUNAT)
+    // Validación RUC (11 dígitos y prefijo SUNAT)
     if (docType === 'RUC') {
       if (!/^\d{11}$/.test(docNum)) {
         this.showAlert("Error de validación: El RUC debe tener exactamente 11 dígitos numéricos.");
@@ -4904,46 +5857,86 @@ class ClientsModule {
       }
     }
 
-    const submitBtn = document.getElementById('btnSaveClientSubmit');
-    const origText = submitBtn ? submitBtn.innerHTML : '';
-    if (submitBtn) {
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = `Guardando en PostgreSQL...`;
+    // Validación de formato de correo si fue provisto
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        this.showAlert("El formato del correo electrónico es inválido.");
+        this.inEmail?.focus();
+        return;
+      }
+    }
+
+    const origText = this.btnSaveText ? this.btnSaveText.innerText : 'Guardar Cliente';
+    if (this.btnSaveSubmit) {
+      this.btnSaveSubmit.disabled = true;
+      if (this.btnSaveText) this.btnSaveText.innerText = 'Guardando en PostgreSQL...';
     }
 
     try {
-      if (window.api) {
-        const res = await window.api.createClient({
+      if (!window.api) throw new Error("API de conexión con backend no disponible.");
+
+      let res;
+      if (editId) {
+        // Actualizar cliente existente (PUT /api/clients/:id)
+        res = await window.api.updateClient(editId, {
           documentType: docType,
           documentNumber: docNum,
           fullName,
           phone,
           email,
-          address
+          address,
+          pointsBalance
         });
-
-        if (!res || !res.success) {
-          throw new Error(res?.message || "No se pudo guardar el cliente.");
-        }
-
-        const newClient = res.data;
-        showValetecToast(`Cliente "${newClient.fullName}" registrado exitosamente.`, "success");
-        this.closeQuickModal();
-
-        // Asignar al carrito de compras en mostrador (preserva los productos agregados)
-        this.assignClientToCounter(newClient);
-
-        // Si el directorio de clientes está abierto, actualizar tabla
-        if (this.directoryModal?.classList.contains('active')) {
-          this.loadClients();
-        }
+      } else {
+        // Crear nuevo cliente (POST /api/clients)
+        res = await window.api.createClient({
+          documentType: docType,
+          documentNumber: docNum,
+          fullName,
+          phone,
+          email,
+          address,
+          pointsBalance
+        });
       }
+
+      if (!res || !res.success) {
+        throw new Error(res?.message || "No se pudo procesar la solicitud de cliente.");
+      }
+
+      const clientSaved = res.data || {
+        id: editId,
+        documentType: docType,
+        documentNumber: docNum,
+        fullName,
+        phone,
+        email,
+        address,
+        pointsBalance
+      };
+
+      showValetecToast(
+        editId ? `Cliente "${clientSaved.fullName}" actualizado correctamente.` : `Cliente "${clientSaved.fullName}" registrado exitosamente.`,
+        "success"
+      );
+
+      this.closeClientDrawer();
+
+      // Si fue abierto desde el mostrador de ventas, asignar automáticamente a la venta
+      if (this.isCounterContext) {
+        this.assignClientToCounter(clientSaved);
+      }
+
+      // Recargar y refrescar KPIs y tabla
+      await this.loadClients();
+
     } catch (err) {
-      this.showAlert(err.message || "Error al registrar cliente.");
+      this.showAlert(err.message || "Error al procesar cliente en base de datos.");
     } finally {
-      if (submitBtn) {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = origText;
+      if (this.btnSaveSubmit) {
+        this.btnSaveSubmit.disabled = false;
+        if (this.btnSaveText) this.btnSaveText.innerText = origText;
       }
     }
   }
@@ -4955,23 +5948,26 @@ class ClientsModule {
 
     if (docInput) docInput.value = client.documentNumber;
     if (statusLine) {
-      // Hotfix V-06: Escapar fullName contra XSS Stored desde backend/formulario de clientes
       statusLine.innerHTML = `
         <span class="p-name"><i class="bi bi-person"></i> ${escHtml(client.fullName)}</span>
         <span class="p-points"><i class="bi bi-star"></i> ${parseInt(client.pointsBalance, 10) || 0} Pts</span>
       `;
     }
-    showValetecToast(`Cliente "${escHtml(client.fullName)}" asignado a la venta en curso.`, "success");
+    if (window.counterApp) {
+      window.counterApp.activeClient = client;
+      window.counterApp.updatePointsRedeemBox();
+    }
+    showValetecToast(`Cliente "${escHtml(client.fullName)}" asignado al mostrador.`, "success");
   }
 
-  openDirectoryModal() {
-    if (this.directoryModal) this.directoryModal.classList.add('active');
-    if (this.inSearch) this.inSearch.value = '';
-    this.loadClients();
-  }
-
-  closeDirectoryModal() {
-    if (this.directoryModal) this.directoryModal.classList.remove('active');
+  assignClientToCounterById(id) {
+    const client = this.clientsList.find(c => c.id === id);
+    if (client) {
+      this.assignClientToCounter(client);
+      if (window.appNav) {
+        window.appNav.navigateTo('viewCounter');
+      }
+    }
   }
 
   async loadClients() {
@@ -4980,54 +5976,105 @@ class ClientsModule {
       const res = await window.api.getClients();
       if (res && res.data) {
         this.clientsList = res.data;
-        this.renderClients(this.clientsList);
+      } else if (Array.isArray(res)) {
+        this.clientsList = res;
       }
+      this.updateKpis();
+      this.applyFilterAndRender();
     } catch (err) {
-      console.warn("Error cargando clientes:", err.message);
+      console.warn("Aviso cargando clientes:", err.message);
     }
+  }
+
+  updateKpis() {
+    const list = this.clientsList || [];
+    const totalDni = list.filter(c => c.documentType === 'DNI').length;
+    const totalRuc = list.filter(c => c.documentType === 'RUC').length;
+    const totalPoints = list.reduce((sum, c) => sum + (parseInt(c.pointsBalance, 10) || 0), 0);
+    const withPoints = list.filter(c => (parseInt(c.pointsBalance, 10) || 0) > 0).length;
+
+    if (this.kpiDni) this.kpiDni.innerText = totalDni;
+    if (this.kpiRuc) this.kpiRuc.innerText = totalRuc;
+    if (this.kpiPoints) this.kpiPoints.innerText = `${totalPoints} Pts`;
+
+    if (this.countFilterAll) this.countFilterAll.innerText = list.length;
+    if (this.countFilterDni) this.countFilterDni.innerText = totalDni;
+    if (this.countFilterRuc) this.countFilterRuc.innerText = totalRuc;
+    if (this.countFilterPoints) this.countFilterPoints.innerText = withPoints;
+  }
+
+  setFilter(filterType) {
+    this.currentFilter = filterType;
+    document.querySelectorAll('.client-tab-btn').forEach(btn => btn.classList.remove('active'));
+
+    if (filterType === 'all') document.getElementById('tabFilterAllClients')?.classList.add('active');
+    else if (filterType === 'DNI') document.getElementById('tabFilterDniClients')?.classList.add('active');
+    else if (filterType === 'RUC') document.getElementById('tabFilterRucClients')?.classList.add('active');
+    else if (filterType === 'points') document.getElementById('tabFilterPointsClients')?.classList.add('active');
+
+    this.applyFilterAndRender();
   }
 
   onSearchInput(e) {
     clearTimeout(this.searchTimeout);
-    const q = e.target.value.trim();
-    this.searchTimeout = setTimeout(async () => {
-      if (!q) {
-        this.renderClients(this.clientsList);
-        return;
-      }
-      try {
-        if (window.api) {
-          const res = await window.api.searchClients(q);
-          if (res && res.data) {
-            this.renderClients(res.data);
-          }
-        }
-      } catch (err) {
-        console.warn("Error buscando clientes:", err.message);
-      }
-    }, 250);
+    this.searchQuery = (e?.target?.value || '').trim().toLowerCase();
+    this.searchTimeout = setTimeout(() => {
+      this.applyFilterAndRender();
+    }, 200);
+  }
+
+  applyFilterAndRender() {
+    let result = [...this.clientsList];
+
+    // 1. Filtrado por tipo de pestaña
+    if (this.currentFilter === 'DNI') {
+      result = result.filter(c => c.documentType === 'DNI');
+    } else if (this.currentFilter === 'RUC') {
+      result = result.filter(c => c.documentType === 'RUC');
+    } else if (this.currentFilter === 'points') {
+      result = result.filter(c => (parseInt(c.pointsBalance, 10) || 0) > 0);
+    }
+
+    // 2. Búsqueda en vivo
+    if (this.searchQuery) {
+      result = result.filter(c => {
+        const doc = (c.documentNumber || '').toLowerCase();
+        const name = (c.fullName || '').toLowerCase();
+        const phone = (c.phone || '').toLowerCase();
+        return doc.includes(this.searchQuery) || name.includes(this.searchQuery) || phone.includes(this.searchQuery);
+      });
+    }
+
+    this.renderClients(result);
   }
 
   renderClients(clients) {
+    if (!this.tableBody) this.tableBody = document.getElementById('clientsTableBody');
     if (!this.tableBody) return;
+
     if (!clients || clients.length === 0) {
-      this.tableBody.innerHTML = '<tr><td colspan="7" class="text-center py-3 text-muted">No se encontraron clientes registrados en el padrón.</td></tr>';
+      this.tableBody.innerHTML = `
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 36px 16px; color: #64748b;">
+            <i class="bi bi-people" style="font-size: 32px; display: block; margin-bottom: 8px; color: #cbd5e1;"></i>
+            <strong>No se encontraron clientes registrados en este filtro.</strong>
+            <p style="font-size: 12.5px; margin-top: 4px;">Usa el botón superior para dar de alta un nuevo cliente o busca con otros términos.</p>
+          </td>
+        </tr>
+      `;
       return;
     }
 
     this.tableBody.innerHTML = clients.map(c => {
       const isRuc = c.documentType === 'RUC';
       const badgeStyle = isRuc
-        ? 'background: #f8fafc; border: 1px solid #cbd5e1; color: #475569;'
-        : (c.documentType === 'DNI' ? 'background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534;' : 'background: #f1f5f9; color: #475569;');
-      const clientSafeData = {
-        id: c.id,
-        documentType: c.documentType,
-        documentNumber: c.documentNumber,
-        fullName: c.fullName,
-        pointsBalance: c.pointsBalance || 0
-      };
-      const clientJson = encodeURIComponent(JSON.stringify(clientSafeData));
+        ? 'background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155;'
+        : (c.documentType === 'DNI'
+          ? 'background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857;'
+          : 'background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af;');
+
+      const pts = parseInt(c.pointsBalance, 10) || 0;
+      const tier = this.calculateLoyaltyTier(pts);
 
       return `
         <tr>
@@ -5035,20 +6082,34 @@ class ClientsModule {
             <span class="badge" style="${badgeStyle} font-weight: 700; padding: 3px 6px; border-radius: 4px; font-size: 11px;">
               ${escHtml(c.documentType)}
             </span>
-            <strong style="margin-left: 6px; font-family: monospace;">${escHtml(c.documentNumber)}</strong>
+            <strong style="margin-left: 6px; font-family: monospace; font-size: 13px;">${escHtml(c.documentNumber)}</strong>
           </td>
-          <td><strong>${escHtml(c.fullName)}</strong></td>
-          <td><small>${escHtml(c.phone) || '—'}</small></td>
-          <td><small style="color: #64748b;">${escHtml(c.email) || '—'}</small></td>
-          <td><small style="color: #64748b;">${escHtml(c.address) || '—'}</small></td>
+          <td>
+            <strong style="color: #0f172a; font-size: 13px;">${escHtml(c.fullName)}</strong>
+          </td>
+          <td>
+            ${c.phone ? `<span style="font-size: 12.5px;"><i class="bi bi-telephone text-muted" style="margin-right: 4px;"></i>${escHtml(c.phone)}</span>` : '<span style="color: #94a3b8;">—</span>'}
+          </td>
+          <td>
+            ${c.email ? `<span style="font-size: 12px; color: #64748b;">${escHtml(c.email)}</span>` : '<span style="color: #94a3b8;">—</span>'}
+          </td>
+          <td>
+            ${c.address ? `<small style="color: #64748b;">${escHtml(c.address)}</small>` : '<span style="color: #94a3b8;">—</span>'}
+          </td>
           <td style="text-align: center;">
-            <span class="badge" style="background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; font-weight: 600; padding: 4px 8px; border-radius: 6px;">
-              <i class="bi bi-star"></i> ${parseInt(c.pointsBalance, 10) || 0}
+            <span class="badge" style="${tier.badgeStyle} font-weight: 700; padding: 4px 8px; border-radius: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 2px;">
+              ${tier.icon} ${pts} Pts • ${tier.name}
             </span>
+            <small style="display: block; color: #16a34a; font-weight: 700; font-size: 10.5px;">
+              Equiv: S/ ${(pts * 0.10).toFixed(2)}
+            </small>
           </td>
           <td style="text-align: right; white-space: nowrap;">
-            <button type="button" class="btn-action-outline" style="padding: 4px 10px; font-size: 11px;" onclick="clientsApp.selectAndAssign('${clientJson}')" title="Asignar al Carrito de Ventas">
-              <i class="bi bi-check2"></i> Asignar
+            <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="clientsApp.openClientDrawer(${c.id})" title="Editar datos y puntos del cliente">
+              <i class="bi bi-pencil"></i> Editar
+            </button>
+            <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; color: #0d9488; border-color: #0d9488;" onclick="clientsApp.assignClientToCounterById(${c.id})" title="Asignar al carrito de ventas del mostrador">
+              <i class="bi bi-cart-plus"></i> Mostrador
             </button>
           </td>
         </tr>
@@ -5056,20 +6117,24 @@ class ClientsModule {
     }).join('');
   }
 
-  selectAndAssign(clientJsonStr) {
-    try {
-      let raw = clientJsonStr;
-      if (typeof raw === 'string' && raw.includes('%')) {
-        raw = decodeURIComponent(raw);
-      } else if (typeof raw === 'string') {
-        raw = raw.replace(/&quot;/g, '"');
-      }
-      const client = typeof raw === 'object' ? raw : JSON.parse(raw);
-      this.assignClientToCounter(client);
-      this.closeDirectoryModal();
-    } catch (e) {
-      console.warn("Error asignando cliente:", e);
+  // Métodos de compatibilidad con llamados heredados
+  openQuickModal(defaultDoc = '') {
+    this.openClientDrawer(null, defaultDoc, true);
+  }
+
+  closeQuickModal() {
+    this.closeClientDrawer();
+  }
+
+  openDirectoryModal() {
+    if (window.appNav) {
+      window.appNav.navigateTo('viewClients');
     }
+    this.loadClients();
+  }
+
+  closeDirectoryModal() {
+    this.closeClientDrawer();
   }
 }
 
@@ -5804,6 +6869,11 @@ let authManager, accessibilityEngine, appNav, counterApp, cashApp, warehouseApp,
 
 async function syncWithBackend() {
   if (!window.api) return;
+  const token = localStorage.getItem('valetec_token');
+  if (!token && !window.api.token) {
+    console.log("ℹ️ No hay sesión activa. Esperando inicio de sesión para sincronizar datos.");
+    return;
+  }
   try {
     const health = await window.api.checkHealth();
     if (!health) {
@@ -5866,13 +6936,13 @@ async function syncWithBackend() {
           if (userRes.data.profiles) {
             mockStaffProfiles = userRes.data.profiles;
             if (mockStaffProfiles.qf) {
-              mockStaffProfiles.qf.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement"];
+              mockStaffProfiles.qf.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement", "viewClients"];
             }
             if (mockStaffProfiles.tech) {
-              mockStaffProfiles.tech.allowedViews = ["viewCounter", "viewWarehouse", "viewDigemid"];
+              mockStaffProfiles.tech.allowedViews = ["viewCounter", "viewWarehouse", "viewDigemid", "viewClients"];
             }
             if (mockStaffProfiles.cashier) {
-              mockStaffProfiles.cashier.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid"];
+              mockStaffProfiles.cashier.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewClients"];
             }
             if (authManager) authManager.updateQuickProfileCards(userRes.data.profiles);
             if (appNav) appNav.applyRolePermissions(appNav.currentRole);
@@ -6017,10 +7087,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 
-  // Sincronización activa con Backend y Base de Datos
-  syncWithBackend();
-
-  // Restaurar sesión activa de JWT si existe
+  // Restaurar sesión activa de JWT si existe (sincronizará con backend si está autenticado)
   authManager.checkActiveSession();
 
   // Revisar estado de conexión cada 15 segundos

@@ -189,46 +189,221 @@
       <div class="sidebar-nav-menu">
         <div class="sidebar-section-label">MÓDULOS DEL SISTEMA</div>
 
-        <!-- Tab 1: Mostrador (Visible para Técnico, Q.F., Gerente) -->
-        <button type="button" class="nav-tab-btn" data-view="viewCounter" data-roles="all">
-          <span class="tab-icon"><i class="bi bi-shop-window"></i></span>
-          <span class="tab-label">1. Mostrador & Venta</span>
-          <span class="tab-kbd-hint">F2</span>
+        <!-- Módulo 1: Dashboard (Acceso directo con un solo clic) -->
+        <button type="button" class="nav-tab-btn active" data-view="viewManagement" data-roles="admin,qf">
+          <span class="tab-icon"><i class="bi bi-speedometer2"></i></span>
+          <span class="tab-label">Dashboard</span>
+          <span class="tab-kbd-hint">F6</span>
         </button>
 
-        <!-- Tab 2: Control de Caja & Arqueo (Visible para Cajero, Gerente) -->
-        <button type="button" class="nav-tab-btn" data-view="viewCash" data-roles="cashier,admin">
-          <span class="tab-icon"><i class="bi bi-wallet2"></i></span>
-          <span class="tab-label">2. Caja & Cuadre</span>
-          <span class="tab-kbd-hint">F9</span>
-        </button>
+        <!-- Módulo 2: Ventas (Plegable) -->
+        <div class="nav-module-group open" data-module="sales" data-roles="all">
+          <button type="button" class="nav-module-header">
+            <span class="nav-module-title">
+              <span class="tab-icon"><i class="bi bi-lightning-charge"></i></span>
+              <span>Ventas</span>
+            </span>
+            <i class="bi bi-chevron-down nav-chevron"></i>
+          </button>
+          <div class="nav-submodules">
+            <button type="button" class="nav-sub-btn" data-view="viewCounter">
+              <i class="bi bi-shop-window"></i>
+              <span>Mostrador</span>
+              <span class="tab-kbd-hint" style="margin-left: auto;">F2</span>
+            </button>
+            <button type="button" class="nav-sub-btn" data-action="openSalesHistory">
+              <i class="bi bi-clock-history"></i>
+              <span>Comprobantes</span>
+              <span class="tab-kbd-hint" style="margin-left: auto;">F7</span>
+            </button>
+          </div>
+        </div>
 
-        <!-- Tab 3: Almacén & Lotes FEFO (Visible para Q.F., Gerente) -->
-        <button type="button" class="nav-tab-btn" data-view="viewWarehouse" data-roles="qf,admin">
-          <span class="tab-icon"><i class="bi bi-boxes"></i></span>
-          <span class="tab-label">3. Almacén & Lotes</span>
-          <span class="badge-tab-notify warn"><span class="status-dot warn"></span> 1 Canje</span>
-        </button>
+        <!-- Módulo 3: Caja (Plegable) -->
+        <div class="nav-module-group" data-module="cash" data-roles="cashier,admin">
+          <button type="button" class="nav-module-header">
+            <span class="nav-module-title">
+              <span class="tab-icon"><i class="bi bi-wallet2"></i></span>
+              <span>Caja</span>
+            </span>
+            <i class="bi bi-chevron-down nav-chevron"></i>
+          </button>
+          <div class="nav-submodules">
+            <button type="button" class="nav-sub-btn" data-view="viewCash">
+              <i class="bi bi-calculator"></i>
+              <span>Arqueo</span>
+              <span class="tab-kbd-hint" style="margin-left: auto;">F9</span>
+            </button>
+            <button type="button" class="nav-sub-btn" data-action="openShift">
+              <i class="bi bi-unlock"></i>
+              <span>Apertura</span>
+            </button>
+            <button type="button" class="nav-sub-btn" data-action="openExpense">
+              <i class="bi bi-dash-circle"></i>
+              <span>Gastos</span>
+            </button>
+            <button type="button" class="nav-sub-btn" data-action="triggerZClose">
+              <i class="bi bi-lock"></i>
+              <span>Cierre Z</span>
+            </button>
+          </div>
+        </div>
 
-        <!-- Tab 4: Regencia DIGEMID & Controlados (Visible para Q.F., Gerente) -->
-        <button type="button" class="nav-tab-btn" data-view="viewDigemid" data-roles="qf,admin">
-          <span class="tab-icon"><i class="bi bi-file-earmark-medical"></i></span>
-          <span class="tab-label">4. Recetas DIGEMID</span>
-          <span class="badge-tab-notify info"><span class="status-dot neutral"></span> 3 Recetas</span>
-        </button>
+        <!-- Módulo 4: Clientes (Plegable) -->
+        <div class="nav-module-group" data-module="clients" data-roles="all">
+          <button type="button" class="nav-module-header">
+            <span class="nav-module-title">
+              <span class="tab-icon"><i class="bi bi-people"></i></span>
+              <span>Clientes</span>
+            </span>
+            <i class="bi bi-chevron-down nav-chevron"></i>
+          </button>
+          <div class="nav-submodules">
+            <button type="button" class="nav-sub-btn" data-view="viewClients" data-action="openClientsDirectory">
+              <i class="bi bi-person-lines-fill"></i>
+              <span>Directorio</span>
+            </button>
+            <button type="button" class="nav-sub-btn" data-view="viewClients" data-action="openClientsPoints">
+              <i class="bi bi-award"></i>
+              <span>Puntos</span>
+            </button>
+          </div>
+        </div>
 
-        <!-- Tab 5: Gestión de Colaboradores & Turnos (Visible para Gerente) -->
-        <button type="button" class="nav-tab-btn" data-view="viewStaff" data-roles="admin">
-          <span class="tab-icon"><i class="bi bi-people"></i></span>
-          <span class="tab-label">5. Personal & Turnos</span>
-        </button>
+        <!-- Módulo 5: Inventario (Plegable) -->
+        <div class="nav-module-group" data-module="inventory" data-roles="qf,admin,tech,cashier">
+          <button type="button" class="nav-module-header">
+            <span class="nav-module-title">
+              <span class="tab-icon"><i class="bi bi-boxes"></i></span>
+              <span>Inventario</span>
+            </span>
+            <i class="bi bi-chevron-down nav-chevron"></i>
+          </button>
+          <div class="nav-submodules">
+            <button type="button" class="nav-sub-btn" data-view="viewWarehouse">
+              <i class="bi bi-capsule"></i>
+              <span>Productos</span>
+              <span class="tab-kbd-hint" style="margin-left: auto;">F3</span>
+            </button>
+            <button type="button" class="nav-sub-btn" data-action="openFefoAlerts">
+              <i class="bi bi-hourglass-split"></i>
+              <span>Lotes</span>
+            </button>
+            <button type="button" class="nav-sub-btn" data-action="openKardex">
+              <i class="bi bi-journal-text"></i>
+              <span>Kardex</span>
+            </button>
+            <button type="button" class="nav-sub-btn" data-action="openCategories">
+              <i class="bi bi-tags"></i>
+              <span>Categorías</span>
+            </button>
+            <button type="button" class="nav-sub-btn" data-action="openAdjustments">
+              <i class="bi bi-sliders"></i>
+              <span>Cuadre</span>
+            </button>
+          </div>
+        </div>
 
-        <!-- Tab 6: Torre de Control Gerencial (Visible para Gerente) -->
-        <button type="button" class="nav-tab-btn active" data-view="viewManagement" data-roles="admin">
-          <span class="tab-icon"><i class="bi bi-graph-up"></i></span>
-          <span class="tab-label">6. Torre de Control</span>
-          <span class="badge-tab-notify live"><span class="status-dot active pulse"></span> En Vivo</span>
-        </button>
+        <!-- Módulo 6: Compras (Plegable) -->
+        <div class="nav-module-group" data-module="purchases" data-roles="admin,qf">
+          <button type="button" class="nav-module-header">
+            <span class="nav-module-title">
+              <span class="tab-icon"><i class="bi bi-truck"></i></span>
+              <span>Compras</span>
+            </span>
+            <i class="bi bi-chevron-down nav-chevron"></i>
+          </button>
+          <div class="nav-submodules">
+            <button type="button" class="nav-sub-btn" data-action="openReceiveModal">
+              <i class="bi bi-box-arrow-in-down"></i>
+              <span>Ingresos</span>
+            </button>
+            <button type="button" class="nav-sub-btn" data-action="openSuppliers">
+              <i class="bi bi-building"></i>
+              <span>Proveedores</span>
+            </button>
+            <button type="button" class="nav-sub-btn" data-action="openExchanges">
+              <i class="bi bi-arrow-repeat"></i>
+              <span>Canjes</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Módulo 7: DIGEMID (Plegable) -->
+        <div class="nav-module-group" data-module="digemid" data-roles="qf,admin,tech,cashier">
+          <button type="button" class="nav-module-header">
+            <span class="nav-module-title">
+              <span class="tab-icon"><i class="bi bi-file-earmark-medical"></i></span>
+              <span>DIGEMID</span>
+            </span>
+            <i class="bi bi-chevron-down nav-chevron"></i>
+          </button>
+          <div class="nav-submodules">
+            <button type="button" class="nav-sub-btn" data-view="viewDigemid">
+              <i class="bi bi-journal-medical"></i>
+              <span>Recetas</span>
+              <span class="tab-kbd-hint" style="margin-left: auto;">F4</span>
+            </button>
+            <button type="button" class="nav-sub-btn" data-action="openVault">
+              <i class="bi bi-shield-lock"></i>
+              <span>Bóveda</span>
+            </button>
+            <button type="button" class="nav-sub-btn" data-action="openDigemidBalance">
+              <i class="bi bi-printer"></i>
+              <span>Balances</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Módulo 8: Reportes (Plegable) -->
+        <div class="nav-module-group" data-module="reports" data-roles="admin,qf">
+          <button type="button" class="nav-module-header">
+            <span class="nav-module-title">
+              <span class="tab-icon"><i class="bi bi-graph-up-arrow"></i></span>
+              <span>Reportes</span>
+            </span>
+            <i class="bi bi-chevron-down nav-chevron"></i>
+          </button>
+          <div class="nav-submodules">
+            <button type="button" class="nav-sub-btn" data-action="openAccountantReport">
+              <i class="bi bi-file-spreadsheet"></i>
+              <span>Contador</span>
+            </button>
+            <button type="button" class="nav-sub-btn" data-action="openRestockReport">
+              <i class="bi bi-cart-check"></i>
+              <span>Reposición</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Módulo 9: Ajustes (Plegable) -->
+        <div class="nav-module-group" data-module="settings" data-roles="admin">
+          <button type="button" class="nav-module-header">
+            <span class="nav-module-title">
+              <span class="tab-icon"><i class="bi bi-gear"></i></span>
+              <span>Ajustes</span>
+            </span>
+            <i class="bi bi-chevron-down nav-chevron"></i>
+          </button>
+          <div class="nav-submodules">
+            <button type="button" class="nav-sub-btn" data-action="openSettingsBotica">
+              <i class="bi bi-shop"></i>
+              <span>Botica</span>
+            </button>
+            <button type="button" class="nav-sub-btn" data-action="openSettingsSunat">
+              <i class="bi bi-shield-check"></i>
+              <span>SUNAT</span>
+            </button>
+            <button type="button" class="nav-sub-btn" data-view="viewStaff">
+              <i class="bi bi-people"></i>
+              <span>Personal</span>
+            </button>
+            <button type="button" class="nav-sub-btn" data-action="downloadBackup">
+              <i class="bi bi-database-down"></i>
+              <span>Backups</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Pie del Sidebar: Perfil del Usuario Activo & Cerrar Sesión -->
@@ -380,6 +555,18 @@
                   <span class="p-name"><i class="bi bi-person"></i> Cliente General</span>
                   <span class="p-points"><span class="status-dot free"></span> 0 Puntos</span>
                 </div>
+                <!-- Banner interactivo de canje de puntos de fidelización -->
+                <div id="patientPointsRedeemBox" style="display: none; align-items: center; justify-content: space-between; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 6px 10px; margin-top: 6px; font-size: 11.5px;">
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <i class="bi bi-gift-fill" style="color: #d97706; font-size: 13px;"></i>
+                    <span style="color: #92400e; font-weight: 700;">
+                      <span id="lblAvailablePoints">0</span> Pts disponibles (S/ <span id="lblPointsSolValue">0.00</span>)
+                    </span>
+                  </div>
+                  <button type="button" class="btn-action-outline" id="btnRedeemPointsAction" style="padding: 2px 8px; font-size: 10.5px; font-weight: 700; color: #b45309; border-color: #f59e0b; background: #fff;" onclick="counterApp.togglePointsRedeem()">
+                    <i class="bi bi-tag-fill"></i> <span id="btnRedeemPointsText">Aplicar Canje</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -410,6 +597,10 @@
               <div class="tot-row">
                 <span>Subtotal sin IGV:</span>
                 <span id="ticketBaseAmount">S/ 0.00</span>
+              </div>
+              <div class="tot-row" id="ticketDiscountRow" style="display: none; color: #b45309; font-weight: 700;">
+                <span><i class="bi bi-tag-fill"></i> Dcto. Club de Puntos:</span>
+                <span id="ticketDiscountAmount">- S/ 0.00</span>
               </div>
               <div class="tot-row">
                 <span>IGV (18%):</span>
@@ -731,6 +922,118 @@
               </thead>
               <tbody id="whTableBody">
                 <!-- Renderizado desde app.js -->
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- *************************************************************
+           VISTA: DIRECTORIO & PADRÓN DE CLIENTES DNI / RUC (MÓDULO 4)
+      ************************************************************* -->
+      <section id="viewClients" class="app-view-panel">
+        <div class="valetec-card-box">
+          
+          <div class="card-header-flex">
+            <div>
+              <h2 class="view-heading"><i class="bi bi-people"></i> Directorio & Padrón de Clientes</h2>
+              <p class="view-subheading">Gestión centralizada de pacientes DNI, empresas con RUC para facturación fiscal y puntos de fidelización.</p>
+            </div>
+            <div class="header-actions-group">
+              <button type="button" class="btn-primary" id="btnOpenNewClientDrawer" onclick="clientsApp.openClientDrawer()">
+                <i class="bi bi-person-plus-fill"></i> <span>Nuevo Cliente</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 3 Tarjetas KPI SaaS 2026 -->
+          <div class="client-kpi-grid">
+            <div class="client-kpi-card">
+              <div class="client-kpi-icon dni">
+                <i class="bi bi-people-fill"></i>
+              </div>
+              <div class="client-kpi-info">
+                <span class="client-kpi-label">Pacientes Registrados</span>
+                <span class="client-kpi-val" id="kpiTotalDni">0</span>
+              </div>
+            </div>
+
+            <div class="client-kpi-card">
+              <div class="client-kpi-icon ruc">
+                <i class="bi bi-building"></i>
+              </div>
+              <div class="client-kpi-info">
+                <span class="client-kpi-label">Empresas con RUC</span>
+                <span class="client-kpi-val" id="kpiTotalRuc">0</span>
+              </div>
+            </div>
+
+            <div class="client-kpi-card">
+              <div class="client-kpi-icon points">
+                <i class="bi bi-award-fill"></i>
+              </div>
+              <div class="client-kpi-info">
+                <span class="client-kpi-label">Puntos en Circulación</span>
+                <span class="client-kpi-val" id="kpiTotalPoints">0 Pts</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Banner Informativo del Club de Puntos & Fidelización -->
+          <div id="clientsClubBanner" style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 1px solid #fde68a; border-radius: 12px; padding: 14px 18px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <div style="width: 44px; height: 44px; border-radius: 10px; background: #f59e0b; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);">
+                <i class="bi bi-gift-fill"></i>
+              </div>
+              <div>
+                <strong style="color: #92400e; font-size: 13.5px; display: block;">Club de Fidelización & Canje de Puntos Valetec</strong>
+                <small style="color: #78350f; font-size: 12px;">Regla activa: <strong>1 Punto por cada S/ 10.00</strong> en compras • Tasa de canje: <strong>10 Puntos = S/ 1.00</strong> de descuento en mostrador.</small>
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span class="badge" style="background: #ffffff; border: 1px solid #fcd34d; color: #78350f; font-weight: 700; font-size: 11.5px; padding: 6px 10px; border-radius: 6px;">
+                🥉 Bronce (0-49p) • 🥈 Plata (50-199p) • 🥇 Oro (200+p)
+              </span>
+            </div>
+          </div>
+
+          <!-- Barra de Búsqueda y Pestañas de Filtrado -->
+          <div class="client-filter-bar">
+            <div class="client-search-box">
+              <i class="bi bi-search"></i>
+              <input 
+                type="text" 
+                id="clientDirectorySearchInput" 
+                placeholder="Buscar por DNI, RUC, Nombres o Razón Social..." 
+                class="form-input" 
+                oninput="clientsApp.onSearchInput(event)"
+              >
+            </div>
+            <div class="client-tabs">
+              <button type="button" class="client-tab-btn active" id="tabFilterAllClients" onclick="clientsApp.setFilter('all')">Todos (<span id="countFilterAll">0</span>)</button>
+              <button type="button" class="client-tab-btn" id="tabFilterDniClients" onclick="clientsApp.setFilter('DNI')">Pacientes DNI (<span id="countFilterDni">0</span>)</button>
+              <button type="button" class="client-tab-btn" id="tabFilterRucClients" onclick="clientsApp.setFilter('RUC')">Empresas RUC (<span id="countFilterRuc">0</span>)</button>
+              <button type="button" class="client-tab-btn" id="tabFilterPointsClients" onclick="clientsApp.setFilter('points')">Con Puntos (<span id="countFilterPoints">0</span>)</button>
+            </div>
+          </div>
+
+          <!-- Tabla Maestra de Clientes -->
+          <div class="table-responsive-container">
+            <table class="valetec-table">
+              <thead>
+                <tr>
+                  <th style="width: 130px;">Documento</th>
+                  <th>Nombre Completo / Razón Social</th>
+                  <th>Teléfono / WhatsApp</th>
+                  <th>Correo Electrónico</th>
+                  <th>Dirección Fiscal / Domicilio</th>
+                  <th style="text-align: center; width: 140px;">Club de Puntos</th>
+                  <th style="text-align: right; width: 190px;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="clientsTableBody">
+                <!-- Render dinámico desde clientsApp -->
               </tbody>
             </table>
           </div>
@@ -1493,428 +1796,632 @@
     </div>
   </div>
 
-  <!-- Modal 9: Alta y Edición Maestra de Medicamentos (Fase A - Módulo 1) -->
-  <div class="modal-backdrop-valetec" id="medicineFormModal">
-    <div class="modal-dialog-valetec" style="max-width: 680px; width: 95%;">
-      <div class="modal-header-valetec">
-        <h3 id="medModalTitle"><i class="bi bi-capsule text-teal"></i> Alta de Nuevo Medicamento</h3>
-        <button type="button" class="btn-close-modal" id="btnCloseMedicineModal" onclick="warehouseApp.closeMedicineModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
+  <!-- =============================================================
+       DRAWER DE ALTA Y EDICIÓN DE MEDICAMENTO (MODERNO PANEL LATERAL)
+  ============================================================= -->
+  <div class="drawer-backdrop" id="productDrawerBackdrop" onclick="warehouseApp.closeMedicineDrawer()"></div>
+  <aside class="drawer" id="productDrawer" aria-labelledby="productDrawerTitle" role="dialog" aria-modal="true">
+    <div class="drawer-header">
+      <div>
+        <h3 id="productDrawerTitle"><i class="bi bi-capsule text-teal"></i> Alta de Nuevo Medicamento</h3>
+        <p>Catálogo maestro y presentaciones de venta al paciente</p>
       </div>
-      <form id="medicineForm" onsubmit="warehouseApp.saveMedicine(event)">
-        <input type="hidden" id="medId" value="">
-        <div class="modal-body-valetec" style="max-height: 75vh; overflow-y: auto; padding: 18px;">
-          
-          <div style="background: #f1f5f9; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-weight: 700; color: #334155; font-size: 13px;">
-            1. Datos Maestros del Fármaco
-          </div>
-          <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-            <div class="form-group-valetec">
-              <label>Nombre Comercial:</label>
-              <input type="text" id="medName" placeholder="Ej. Valetec-Dol Forte 500mg" required class="form-control">
-            </div>
-            <div class="form-group-valetec">
-              <label>DCI / Principio Activo:</label>
-              <input type="text" id="medGenericDci" placeholder="Ej. Paracetamol + Cafeína" required class="form-control">
-            </div>
-            <div class="form-group-valetec">
-              <label>Código de Barras (EAN-13):</label>
-              <input type="text" id="medBarcode" placeholder="Escanear o autogenerar" class="form-control">
-            </div>
-            <div class="form-group-valetec">
-              <label>Laboratorio:</label>
-              <input type="text" id="medLaboratory" placeholder="Ej. Laboratorios Bagó" required class="form-control">
-            </div>
-            <div class="form-group-valetec">
-              <label>Categoría Farmacéutica:</label>
-              <select id="medCategoryId" class="form-select-valetec" required>
-                <option value="1">Dolor y Fiebre</option>
-                <option value="2">Antibióticos y Antivirales</option>
-                <option value="3">Gastrointestinal y Digestivos</option>
-                <option value="4">Psicotrópicos y Controlados</option>
-                <option value="5">Vitaminas y Suplementos</option>
-                <option value="6">Respiratorio y Alergias</option>
-              </select>
-            </div>
-            <div class="form-group-valetec">
-              <label>Ubicación en Anaquel:</label>
-              <input type="text" id="medLocation" placeholder="Ej. Pasillo 1 • Anaquel A-1" value="Pasillo 1 • Anaquel A-1" required class="form-control">
-            </div>
-          </div>
+      <button type="button" class="drawer-close" id="btnCloseProductDrawer" onclick="warehouseApp.closeMedicineDrawer()" aria-label="Cerrar panel">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
 
-          <div style="background: #f1f5f9; padding: 8px 12px; border-radius: 6px; margin: 16px 0 12px 0; font-weight: 700; color: #334155; font-size: 13px;">
-            2. Normativa Sanitaria DIGEMID & Control
-          </div>
-          <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-            <div class="form-group-valetec">
-              <label>Registro Sanitario DIGEMID:</label>
-              <input type="text" id="medSanitaryRegistry" placeholder="Ej. EE-04812" class="form-control">
-            </div>
-            <div class="form-group-valetec">
-              <label>Condición de Venta:</label>
-              <select id="medPrescriptionType" class="form-select-valetec" required>
-                <option value="free">Venta Libre</option>
-                <option value="required">Receta Médica Simple</option>
-                <option value="retained">Receta Retenida (Controlado / Psicotrópico)</option>
-              </select>
-            </div>
-          </div>
+    <form id="productDrawerForm" onsubmit="warehouseApp.saveMedicine(event)" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
+      <input type="hidden" id="medId" value="">
 
-          <div style="background: #f1f5f9; padding: 8px 12px; border-radius: 6px; margin: 16px 0 12px 0; font-weight: 700; color: #334155; font-size: 13px;">
-            3. Precios y Fraccionamiento al Paciente
+      <div class="drawer-body">
+        
+        <!-- Sección 1: Datos Maestros del Fármaco -->
+        <div class="drawer-section-title">
+          <i class="bi bi-info-circle text-teal"></i> 1. Identificación y Ubicación
+        </div>
+        <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div class="form-group-valetec" style="grid-column: 1 / -1;">
+            <label>Nombre Comercial: <span class="text-danger">*</span></label>
+            <input type="text" id="medName" placeholder="Ej. Valetec-Dol Forte 500mg" required class="form-input">
           </div>
-          <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
-            <div class="form-group-valetec">
-              <label>Precio Caja (S/):</label>
-              <input type="number" step="0.10" min="0" id="medBoxPrice" placeholder="0.00" required class="form-control" oninput="warehouseApp.autoCalcPrices()">
+          <div class="form-group-valetec" style="grid-column: 1 / -1;">
+            <label>DCI / Principio Activo: <span class="text-danger">*</span></label>
+            <input type="text" id="medGenericDci" placeholder="Ej. Paracetamol + Cafeína" required class="form-input">
+          </div>
+          <div class="form-group-valetec">
+            <label>Código de Barras (EAN-13):</label>
+            <input type="text" id="medBarcode" placeholder="Escanear o autogenerar" class="form-input">
+          </div>
+          <div class="form-group-valetec">
+            <label>Laboratorio: <span class="text-danger">*</span></label>
+            <input type="text" id="medLaboratory" placeholder="Ej. Laboratorios Bagó" required class="form-input">
+          </div>
+          <div class="form-group-valetec">
+            <label>Categoría Farmacéutica: <span class="text-danger">*</span></label>
+            <select id="medCategoryId" class="form-select" required>
+              <option value="1">Dolor y Fiebre</option>
+              <option value="2">Antibióticos y Antivirales</option>
+              <option value="3">Gastrointestinal y Digestivos</option>
+              <option value="4">Psicotrópicos y Controlados</option>
+              <option value="5">Vitaminas y Suplementos</option>
+              <option value="6">Respiratorio y Alergias</option>
+            </select>
+          </div>
+          <div class="form-group-valetec">
+            <label>Ubicación en Anaquel: <span class="text-danger">*</span></label>
+            <input type="text" id="medLocation" placeholder="Ej. Pasillo 1 • Anaquel A-1" value="Pasillo 1 • Anaquel A-1" required class="form-input">
+          </div>
+        </div>
+
+        <!-- Sección 2: Normativa Sanitaria DIGEMID -->
+        <div class="drawer-section-title">
+          <i class="bi bi-shield-check text-teal"></i> 2. Normativa DIGEMID & Control
+        </div>
+        <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div class="form-group-valetec">
+            <label>Registro Sanitario DIGEMID:</label>
+            <input type="text" id="medSanitaryRegistry" placeholder="Ej. EE-04812" class="form-input">
+          </div>
+          <div class="form-group-valetec">
+            <label>Condición de Venta: <span class="text-danger">*</span></label>
+            <select id="medPrescriptionType" class="form-select" required>
+              <option value="free">Venta Libre</option>
+              <option value="required">Receta Médica Simple</option>
+              <option value="retained">Receta Retenida (Psicotrópico)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Sección 3: Presentaciones de Venta y Precios Opcionales -->
+        <div class="drawer-section-title">
+          <i class="bi bi-tags text-teal"></i> 3. Presentaciones & Precios Opcionales
+        </div>
+        <p style="font-size: 11.5px; color: #64748b; margin: -4px 0 10px 0;">
+          Activa mediante los switches solo las presentaciones en que se dispensará este producto:
+        </p>
+
+        <!-- Presentación: CAJA -->
+        <div class="presentation-card active" id="cardPresentationBox">
+          <div class="presentation-card-header">
+            <div class="presentation-card-title">
+              <i class="bi bi-box-seam"></i>
+              <span>Venta por Caja</span>
             </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggleSellBox" checked onchange="warehouseApp.handlePresentationToggle('box')">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="presentation-card-body" id="bodyPresentationBox">
             <div class="form-group-valetec">
-              <label>Precio Blíster (S/):</label>
-              <input type="number" step="0.10" min="0" id="medBlisterPrice" placeholder="0.00" required class="form-control">
-            </div>
-            <div class="form-group-valetec">
-              <label>Precio Pastilla/U (S/):</label>
-              <input type="number" step="0.05" min="0" id="medUnitPrice" placeholder="0.00" required class="form-control">
+              <label>Precio Caja (S/): <span class="text-danger">*</span></label>
+              <input type="number" step="0.10" min="0" id="medBoxPrice" placeholder="0.00" class="form-input" oninput="warehouseApp.autoCalcPrices()">
             </div>
             <div class="form-group-valetec">
               <label>Unidades x Caja:</label>
-              <input type="number" min="1" id="medUnitsPerBox" value="100" class="form-control" oninput="warehouseApp.autoCalcPrices()">
+              <input type="number" min="1" id="medUnitsPerBox" value="100" class="form-input" oninput="warehouseApp.autoCalcPrices()">
+            </div>
+          </div>
+        </div>
+
+        <!-- Presentación: BLÍSTER -->
+        <div class="presentation-card active" id="cardPresentationBlister">
+          <div class="presentation-card-header">
+            <div class="presentation-card-title">
+              <i class="bi bi-grid-3x2-gap"></i>
+              <span>Venta por Blíster</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggleSellBlister" checked onchange="warehouseApp.handlePresentationToggle('blister')">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="presentation-card-body" id="bodyPresentationBlister">
+            <div class="form-group-valetec">
+              <label>Precio Blíster (S/): <span class="text-danger">*</span></label>
+              <input type="number" step="0.10" min="0" id="medBlisterPrice" placeholder="0.00" class="form-input">
             </div>
             <div class="form-group-valetec">
               <label>Unidades x Blíster:</label>
-              <input type="number" min="1" id="medUnitsPerBlister" value="10" class="form-control" oninput="warehouseApp.autoCalcPrices()">
-            </div>
-            <div class="form-group-valetec" style="display: flex; align-items: flex-end;">
-              <small style="color: #64748b; font-size: 11px;">El fraccionamiento calcula stock exacto al vender.</small>
+              <input type="number" min="1" id="medUnitsPerBlister" value="10" class="form-input" oninput="warehouseApp.autoCalcPrices()">
             </div>
           </div>
+        </div>
 
-          <div id="medInitialStockSection" style="margin-top: 14px;">
-            <div style="background: #f1f5f9; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-weight: 700; color: #334155; font-size: 13px;">
-              4. Stock y Lote Inicial (Opcional)
+        <!-- Presentación: UNIDAD / PASTILLA SUELTA -->
+        <div class="presentation-card active" id="cardPresentationUnit">
+          <div class="presentation-card-header">
+            <div class="presentation-card-title">
+              <i class="bi bi-capsule"></i>
+              <span>Venta por Unidad / Pastilla Suelta</span>
             </div>
-            <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
-              <div class="form-group-valetec">
-                <label>Cajas a Ingresar:</label>
-                <input type="number" min="0" id="medInitialBoxes" value="0" class="form-control">
-              </div>
-              <div class="form-group-valetec">
-                <label>N° Lote:</label>
-                <input type="text" id="medLotNumber" placeholder="Ej. L-24110" class="form-control">
-              </div>
-              <div class="form-group-valetec">
-                <label>Fecha Vencimiento:</label>
-                <input type="date" id="medExpireDate" class="form-control">
-              </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggleSellUnit" checked onchange="warehouseApp.handlePresentationToggle('unit')">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="presentation-card-body" id="bodyPresentationUnit">
+            <div class="form-group-valetec" style="grid-column: 1 / -1;">
+              <label>Precio Unitario / Pastilla (S/): <span class="text-danger">*</span></label>
+              <input type="number" step="0.05" min="0" id="medUnitPrice" placeholder="0.00" class="form-input">
             </div>
           </div>
+        </div>
 
+        <!-- Sección 4: Stock Inicial (Solo en modo creación) -->
+        <div id="medInitialStockSection">
+          <div class="drawer-section-title">
+            <i class="bi bi-archive text-teal"></i> 4. Stock y Lote Inicial (Opcional)
+          </div>
+          <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+            <div class="form-group-valetec">
+              <label>Cajas a Ingresar:</label>
+              <input type="number" min="0" id="medInitialBoxes" value="0" class="form-input">
+            </div>
+            <div class="form-group-valetec">
+              <label>N° Lote:</label>
+              <input type="text" id="medLotNumber" placeholder="Ej. L-24110" class="form-input">
+            </div>
+            <div class="form-group-valetec">
+              <label>Fecha Vencimiento:</label>
+              <input type="date" id="medExpireDate" class="form-input">
+            </div>
+          </div>
         </div>
-        <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; gap: 8px; padding: 12px 18px;">
-          <button type="button" class="btn-action-outline" onclick="warehouseApp.closeMedicineModal()">Cancelar [Esc]</button>
-          <button type="submit" class="btn-action-solid" id="btnSaveMedicineSubmit">
-            <i class="bi bi-check-lg"></i> <span>Guardar Fármaco</span>
-          </button>
-        </div>
-      </form>
+
+      </div>
+
+      <div class="drawer-footer">
+        <button type="button" class="btn-secondary" id="btnCancelProductDrawer" onclick="warehouseApp.closeMedicineDrawer()">Cancelar [Esc]</button>
+        <button type="submit" class="btn-primary" id="btnSaveMedicineSubmit">
+          <i class="bi bi-check-lg"></i> <span>Guardar Fármaco</span>
+        </button>
+      </div>
+    </form>
+  </aside>
+
+  <!-- Drawer: Clasificación Farmacéutica - Categorías y Laboratorios (SaaS 2026) -->
+  <div class="drawer-backdrop" id="classificationDrawerBackdrop" onclick="classificationApp.closeModal()"></div>
+  <aside class="drawer drawer-wide" id="classificationDrawer" aria-labelledby="classificationDrawerTitle" role="dialog" aria-modal="true">
+    <div class="drawer-header">
+      <div>
+        <h3 id="classificationDrawerTitle"><i class="bi bi-tags text-teal"></i> Familias Terapéuticas & Laboratorios</h3>
+        <p>Clasificación maestra de categorías, laboratorios fabricantes y droguerías</p>
+      </div>
+      <button type="button" class="drawer-close" id="btnCloseClassificationDrawer" onclick="classificationApp.closeModal()" aria-label="Cerrar panel">
+        <i class="bi bi-x-lg"></i>
+      </button>
     </div>
-  </div>
 
-  <!-- Modal 10: Clasificación Farmacéutica - Categorías y Laboratorios (Fase A - Módulo 2) -->
-  <div class="modal-backdrop-valetec" id="classificationModal">
-    <div class="modal-dialog-valetec" style="max-width: 820px; width: 95%;">
-      <div class="modal-header-valetec">
-        <h3><i class="bi bi-tags text-blue"></i> Clasificación Farmacéutica (Categorías & Laboratorios)</h3>
-        <button type="button" class="btn-close-modal" onclick="classificationApp.closeModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
+    <!-- Pestañas internas superiores -->
+    <div style="padding: 12px 24px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+      <div class="fefo-tabs">
+        <button type="button" id="tabBtnCategories" class="fefo-tab-btn active" data-tab="categories" onclick="classificationApp.switchTab('categories')">
+          <i class="bi bi-bookmark-check text-teal"></i> Categorías Farmacéuticas
+        </button>
+        <button type="button" id="tabBtnLaboratories" class="fefo-tab-btn" data-tab="laboratories" onclick="classificationApp.switchTab('laboratories')">
+          <i class="bi bi-building text-blue"></i> Laboratorios & Droguerías
+        </button>
       </div>
-      <div class="modal-body-valetec" style="max-height: 75vh; overflow-y: auto; padding: 18px;">
-        
-        <!-- Pestañas internas -->
-        <div style="display: flex; gap: 8px; border-bottom: 2px solid #e2e8f0; margin-bottom: 16px;">
-          <button type="button" id="tabBtnCategories" class="btn-action-solid" style="padding: 6px 14px; font-size: 13px;" onclick="classificationApp.switchTab('categories')">
-            Categorías Farmacéuticas
-          </button>
-          <button type="button" id="tabBtnLaboratories" class="btn-action-outline" style="padding: 6px 14px; font-size: 13px;" onclick="classificationApp.switchTab('laboratories')">
-            Laboratorios Farmacéuticos
-          </button>
-        </div>
-
-        <!-- Vista Pestaña 1: Categorías -->
-        <div id="classificationCategoriesTab">
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
-            <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #1e293b; display: flex; align-items: center; gap: 6px;"><i class="bi bi-plus-circle text-teal"></i> Nueva Categoría</h4>
-            <form id="newCategoryForm" onsubmit="classificationApp.createCategory(event)" style="display: flex; gap: 10px; flex-wrap: wrap;">
-              <input type="text" id="newCatName" placeholder="Nombre (ej. Oftalmología)" required class="form-control" style="flex: 2; min-width: 200px;">
-              <input type="text" id="newCatIcon" placeholder="Icono (ej. bi-eye)" value="bi-capsule" class="form-control" style="flex: 1; min-width: 140px;">
-              <button type="submit" class="btn-action-solid" style="padding: 6px 16px;">
-                <i class="bi bi-plus-lg"></i> <span>Registrar</span>
-              </button>
-            </form>
-          </div>
-
-          <div class="table-responsive-container">
-            <table class="valetec-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Categoría</th>
-                  <th>Slug</th>
-                  <th>Medicamentos</th>
-                  <th style="text-align: right;">Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="categoriesTableBody">
-                <!-- Render dinámico -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Vista Pestaña 2: Laboratorios -->
-        <div id="classificationLaboratoriesTab" style="display: none;">
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
-            <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #1e293b; display: flex; align-items: center; gap: 6px;"><i class="bi bi-plus-circle text-teal"></i> Nuevo Laboratorio</h4>
-            <form id="newLaboratoryForm" onsubmit="classificationApp.createLaboratory(event)" style="display: flex; gap: 10px; flex-wrap: wrap;">
-              <input type="text" id="newLabName" placeholder="Nombre (ej. Laboratorios Roemmers)" required class="form-control" style="flex: 2; min-width: 200px;">
-              <input type="text" id="newLabCountry" placeholder="País (ej. Argentina)" value="Perú" class="form-control" style="flex: 1; min-width: 120px;">
-              <input type="text" id="newLabContact" placeholder="Contacto / Teléfono" class="form-control" style="flex: 1; min-width: 140px;">
-              <button type="submit" class="btn-action-solid" style="padding: 6px 16px;">
-                <i class="bi bi-plus-lg"></i> <span>Registrar</span>
-              </button>
-            </form>
-          </div>
-
-          <div class="table-responsive-container">
-            <table class="valetec-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Laboratorio</th>
-                  <th>País de Origen</th>
-                  <th>Medicamentos</th>
-                  <th style="text-align: right;">Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="laboratoriesTableBody">
-                <!-- Render dinámico -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-      </div>
-      <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px;">
-        <small style="color: #64748b;">Las categorías o laboratorios con medicamentos asignados no pueden eliminarse sin antes reasignarlos.</small>
-        <button type="button" class="btn-action-outline" onclick="classificationApp.closeModal()">Cerrar [Esc]</button>
+      <div style="font-size: 11.5px; color: #64748b; font-weight: 600;">
+        <span id="classificationCountBadge">0 categorías</span>
       </div>
     </div>
-  </div>
 
-  <!-- Modal 11: Ajuste de Stock, Mermas y Bajas (Fase A - Módulo 3) -->
-  <div class="modal-backdrop-valetec" id="stockAdjustmentModal">
-    <div class="modal-dialog-valetec" style="max-width: 650px; width: 95%;">
-      <div class="modal-header-valetec">
-        <h3><i class="bi bi-sliders text-teal"></i> Ajuste de Stock & Registro de Mermas</h3>
-        <button type="button" class="btn-close-modal" onclick="warehouseApp.closeAdjustmentModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
-      </div>
-      <form id="stockAdjustmentForm" onsubmit="warehouseApp.submitAdjustment(event)">
-        <div class="modal-body-valetec" style="padding: 20px;">
-          
-          <div class="form-group-valetec" style="margin-bottom: 14px;">
-            <label>Medicamento a Ajustar:</label>
-            <select id="adjProductId" class="form-select-valetec" required onchange="warehouseApp.onAdjustmentProductChange()">
-              <option value="">-- Seleccionar Medicamento --</option>
-            </select>
-          </div>
-
-          <div id="adjProductInfo" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 13px;">
-            <div style="display: flex; justify-content: space-between;">
-              <span>Stock actual total: <strong id="adjCurrentStock">0 unid.</strong></span>
-              <span id="adjLocationBadge" class="shelf-tag"><i class="bi bi-geo-alt"></i> Anaquel</span>
-            </div>
-          </div>
-
-          <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
-            <div class="form-group-valetec">
-              <label>Lote Afectado:</label>
-              <select id="adjLotId" class="form-select-valetec" required>
-                <option value="">-- Primer Lote Disponible --</option>
-              </select>
-            </div>
-            <div class="form-group-valetec">
-              <label>Tipo de Movimiento / Motivo:</label>
-              <select id="adjType" class="form-select-valetec" required>
-                <optgroup label="Salidas y Bajas (Disminuye Stock)">
-                  <option value="spoilage">Merma / Frasco Quebrado / Fuga</option>
-                  <option value="expired">Vencimiento / Baja DIGEMID</option>
-                  <option value="breakage">Deterioro / Blíster Roto</option>
-                  <option value="diff_out">Diferencia de Inventario (Faltante)</option>
-                  <option value="donation">Muestra Médica / Donación</option>
-                </optgroup>
-                <optgroup label="Ingresos Extraordinarios (Aumenta Stock)">
-                  <option value="diff_in">Diferencia de Inventario (Sobrante)</option>
-                  <option value="return_customer">Devolución / Reingreso</option>
-                </optgroup>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
-            <div class="form-group-valetec">
-              <label>Cantidad:</label>
-              <input type="number" min="1" id="adjQuantity" value="1" required class="form-control" style="font-size: 16px; font-weight: 700;">
-            </div>
-            <div class="form-group-valetec">
-              <label>Unidad de Medida:</label>
-              <select id="adjUnitType" class="form-select-valetec" required>
-                <option value="unit">Pastillas / Unidades sueltas</option>
-                <option value="blister">Blísters completos</option>
-                <option value="box">Cajas completas</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-group-valetec" style="margin-bottom: 14px;">
-            <label>Justificación Sanitaria Obligatoria (Auditoría BPA / Kardex):</label>
-            <textarea id="adjReason" rows="2" class="form-control" placeholder="Describa con exactitud el incidente (ej. Rotura al reponer en góndola por caída accidental)..." required minlength="4"></textarea>
-          </div>
-
+    <div class="drawer-body">
+      <!-- Vista Pestaña 1: Categorías -->
+      <div id="classificationCategoriesTab">
+        <!-- Formulario de Alta de Categoría -->
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <h4 style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+            <i class="bi bi-plus-circle text-teal"></i> Registrar Nueva Categoría Farmacéutica
+          </h4>
+          <form id="newCategoryForm" onsubmit="classificationApp.createCategory(event)" style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <input type="text" id="newCatName" placeholder="Nombre (ej. Analgésicos & Antiinflamatorios)" required class="form-input" style="flex: 2; min-width: 200px;">
+            <input type="text" id="newCatIcon" placeholder="Icono Bootstrap (ej. bi-heart-pulse)" value="bi-capsule" class="form-input" style="flex: 1; min-width: 140px;">
+            <button type="submit" class="btn-primary" style="padding: 0 16px; height: 40px;">
+              <i class="bi bi-plus-lg"></i> <span>Guardar</span>
+            </button>
+          </form>
         </div>
-        <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; gap: 10px; padding: 12px 18px;">
-          <button type="button" class="btn-action-outline" onclick="warehouseApp.closeAdjustmentModal()">Cancelar</button>
-          <button type="submit" class="btn-action-solid" style="background: #e11d48; color: white; border: none;">
-            <i class="bi bi-check2-circle"></i> <span>Aplicar Ajuste en Kardex</span>
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
 
-  <!-- Modal 12: Semáforo FEFO y Lotes por Vencer (Fase A - Módulo 3) -->
-  <div class="modal-backdrop-valetec" id="fefoAlertsModal">
-    <div class="modal-dialog-valetec" style="max-width: 850px; width: 95%;">
-      <div class="modal-header-valetec">
-        <h3><i class="bi bi-clock-history text-warning"></i> Semáforo FEFO: Control Integral de Vencimientos</h3>
-        <button type="button" class="btn-close-modal" onclick="warehouseApp.closeFefoAlertsModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
-      </div>
-      <div class="modal-body-valetec" style="max-height: 75vh; overflow-y: auto; padding: 18px;">
-        
-        <!-- Resumen de Semáforo -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 18px;">
-          <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px; text-align: center;">
-            <span class="status-dot retained" style="width: 10px; height: 10px; margin-bottom: 4px;"></span>
-            <div style="font-size: 22px; font-weight: 800; color: #dc2626;" id="fefoSummaryExpired">0</div>
-            <small style="color: #991b1b; font-weight: 600;">Vencidos / &lt; 30 días</small>
-          </div>
-          <div style="background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 12px; text-align: center;">
-            <span class="status-dot required" style="width: 10px; height: 10px; margin-bottom: 4px;"></span>
-            <div style="font-size: 22px; font-weight: 800; color: #d97706;" id="fefoSummaryWarning">0</div>
-            <small style="color: #92400e; font-weight: 600;">Próximo canje (31-90 días)</small>
-          </div>
-          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; text-align: center;">
-            <span class="status-dot free" style="width: 10px; height: 10px; margin-bottom: 4px;"></span>
-            <div style="font-size: 22px; font-weight: 800; color: #16a34a;" id="fefoSummarySafe">0</div>
-            <small style="color: #166534; font-weight: 600;">Vigente (&gt; 90 días)</small>
+        <!-- Buscador de Categorías -->
+        <div class="fefo-filter-bar" style="margin-bottom: 12px;">
+          <div class="fefo-search-box">
+            <i class="bi bi-search"></i>
+            <input type="text" id="searchCategoriesInput" class="form-input" placeholder="Buscar categoría o slug..." oninput="classificationApp.handleCategorySearch(this.value)">
           </div>
         </div>
 
-        <div class="table-responsive-container">
+        <div class="table-responsive-container" style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #ffffff;">
           <table class="valetec-table">
             <thead>
               <tr>
-                <th>Semáforo</th>
-                <th>Medicamento</th>
-                <th>Laboratorio</th>
-                <th>N° Lote</th>
-                <th>Vencimiento</th>
-                <th>Días Restantes</th>
-                <th>Stock</th>
-                <th style="text-align: right;">Acción</th>
+                <th style="width: 70px;">ID</th>
+                <th>Familia / Categoría</th>
+                <th>Slug Único</th>
+                <th>Medicamentos</th>
+                <th style="text-align: right; width: 220px;">Acciones</th>
               </tr>
             </thead>
-            <tbody id="fefoAlertsTableBody">
-              <!-- Render dinámico de lotes -->
-            </tbody>
-          </table>
-        </div>
-
-      </div>
-      <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px;">
-        <small style="color: #64748b;">Sistema FEFO automatizado conforme a normativa DIGEMID y Buenas Prácticas de Almacenamiento (BPA).</small>
-        <button type="button" class="btn-action-outline" onclick="warehouseApp.closeFefoAlertsModal()">Cerrar [Esc]</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal 13: Visor de Kardex Físico y Movimientos (Fase A - Módulo 4) -->
-  <div class="modal-backdrop-valetec" id="kardexViewerModal">
-    <div class="modal-dialog-valetec" style="max-width: 960px; width: 95%;">
-      <div class="modal-header-valetec">
-        <div>
-          <h3 id="kardexModalTitle"><i class="bi bi-journal-medical text-teal"></i> Ficha de Kardex Físico y Valorizado</h3>
-          <small id="kardexModalSubtitle" style="color: #64748b;">Cargando información sanitaria...</small>
-        </div>
-        <button type="button" class="btn-close-modal" onclick="warehouseApp.closeKardexModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
-      </div>
-      <div class="modal-body-valetec" style="max-height: 75vh; overflow-y: auto; padding: 18px;">
-        
-        <!-- Tarjetas de Valorización y Stock -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 16px;">
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px;">
-            <small style="color: #64748b; font-weight: 600;">Stock Físico Actual:</small>
-            <div style="font-size: 18px; font-weight: 800; color: #0f172a;" id="kardexStockDisplay">0 un.</div>
-            <small id="kardexBoxesDisplay" style="color: #0369a1;">0 cajas</small>
-          </div>
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px;">
-            <small style="color: #64748b; font-weight: 600;">P. Venta Unitario:</small>
-            <div style="font-size: 18px; font-weight: 800; color: #0d9488;" id="kardexUnitPriceDisplay">S/ 0.00</div>
-            <small id="kardexCostPriceDisplay" style="color: #64748b;">Costo: S/ 0.00</small>
-          </div>
-          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 14px;">
-            <small style="color: #166534; font-weight: 600;">Valor Total Venta:</small>
-            <div style="font-size: 18px; font-weight: 800; color: #15803d;" id="kardexValuedSaleDisplay">S/ 0.00</div>
-            <small style="color: #166534;">Capital estimado en tienda</small>
-          </div>
-          <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 14px;">
-            <small style="color: #1e40af; font-weight: 600;">Margen Potencial:</small>
-            <div style="font-size: 18px; font-weight: 800; color: #2563eb;" id="kardexMarginDisplay">S/ 0.00</div>
-            <small style="color: #3b82f6;">Ganancia proyectada</small>
-          </div>
-        </div>
-
-        <!-- Tabla Cronológica del Kardex -->
-        <h4 style="font-size: 13px; font-weight: 800; color: #334155; margin-bottom: 8px; text-transform: uppercase;">
-          <i class="bi bi-clock-history"></i> Cronología de Movimientos (Entradas, Salidas y Saldos)
-        </h4>
-        <div class="table-responsive-container">
-          <table class="valetec-table">
-            <thead>
-              <tr>
-                <th>Fecha & Hora</th>
-                <th>Movimiento</th>
-                <th>Comprobante / Ref</th>
-                <th>Lote</th>
-                <th style="text-align: right;">Entrada (+)</th>
-                <th style="text-align: right;">Salida (-)</th>
-                <th style="text-align: right;">Saldo</th>
-                <th>Operador</th>
-                <th>Justificación</th>
-              </tr>
-            </thead>
-            <tbody id="kardexTableBody">
+            <tbody id="categoriesTableBody">
               <!-- Render dinámico -->
             </tbody>
           </table>
         </div>
-
       </div>
-      <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px;">
-        <button type="button" class="btn-action-outline" onclick="warehouseApp.printKardex()">
-          <i class="bi bi-printer"></i> <span>Imprimir Ficha Kardex</span>
-        </button>
-        <button type="button" class="btn-action-outline" onclick="warehouseApp.closeKardexModal()">Cerrar [Esc]</button>
+
+      <!-- Vista Pestaña 2: Laboratorios -->
+      <div id="classificationLaboratoriesTab" style="display: none;">
+        <!-- Formulario de Alta de Laboratorio -->
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <h4 style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+            <i class="bi bi-plus-circle text-teal"></i> Registrar Nuevo Laboratorio o Droguería
+          </h4>
+          <form id="newLaboratoryForm" onsubmit="classificationApp.createLaboratory(event)" style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <input type="text" id="newLabName" placeholder="Razón Social / Nombre (ej. Laboratorios Roemmers S.A.)" required class="form-input" style="flex: 2; min-width: 200px;">
+            <input type="text" id="newLabCountry" placeholder="País (ej. Perú)" value="Perú" class="form-input" style="flex: 1; min-width: 120px;">
+            <input type="text" id="newLabContact" placeholder="Teléfono / Contacto" class="form-input" style="flex: 1; min-width: 140px;">
+            <button type="submit" class="btn-primary" style="padding: 0 16px; height: 40px;">
+              <i class="bi bi-plus-lg"></i> <span>Guardar</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Buscador de Laboratorios -->
+        <div class="fefo-filter-bar" style="margin-bottom: 12px;">
+          <div class="fefo-search-box">
+            <i class="bi bi-search"></i>
+            <input type="text" id="searchLaboratoriesInput" class="form-input" placeholder="Buscar laboratorio, país o contacto..." oninput="classificationApp.handleLaboratorySearch(this.value)">
+          </div>
+        </div>
+
+        <div class="table-responsive-container" style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #ffffff;">
+          <table class="valetec-table">
+            <thead>
+              <tr>
+                <th style="width: 70px;">ID</th>
+                <th>Laboratorio / Fabricante</th>
+                <th>País de Origen</th>
+                <th>Medicamentos</th>
+                <th style="text-align: right; width: 220px;">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="laboratoriesTableBody">
+              <!-- Render dinámico -->
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
-  </div>
+
+    <div class="drawer-footer" style="justify-content: space-between; align-items: center;">
+      <small style="color: #64748b; font-size: 11.5px; display: flex; align-items: center; gap: 6px;">
+        <i class="bi bi-shield-check text-teal"></i> DIGEMID: Las categorías o laboratorios con productos activos requieren reasignación previa para su eliminación.
+      </small>
+      <button type="button" class="btn-secondary" onclick="classificationApp.closeModal()">Cerrar [Esc]</button>
+    </div>
+  </aside>
+
+  <!-- Drawer: Ajuste de Stock, Mermas y Bajas (SaaS 2026) -->
+  <div class="drawer-backdrop" id="stockAdjustmentDrawerBackdrop" onclick="warehouseApp.closeAdjustmentModal()"></div>
+  <aside class="drawer" id="stockAdjustmentDrawer" style="max-width: 580px;" aria-labelledby="adjDrawerTitle" role="dialog" aria-modal="true">
+    <div class="drawer-header">
+      <div>
+        <h3 id="adjDrawerTitle"><i class="bi bi-sliders text-teal"></i> Ajuste de Stock & Mermas</h3>
+        <p>Auditoría sanitaria de existencias físicas y diferencias de cuadre</p>
+      </div>
+      <button type="button" class="drawer-close" id="btnCloseAdjustmentDrawer" onclick="warehouseApp.closeAdjustmentModal()" aria-label="Cerrar panel">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <form id="stockAdjustmentForm" onsubmit="warehouseApp.submitAdjustment(event)" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
+      <div class="drawer-body">
+        <!-- Selección de Medicamento -->
+        <div class="form-group-valetec" style="margin-bottom: 14px;">
+          <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px; text-transform: uppercase;">
+            <i class="bi bi-capsule text-teal"></i> Medicamento a Ajustar:
+          </label>
+          <select id="adjProductId" class="form-select" required onchange="warehouseApp.onAdjustmentProductChange()">
+            <option value="">-- Seleccionar Medicamento --</option>
+          </select>
+        </div>
+
+        <!-- Info Card del Medicamento Seleccionado -->
+        <div id="adjProductInfo" style="display: none; background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="font-size: 11px; color: #0f766e; font-weight: 600; text-transform: uppercase;">Stock Físico Actual:</span>
+              <div style="font-size: 18px; font-weight: 800; color: #0d9488;" id="adjCurrentStock">0 un.</div>
+            </div>
+            <span id="adjLocationBadge" class="shelf-tag" style="background: #ffffff; border: 1px solid #99f6e4; color: #0f766e; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;">
+              <i class="bi bi-geo-alt"></i> Anaquel
+            </span>
+          </div>
+        </div>
+
+        <!-- Lote y Tipo de Movimiento -->
+        <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+          <div class="form-group-valetec">
+            <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px; text-transform: uppercase;">
+              Lote Afectado:
+            </label>
+            <select id="adjLotId" class="form-select" required>
+              <option value="">-- Primer Lote Disponible --</option>
+            </select>
+          </div>
+
+          <div class="form-group-valetec">
+            <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px; text-transform: uppercase;">
+              Tipo de Movimiento:
+            </label>
+            <select id="adjType" class="form-select" required onchange="warehouseApp.updateAdjustmentPreview()">
+              <optgroup label="Salidas y Bajas (Disminuye Stock)">
+                <option value="spoilage">Merma / Frasco Quebrado / Fuga</option>
+                <option value="expired">Vencimiento / Baja DIGEMID</option>
+                <option value="breakage">Deterioro / Blíster Roto</option>
+                <option value="diff_out">Diferencia de Inventario (Faltante)</option>
+                <option value="donation">Muestra Médica / Donación</option>
+              </optgroup>
+              <optgroup label="Ingresos Extraordinarios (Aumenta Stock)">
+                <option value="diff_in">Diferencia de Inventario (Sobrante)</option>
+                <option value="return_customer">Devolución / Reingreso</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+
+        <!-- Cantidad y Unidad de Medida -->
+        <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+          <div class="form-group-valetec">
+            <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px; text-transform: uppercase;">
+              Cantidad:
+            </label>
+            <input type="number" min="1" id="adjQuantity" value="1" required class="form-input" style="font-size: 16px; font-weight: 700;" oninput="warehouseApp.updateAdjustmentPreview()">
+          </div>
+
+          <div class="form-group-valetec">
+            <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px; text-transform: uppercase;">
+              Presentación:
+            </label>
+            <select id="adjUnitType" class="form-select" required onchange="warehouseApp.updateAdjustmentPreview()">
+              <option value="unit">Pastillas / Unidades sueltas</option>
+              <option value="blister">Blísters completos</option>
+              <option value="box">Cajas completas</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Previsualización de Saldo Proyectado -->
+        <div id="adjPreviewBox" style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: #64748b;">Saldo proyectado en Kardex:</span>
+          <strong id="adjPreviewBalance" style="color: #0f172a; font-size: 13px;">Seleccione medicamento</strong>
+        </div>
+
+        <!-- Justificación Sanitaria -->
+        <div class="form-group-valetec" style="margin-bottom: 14px;">
+          <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px; text-transform: uppercase;">
+            Justificación Sanitaria Obligatoria (Auditoría BPA / Kardex):
+          </label>
+          <textarea id="adjReason" rows="3" class="form-input" style="height: auto; padding: 10px; resize: vertical;" placeholder="Describa con exactitud el incidente o hallazgo del cuadre físico (ej. Frasco quebrado accidentalmente al limpiar góndola)..." required minlength="4"></textarea>
+        </div>
+      </div>
+
+      <div class="drawer-footer">
+        <button type="button" class="btn-secondary" onclick="warehouseApp.closeAdjustmentModal()">Cancelar [Esc]</button>
+        <button type="submit" class="btn-danger" id="btnSubmitAdjustment">
+          <i class="bi bi-check2-circle"></i> <span>Aplicar Ajuste en Kardex</span>
+        </button>
+      </div>
+    </form>
+  </aside>
+
+  <!-- Drawer: Semáforo FEFO y Control de Lotes (SaaS 2026) -->
+  <div class="drawer-backdrop" id="fefoDrawerBackdrop" onclick="warehouseApp.closeFefoAlertsModal()"></div>
+  <aside class="drawer drawer-wide" id="fefoDrawer" aria-labelledby="fefoDrawerTitle" role="dialog" aria-modal="true">
+    <div class="drawer-header">
+      <div>
+        <h3 id="fefoDrawerTitle"><i class="bi bi-clock-history text-teal"></i> Control de Lotes & Semáforo FEFO</h3>
+        <p>Rotación prioritaria DIGEMID: Primeros en Expirar, Primeros en Salir (BPA)</p>
+      </div>
+      <button type="button" class="drawer-close" id="btnCloseFefoDrawer" onclick="warehouseApp.closeFefoAlertsModal()" aria-label="Cerrar panel">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- Grid de KPIs Resumen FEFO -->
+      <div class="fefo-kpi-grid">
+        <div class="fefo-kpi-card critical" onclick="warehouseApp.filterFefoByTab('critical')" title="Filtrar lotes vencidos o por vencer en menos de 30 días">
+          <div class="fefo-kpi-header">
+            <span class="status-dot retained pulse"></span>
+            <span class="fefo-kpi-title">Vencidos / &lt; 30d</span>
+          </div>
+          <div class="fefo-kpi-value" id="fefoSummaryExpired">0</div>
+          <span class="fefo-kpi-subtitle">Acción urgente (Baja / Canje)</span>
+        </div>
+
+        <div class="fefo-kpi-card warning" onclick="warehouseApp.filterFefoByTab('warning')" title="Filtrar lotes con 31 a 90 días de vigencia (tramitar canje)">
+          <div class="fefo-kpi-header">
+            <span class="status-dot required"></span>
+            <span class="fefo-kpi-title">Próximo Canje (31-90d)</span>
+          </div>
+          <div class="fefo-kpi-value" id="fefoSummaryWarning">0</div>
+          <span class="fefo-kpi-subtitle">Gestionar con Droguería</span>
+        </div>
+
+        <div class="fefo-kpi-card safe" onclick="warehouseApp.filterFefoByTab('safe')" title="Filtrar lotes vigentes con más de 90 días de vigencia">
+          <div class="fefo-kpi-header">
+            <span class="status-dot free"></span>
+            <span class="fefo-kpi-title">Vigentes (&gt; 90d)</span>
+          </div>
+          <div class="fefo-kpi-value" id="fefoSummarySafe">0</div>
+          <span class="fefo-kpi-subtitle">Stock con rotación normal</span>
+        </div>
+
+        <div class="fefo-kpi-card total" onclick="warehouseApp.filterFefoByTab('all')" title="Mostrar todos los lotes activos">
+          <div class="fefo-kpi-header">
+            <i class="bi bi-boxes text-teal" style="font-size: 13px;"></i>
+            <span class="fefo-kpi-title">Total Lotes</span>
+          </div>
+          <div class="fefo-kpi-value" id="fefoSummaryTotal">0</div>
+          <span class="fefo-kpi-subtitle">Lotes activos en almacén</span>
+        </div>
+      </div>
+
+      <!-- Barra de Filtros y Búsqueda Rápida -->
+      <div class="fefo-filter-bar">
+        <div class="fefo-search-box">
+          <i class="bi bi-search"></i>
+          <input type="text" id="fefoSearchInput" class="form-input" placeholder="Buscar medicamento, lote o laboratorio..." oninput="warehouseApp.handleFefoSearch(this.value)">
+        </div>
+
+        <div class="fefo-tabs">
+          <button type="button" class="fefo-tab-btn active" data-tab="all" onclick="warehouseApp.filterFefoByTab('all')">Todos</button>
+          <button type="button" class="fefo-tab-btn tab-critical" data-tab="critical" onclick="warehouseApp.filterFefoByTab('critical')">Críticos (&lt;30d)</button>
+          <button type="button" class="fefo-tab-btn tab-warning" data-tab="warning" onclick="warehouseApp.filterFefoByTab('warning')">Canje (31-90d)</button>
+          <button type="button" class="fefo-tab-btn tab-safe" data-tab="safe" onclick="warehouseApp.filterFefoByTab('safe')">Vigentes</button>
+        </div>
+      </div>
+
+      <!-- Tabla FEFO Limpia y Responsiva -->
+      <div class="table-responsive-container" style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #ffffff;">
+        <table class="valetec-table">
+          <thead>
+            <tr>
+              <th style="width: 140px;">Prioridad FEFO</th>
+              <th>Medicamento / Fármaco</th>
+              <th>Laboratorio</th>
+              <th>N° Lote</th>
+              <th>Vencimiento</th>
+              <th>Días</th>
+              <th>Stock</th>
+              <th style="text-align: right; width: 160px;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="fefoAlertsTableBody">
+            <!-- Render dinámico de lotes -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="drawer-footer" style="justify-content: space-between; align-items: center;">
+      <small style="color: #64748b; font-size: 11.5px; display: flex; align-items: center; gap: 6px;">
+        <i class="bi bi-shield-check text-teal"></i> Normativa DIGEMID & BPA: El POS dispensa automáticamente los lotes de vencimiento más cercano.
+      </small>
+      <button type="button" class="btn-secondary" onclick="warehouseApp.closeFefoAlertsModal()">Cerrar [Esc]</button>
+    </div>
+  </aside>
+
+  <!-- Drawer: Visor de Kardex Físico y Movimientos (SaaS 2026) -->
+  <div class="drawer-backdrop" id="kardexDrawerBackdrop" onclick="warehouseApp.closeKardexModal()"></div>
+  <aside class="drawer drawer-wide" id="kardexDrawer" aria-labelledby="kardexDrawerTitle" role="dialog" aria-modal="true">
+    <div class="drawer-header">
+      <div>
+        <h3 id="kardexDrawerTitle"><i class="bi bi-journal-medical text-teal"></i> Ficha de Kardex Físico & Valorizado</h3>
+        <p id="kardexDrawerSubtitle">Auditoría sanitaria de entradas, salidas y saldos por lote</p>
+      </div>
+      <button type="button" class="drawer-close" id="btnCloseKardexDrawer" onclick="warehouseApp.closeKardexModal()" aria-label="Cerrar panel">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- Selector de Medicamento y Acciones de Cabecera -->
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 260px;">
+          <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px; text-transform: uppercase;">
+            <i class="bi bi-capsule text-teal"></i> Medicamento en Consulta:
+          </label>
+          <select id="kardexProductSelect" class="form-select" onchange="warehouseApp.onKardexProductChange(this.value)">
+            <!-- Se llena dinámicamente -->
+          </select>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: flex-end;">
+          <button type="button" class="btn-secondary" onclick="warehouseApp.refreshCurrentKardex()" title="Recargar movimientos">
+            <i class="bi bi-arrow-clockwise"></i> <span>Actualizar</span>
+          </button>
+          <button type="button" class="btn-secondary" onclick="warehouseApp.printKardex()" title="Imprimir o exportar ficha">
+            <i class="bi bi-printer"></i> <span>Imprimir</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tarjetas de Valorización y Stock Físico -->
+      <div class="kardex-val-grid">
+        <div class="kardex-val-card accent-teal">
+          <small style="color: #64748b; font-weight: 600; font-size: 11px; text-transform: uppercase;">Stock Físico Actual</small>
+          <div style="font-size: 20px; font-weight: 800; color: #0f172a; margin: 4px 0 2px 0;" id="kardexStockDisplay">0 un.</div>
+          <small id="kardexBoxesDisplay" style="color: #0369a1; font-weight: 600;">0 cajas</small>
+        </div>
+
+        <div class="kardex-val-card accent-blue">
+          <small style="color: #64748b; font-weight: 600; font-size: 11px; text-transform: uppercase;">P. Venta & Costo</small>
+          <div style="font-size: 20px; font-weight: 800; color: #0d9488; margin: 4px 0 2px 0;" id="kardexUnitPriceDisplay">S/ 0.00</div>
+          <small id="kardexCostPriceDisplay" style="color: #64748b; font-weight: 500;">Costo: S/ 0.00</small>
+        </div>
+
+        <div class="kardex-val-card accent-green">
+          <small style="color: #166534; font-weight: 600; font-size: 11px; text-transform: uppercase;">Valor Total Venta</small>
+          <div style="font-size: 20px; font-weight: 800; color: #15803d; margin: 4px 0 2px 0;" id="kardexValuedSaleDisplay">S/ 0.00</div>
+          <small style="color: #166534; font-weight: 500;">Capital estimado en tienda</small>
+        </div>
+
+        <div class="kardex-val-card accent-purple">
+          <small style="color: #6b21a8; font-weight: 600; font-size: 11px; text-transform: uppercase;">Margen Proyectado</small>
+          <div style="font-size: 20px; font-weight: 800; color: #7c3aed; margin: 4px 0 2px 0;" id="kardexMarginDisplay">S/ 0.00</div>
+          <small style="color: #6b21a8; font-weight: 500;">Rentabilidad potencial</small>
+        </div>
+      </div>
+
+      <!-- Filtros de Movimiento y Búsqueda -->
+      <div class="fefo-filter-bar">
+        <div class="fefo-search-box">
+          <i class="bi bi-search"></i>
+          <input type="text" id="kardexMovementSearch" class="form-input" placeholder="Buscar por lote, comprobante o justificación..." oninput="warehouseApp.handleKardexSearch(this.value)">
+        </div>
+
+        <div class="fefo-tabs">
+          <button type="button" class="fefo-tab-btn active" data-tab="all" onclick="warehouseApp.filterKardexByTab('all')">Todos</button>
+          <button type="button" class="fefo-tab-btn" data-tab="in" onclick="warehouseApp.filterKardexByTab('in')">Entradas (+)</button>
+          <button type="button" class="fefo-tab-btn" data-tab="sale" onclick="warehouseApp.filterKardexByTab('sale')">Ventas (-)</button>
+          <button type="button" class="fefo-tab-btn" data-tab="out" onclick="warehouseApp.filterKardexByTab('out')">Bajas / Mermas</button>
+        </div>
+      </div>
+
+      <!-- Tabla Cronológica del Kardex -->
+      <div class="table-responsive-container" style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #ffffff;">
+        <table class="valetec-table">
+          <thead>
+            <tr>
+              <th>Fecha & Hora</th>
+              <th>Movimiento</th>
+              <th>Comprobante / Ref</th>
+              <th>Lote</th>
+              <th style="text-align: right;">Entrada (+)</th>
+              <th style="text-align: right;">Salida (-)</th>
+              <th style="text-align: right;">Saldo</th>
+              <th>Operador</th>
+              <th>Justificación Sanitaria</th>
+            </tr>
+          </thead>
+          <tbody id="kardexTableBody">
+            <!-- Render dinámico -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="drawer-footer" style="justify-content: space-between; align-items: center;">
+      <small style="color: #64748b; font-size: 11.5px; display: flex; align-items: center; gap: 6px;">
+        <i class="bi bi-shield-check text-teal"></i> Normativa DIGEMID: Registro inmutable de existencias con saldo progresivo por movimiento.
+      </small>
+      <button type="button" class="btn-secondary" onclick="warehouseApp.closeKardexModal()">Cerrar [Esc]</button>
+    </div>
+  </aside>
 
   <!-- Modal 14: Resumen General de Inventario Físico y Valorizado (Fase A - Módulo 4) -->
   <div class="modal-backdrop-valetec" id="valuedInventoryModal">
@@ -1979,124 +2486,123 @@
     </div>
   </div>
 
-  <!-- Modal 15: Registro Rápido de Cliente DNI / RUC (Fase A - Módulo 5) -->
-  <div class="modal-backdrop-valetec" id="quickClientModal">
-    <div class="modal-dialog-valetec" style="max-width: 580px; width: 95%;">
-      <div class="modal-header-valetec">
-        <h3><i class="bi bi-person-plus text-teal"></i> Registro Rápido de Cliente (DNI / RUC)</h3>
-        <button type="button" class="btn-close-modal" onclick="clientsApp.closeQuickModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
+  <!-- =============================================================
+       DRAWER: REGISTRO / EDICIÓN DE CLIENTES DNI & RUC (MÓDULO 4)
+  ============================================================= -->
+  <div class="drawer-backdrop" id="clientDrawerBackdrop" onclick="clientsApp.closeClientDrawer()"></div>
+  <div class="drawer" id="clientDrawer" style="max-width: 560px;" role="dialog" aria-labelledby="clientDrawerTitle">
+    
+    <div class="drawer-header">
+      <div class="drawer-title-group">
+        <h3 class="drawer-title" id="clientDrawerTitle">
+          <i class="bi bi-person-plus text-teal"></i> <span>Registrar Nuevo Cliente</span>
+        </h3>
+        <p class="drawer-subtitle" id="clientDrawerSubtitle">Padrón fiscal y fidelización conectado a PostgreSQL 16</p>
       </div>
-      <form id="quickClientForm" onsubmit="clientsApp.saveClient(event)">
-        <div class="modal-body-valetec" style="padding: 20px;">
-
-          <!-- Alerta visual de validación de error -->
-          <div id="quickClientAlert" style="display: none; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; border-radius: 6px; padding: 10px 12px; margin-bottom: 14px; font-size: 12.5px; font-weight: 600;">
-            <i class="bi bi-exclamation-triangle"></i> <span id="quickClientAlertMsg">Error de validación</span>
-          </div>
-
-          <div class="form-grid-valetec" style="display: grid; grid-template-columns: 150px 1fr; gap: 12px; margin-bottom: 12px;">
-            <div class="form-group-valetec">
-              <label>Tipo Doc:</label>
-              <select id="quickClientDocType" class="form-select-valetec" onchange="clientsApp.onDocTypeChange()">
-                <option value="DNI" selected>DNI (8 dígitos)</option>
-                <option value="RUC">RUC (11 dígitos)</option>
-              </select>
-            </div>
-            <div class="form-group-valetec">
-              <label>N° de Documento:</label>
-              <input type="text" id="quickClientDocNumber" required maxlength="8" placeholder="Ej. 45892147" class="form-control" style="font-weight: 700; font-size: 15px;" oninput="clientsApp.clearAlert()">
-            </div>
-          </div>
-
-          <div class="form-group-valetec" style="margin-bottom: 12px;">
-            <label>Nombre Completo o Razón Social:</label>
-            <input type="text" id="quickClientFullName" required placeholder="Ej. Carlos Mendoza Silva" class="form-control" style="font-size: 14px;" oninput="clientsApp.clearAlert()">
-          </div>
-
-          <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-            <div class="form-group-valetec">
-              <label>Teléfono / Celular:</label>
-              <input type="text" id="quickClientPhone" placeholder="Ej. 984512365" class="form-control">
-            </div>
-            <div class="form-group-valetec">
-              <label>Correo Electrónico:</label>
-              <input type="email" id="quickClientEmail" placeholder="Ej. cliente@gmail.com" class="form-control">
-            </div>
-          </div>
-
-          <div class="form-group-valetec" style="margin-bottom: 8px;">
-            <label>Dirección / Domicilio Fiscal:</label>
-            <input type="text" id="quickClientAddress" placeholder="Ej. Av. Las Flores 123, San Borja, Lima" class="form-control">
-          </div>
-
-          <small style="color: #64748b; font-size: 11px; display: block; margin-top: 6px;">
-            Los clientes registrados acumulan puntos de fidelización y quedan guardados permanentemente en PostgreSQL.
-          </small>
-
-        </div>
-        <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; gap: 8px; padding: 12px 18px;">
-          <button type="button" class="btn-action-outline" onclick="clientsApp.closeQuickModal()">Cancelar</button>
-          <button type="submit" class="btn-action-solid" id="btnSaveClientSubmit">
-            <i class="bi bi-check-lg"></i> <span>Guardar & Asignar a Carrito</span>
-          </button>
-        </div>
-      </form>
+      <button type="button" class="drawer-close-btn" id="btnCloseClientDrawer" onclick="clientsApp.closeClientDrawer()" title="Cerrar panel lateral [Esc]">
+        <i class="bi bi-x-lg"></i>
+      </button>
     </div>
-  </div>
 
-  <!-- Modal 16: Directorio de Clientes & Padrón Fiscal (Fase A - Módulo 5) -->
-  <div class="modal-backdrop-valetec" id="clientsDirectoryModal">
-    <div class="modal-dialog-valetec" style="max-width: 960px; width: 95%;">
-      <div class="modal-header-valetec">
-        <h3><i class="bi bi-people text-blue"></i> Directorio de Clientes & Padrón Fiscal DNI / RUC</h3>
-        <button type="button" class="btn-close-modal" onclick="clientsApp.closeDirectoryModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
-      </div>
-      <div class="modal-body-valetec" style="max-height: 75vh; overflow-y: auto; padding: 18px;">
+    <form id="clientDrawerForm" onsubmit="clientsApp.saveClient(event)" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
+      <div class="drawer-body" style="flex: 1; overflow-y: auto; padding: 20px;">
         
-        <!-- Barra de Búsqueda y Botón Nuevo -->
-        <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; justify-content: space-between; align-items: center;">
-          <div style="flex: 1; min-width: 250px; position: relative;">
-            <input 
-              type="text" 
-              id="directoryClientSearch" 
-              placeholder="Buscar por DNI, RUC o Nombre..." 
-              class="form-control" 
-              style="padding-left: 34px; font-size: 13.5px;"
-              oninput="clientsApp.onSearchInput(event)"
-            >
-            <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b;"></i>
+        <!-- Alerta de validación de error -->
+        <div id="clientDrawerAlert" style="display: none; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px; font-weight: 600;">
+          <i class="bi bi-exclamation-triangle"></i> <span id="clientDrawerAlertMsg">Error de validación</span>
+        </div>
+
+        <input type="hidden" id="clientEditId" value="">
+
+        <!-- Tipo y N° de Documento -->
+        <div style="display: grid; grid-template-columns: 140px 1fr; gap: 12px; margin-bottom: 14px;">
+          <div class="form-group-valetec">
+            <label class="form-label" style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Tipo Doc:</label>
+            <select id="clientDocType" class="form-select-valetec form-input" onchange="clientsApp.onDocTypeChange()">
+              <option value="DNI" selected>DNI</option>
+              <option value="RUC">RUC</option>
+              <option value="CE">C.E.</option>
+              <option value="PASAPORTE">Pasaporte</option>
+            </select>
           </div>
-          <button type="button" class="btn-action-solid" style="padding: 8px 16px; border-radius: 6px; font-weight: 700;" onclick="clientsApp.openQuickModal()">
-            <i class="bi bi-plus-lg"></i> <span>Nuevo Cliente</span>
-          </button>
+          <div class="form-group-valetec">
+            <label class="form-label" id="lblClientDocNumber" style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">N° de Documento (8 dígitos):</label>
+            <input type="text" id="clientDocNumber" required maxlength="8" placeholder="Ej. 45892147" class="form-input" style="font-weight: 700; font-family: monospace; font-size: 15px;" oninput="clientsApp.clearAlert()">
+          </div>
         </div>
 
-        <div class="table-responsive-container">
-          <table class="valetec-table">
-            <thead>
-              <tr>
-                <th>Documento</th>
-                <th>Nombre / Razón Social</th>
-                <th>Teléfono</th>
-                <th>Correo</th>
-                <th>Dirección</th>
-                <th style="text-align: center;">Puntos</th>
-                <th style="text-align: right;">Acción</th>
-              </tr>
-            </thead>
-            <tbody id="clientsTableBody">
-              <!-- Render dinámico desde clientsApp -->
-            </tbody>
-          </table>
+        <!-- Nombre Completo o Razón Social -->
+        <div class="form-group-valetec" style="margin-bottom: 14px;">
+          <label class="form-label" id="lblClientFullName" style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Nombre Completo o Razón Social:</label>
+          <input type="text" id="clientFullName" required placeholder="Ej. Carlos Mendoza Silva" class="form-input" style="font-size: 14px;" oninput="clientsApp.clearAlert()">
         </div>
 
+        <!-- Teléfono y Correo Electrónico -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+          <div class="form-group-valetec">
+            <label class="form-label" style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Teléfono / Celular:</label>
+            <input type="text" id="clientPhone" placeholder="Ej. 984512365" class="form-input">
+          </div>
+          <div class="form-group-valetec">
+            <label class="form-label" style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Correo Electrónico:</label>
+            <input type="email" id="clientEmail" placeholder="cliente@gmail.com" class="form-input">
+          </div>
+        </div>
+
+        <!-- Dirección / Domicilio Fiscal -->
+        <div class="form-group-valetec" style="margin-bottom: 16px;">
+          <label class="form-label" style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Dirección Fiscal / Domicilio:</label>
+          <input type="text" id="clientAddress" placeholder="Ej. Av. Las Flores 123, San Borja, Lima" class="form-input">
+        </div>
+
+        <!-- Tarjeta Interactiva de Puntos y Nivel de Fidelización -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; margin-bottom: 14px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 38px; height: 38px; border-radius: 8px; background: #fef3c7; color: #b45309; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                <i class="bi bi-award-fill"></i>
+              </div>
+              <div>
+                <strong style="font-size: 13px; color: #0f172a; display: block;">Club de Fidelización Valetec</strong>
+                <span id="clientLoyaltyTierBadge" class="badge" style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 11px; padding: 2px 6px; border-radius: 4px;">
+                  🥉 Bronce
+                </span>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span class="badge" style="background: #fef3c7; border: 1px solid #fde68a; color: #92400e; font-weight: 800; font-size: 14px; padding: 5px 10px; border-radius: 6px;" id="clientPointsBadge">
+                0 Pts
+              </span>
+              <small style="display: block; color: #16a34a; font-weight: 700; font-size: 11px; margin-top: 2px;" id="clientPointsSolValue">Equivale a S/ 0.00</small>
+            </div>
+          </div>
+
+          <div class="form-group-valetec" style="margin-top: 8px; border-top: 1px dashed #cbd5e1; padding-top: 10px;">
+            <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Ajuste / Saldo de Puntos:</label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <input type="number" id="clientPointsBalanceInput" min="0" step="1" value="0" class="form-input" style="width: 100px; font-weight: 700; text-align: center;" oninput="clientsApp.onPointsInputChange()">
+              <button type="button" class="btn-action-outline" style="padding: 6px 10px; font-size: 11px;" onclick="clientsApp.addBonusPoints(20)">+20 Pts</button>
+              <button type="button" class="btn-action-outline" style="padding: 6px 10px; font-size: 11px;" onclick="clientsApp.addBonusPoints(50)">+50 Pts</button>
+              <button type="button" class="btn-action-outline" style="padding: 6px 10px; font-size: 11px; color: #dc2626; border-color: #fca5a5;" onclick="clientsApp.resetPoints()">0 Pts</button>
+            </div>
+          </div>
+        </div>
+
+        <small style="color: #64748b; font-size: 11.5px; display: block;">
+          Los clientes registrados quedan sincronizados con PostgreSQL 16 y son elegibles para comprobantes electrónicos SUNAT.
+        </small>
+
       </div>
-      <div class="modal-footer-valetec" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px;">
-        <small style="color: #64748b;">Padrón conectado a PostgreSQL 16. Validación SUNAT 8 dígitos DNI / 11 dígitos RUC.</small>
-        <button type="button" class="btn-action-outline" onclick="clientsApp.closeDirectoryModal()">Cerrar [Esc]</button>
+
+      <div class="drawer-footer">
+        <button type="button" class="btn-secondary" onclick="clientsApp.closeClientDrawer()">Cancelar</button>
+        <button type="submit" class="btn-primary" id="btnSaveClientSubmit">
+          <i class="bi bi-check-lg"></i> <span id="btnSaveClientText">Guardar Cliente</span>
+        </button>
       </div>
-    </div>
+    </form>
   </div>
+
 
   <!-- Modal 17: Solicitud Formal de Canje de Medicamentos por Vencimiento (FEFO / DIGEMID) -->
   <div class="modal-backdrop-valetec" id="exchangeModal">
