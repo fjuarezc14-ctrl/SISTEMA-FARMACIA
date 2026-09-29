@@ -63,6 +63,7 @@ services:
         condition: service_healthy
     volumes:
       - ./server/src:/app/src
+      - ./server/test:/app/test
     networks:
       - valetec_network
 

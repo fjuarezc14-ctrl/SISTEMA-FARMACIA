@@ -119,22 +119,13 @@ class RecipeModel {
     const getFn = (dbClient && dbClient.get) ? dbClient.get.bind(dbClient) : get;
     const prefix = `REC-${currentYear}-`;
 
-    const last = await getFn(`
-      SELECT folio 
+    const maxRow = await getFn(`
+      SELECT MAX(CAST(SUBSTRING(folio FROM '[0-9]+$') AS INTEGER)) AS max_seq 
       FROM recetas_digemid 
-      WHERE folio LIKE $1 
-      ORDER BY id DESC 
-      LIMIT 1;
+      WHERE folio LIKE $1;
     `, [`${prefix}%`]);
 
-    let nextNumber = 1;
-    if (last && last.folio) {
-      const parts = last.folio.split('-');
-      const lastSequence = parseInt(parts[2], 10);
-      if (!isNaN(lastSequence)) {
-        nextNumber = lastSequence + 1;
-      }
-    }
+    const nextNumber = (maxRow && maxRow.max_seq) ? parseInt(maxRow.max_seq, 10) + 1 : 1;
 
     return `${prefix}${String(nextNumber).padStart(4, '0')}`;
   }

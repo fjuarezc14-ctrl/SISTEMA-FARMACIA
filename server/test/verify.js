@@ -4,6 +4,8 @@ const app = require('../src/app');
 const { query, get, transaction, pool } = require('../src/db');
 const { runMigrations } = require('../src/db/migrate');
 const { seedDatabase } = require('../src/db/seed');
+const jwt = require('jsonwebtoken');
+const config = require('../src/config/env');
 
 async function runAllTests() {
   console.log('🧪 Iniciando batería de pruebas con POSTGRESQL 16...\n');
@@ -86,21 +88,22 @@ async function runAllTests() {
       const baseUrl = `http://127.0.0.1:${port}`;
 
       try {
+        const adminToken = jwt.sign(
+          { id: 1, name: 'Ing. Juan Pérez', email: 'gerencia@valetec.pe', roleKey: 'admin' },
+          config.jwtSecret,
+          { expiresIn: '1h' }
+        );
+        const authHeaders = {
+          'Authorization': `Bearer ${adminToken}`,
+          'Content-Type': 'application/json'
+        };
+
         const healthRes = await fetch(`${baseUrl}/api/health`);
         assert.strictEqual(healthRes.status, 200);
         const healthData = await healthRes.json();
         assert.strictEqual(healthData.success, true);
         assert.strictEqual(healthData.database.status.includes('PostgreSQL'), true);
 
-        const jwt = require('jsonwebtoken');
-        const config = require('../src/config/env');
-        const adminUser = await get("SELECT id, name FROM usuarios WHERE email = 'gerencia@valetec.pe' LIMIT 1");
-        const testToken = jwt.sign(
-          { id: adminUser.id, name: adminUser.name, roleKey: 'admin', roleLabel: 'Administrador' },
-          config.jwtSecret,
-          { expiresIn: '2h' }
-        );
-        const authHeaders = { 'Authorization': `Bearer ${testToken}` };
 
         const prodRes = await fetch(`${baseUrl}/api/test/products`, { headers: authHeaders });
         assert.strictEqual(prodRes.status, 200);

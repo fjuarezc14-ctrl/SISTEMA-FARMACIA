@@ -15,7 +15,19 @@ const SunatWorker = require('../services/sunat.worker');
  */
 
 /**
- * POST /api/sales
+ * Determina el estado FEFO de un lote según su fecha de caducidad
+ */
+function calculateFefoStatus(expireDateStr) {
+  if (!expireDateStr) return 'good';
+  const now = new Date();
+  const exp = new Date(expireDateStr);
+  const diffDays = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
+  if (diffDays <= 0) return 'expired';
+  if (diffDays <= 90) return 'warning';
+  return 'good';
+}
+
+/**
  * Transacción Atómica de Venta:
  * 1. Valida reglas sanitarias y de catálogo mediante ProductModel y SaleModel.
  * 2. Bloquea filas de lotes con FOR UPDATE y filtro sanitario expire_date >= CURRENT_DATE.
@@ -241,7 +253,28 @@ async function createSale(req, res, next) {
           // Deducir stock del lote en el modelo de productos
           await ProductModel.deductLotStock(lot.id, deductFromThisLot, item.unitsPerBox, item.unitsPerBlister, tx);
 
-          // Calcular fracción y precio correspondiente
+          // Registrar en Kardex físico (auditoría oficial de trazabilidad)
+          await tx.run(
+            `INSERT INTO kardex (
+              product_id, lot_id, movement_type, reference_type, reference_id,
+              quantity, unit_type, previous_stock, new_stock, reason, user_name
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            [
+              item.productId,
+              lot.id,
+              'sale',
+              invoiceType.toUpperCase(),
+              formattedCorrelative,
+              -deductFromThisLot,
+              'unit',
+              lotUnits,
+              lotUnits - deductFromThisLot,
+              `Venta ${formattedCorrelative} a ${customerName || 'Cliente Varios'}`,
+              req.user?.name || 'Personal Farmacia'
+            ]
+          );
+
+          // Calcular la fracción y precio correspondiente a la porción extraída de este lote
           let partQty = deductFromThisLot;
           let partFraction = 'unit';
           let partPrice = item.unitPrice;
@@ -284,7 +317,29 @@ async function createSale(req, res, next) {
         }
       }
 
-      // 2.8 Acumular venta en el turno de caja abierto
+      // 2.8 Actualizar estado de recetas DIGEMID si aplica (marcar como dispensadas)
+      const cleanFolio = (recipeFolio || '').toString().trim();
+      if (cleanFolio) {
+        await tx.run(`UPDATE recetas_digemid SET status = 'dispensed' WHERE folio = $1`, [cleanFolio]);
+      }
+      for (const it of validatedItems) {
+        if (it.recipeFolio) {
+          await tx.run(`UPDATE recetas_digemid SET status = 'dispensed' WHERE folio = $1`, [it.recipeFolio.toString().trim()]);
+        }
+      }
+
+      // 2.9 Acumulación de Puntos de Fidelización para Clientes Registrados
+      if (customerDoc && customerDoc !== '00000000') {
+        const pointsEarned = Math.floor(calculatedTotal);
+        if (pointsEarned > 0) {
+          await tx.run(
+            `UPDATE clientes SET points_balance = points_balance + $1, updated_at = NOW() WHERE document_number = $2`,
+            [pointsEarned, customerDoc]
+          );
+        }
+      }
+
+      // 2.10 Acumular venta en el turno de caja abierto
       await SaleModel.updateShiftSales(turnoId, calculatedTotal, paymentMethod, tx);
 
       return {
@@ -470,7 +525,32 @@ async function cancelSale(req, res, next) {
         }
 
         if (item.lotId) {
-          await ProductModel.restoreLotStock(item.lotId, baseUnitsToRestore, uPerBox, uPerBlister, tx);
+          const lot = await tx.get('SELECT * FROM lotes_fefo WHERE id = $1 FOR UPDATE', [item.lotId]);
+          if (lot) {
+            const lotStock = parseInt(lot.stock_units, 10);
+            await ProductModel.restoreLotStock(item.lotId, baseUnitsToRestore, uPerBox, uPerBlister, tx);
+
+            // Registrar devolución formal en Kardex
+            await tx.run(
+              `INSERT INTO kardex (
+                product_id, lot_id, movement_type, reference_type, reference_id,
+                quantity, unit_type, previous_stock, new_stock, reason, user_name
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+              [
+                item.productId,
+                lot.id,
+                'sale_cancellation',
+                sale.invoiceType.toUpperCase(),
+                sale.invoiceNumberFormatted,
+                baseUnitsToRestore,
+                'unit',
+                lotStock,
+                lotStock + baseUnitsToRestore,
+                `Anulación de venta ${sale.invoiceNumberFormatted}`,
+                req.user?.name || 'Administrador'
+              ]
+            );
+          }
         }
       }
 
@@ -479,7 +559,19 @@ async function cancelSale(req, res, next) {
         await SaleModel.revertShiftSales(sale.turnoId, sale.total, sale.paymentMethod, tx);
       }
 
-      // 5. Marcar venta como anulada en el modelo
+      // 5. Revocar puntos acumulados por la venta cancelada
+      const doc = sale.customerDoc || sale.customer_doc;
+      if (doc && doc !== '00000000') {
+        const pointsToRevoke = Math.floor(parseFloat(sale.total));
+        if (pointsToRevoke > 0) {
+          await tx.run(
+            `UPDATE clientes SET points_balance = GREATEST(0, points_balance - $1), updated_at = NOW() WHERE document_number = $2`,
+            [pointsToRevoke, doc]
+          );
+        }
+      }
+
+      // 6. Marcar venta como anulada en el modelo
       await SaleModel.cancelSaleHeader(saleId, tx);
 
       return {

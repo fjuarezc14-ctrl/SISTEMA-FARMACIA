@@ -148,6 +148,18 @@ class CashModel {
       return null;
     }
 
+    if (adminUserId) {
+      const validAdminId = parseInt(adminUserId, 10);
+      return await getFn(`
+        SELECT t.*, u.name as cashier_name, u.email as cashier_email 
+        FROM caja_turnos t 
+        LEFT JOIN usuarios u ON t.user_id = u.id 
+        WHERE t.status = 'open' 
+        ORDER BY CASE WHEN t.user_id = $1 THEN 0 ELSE 1 END, t.id DESC 
+        LIMIT 1;
+      `, [validAdminId]);
+    }
+
     // Fallback: Cualquier turno abierto en el sistema
     return await getFn(`
       SELECT t.*, u.name as cashier_name, u.email as cashier_email 

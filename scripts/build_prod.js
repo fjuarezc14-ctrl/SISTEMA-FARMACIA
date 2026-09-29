@@ -25,7 +25,7 @@ const requiredFiles = [
   path.join(CLIENT_DIR, 'css', 'styles.css'),
   path.join(CLIENT_DIR, 'js', 'app.js'),
   path.join(CLIENT_DIR, 'js', 'api.js'),
-  path.join(ROOT_DIR, 'server', 'services', 'sunatService.js'),
+  path.join(ROOT_DIR, 'server', 'src', 'services', 'sunat.service.js'),
   path.join(ROOT_DIR, 'server', 'src', 'routes', 'webhook.routes.js')
 ];
 
@@ -42,7 +42,7 @@ console.log('🧪 Paso 2: Ejecutando validación de sintaxis Node.js...');
 const jsFilesToValidate = [
   path.join(CLIENT_DIR, 'js', 'app.js'),
   path.join(CLIENT_DIR, 'js', 'api.js'),
-  path.join(ROOT_DIR, 'server', 'services', 'sunatService.js'),
+  path.join(ROOT_DIR, 'server', 'src', 'services', 'sunat.service.js'),
   path.join(ROOT_DIR, 'server', 'src', 'routes', 'webhook.routes.js')
 ];
 

@@ -11,7 +11,7 @@ const { requireRoles } = require('../middlewares/role.middleware');
 
 const router = express.Router();
 
-router.get('/', authenticateToken, requireRoles('cashier', 'qf', 'admin'), getAllLaboratories);
+router.get('/', authenticateToken, requireRoles('cashier', 'tech', 'qf', 'admin'), getAllLaboratories);
 router.post('/', authenticateToken, requireRoles('qf', 'admin'), createLaboratory);
 router.post('/reassign', authenticateToken, requireRoles('qf', 'admin'), reassignLaboratory);
 router.put('/:id', authenticateToken, requireRoles('qf', 'admin'), updateLaboratory);

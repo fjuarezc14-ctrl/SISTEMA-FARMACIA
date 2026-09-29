@@ -1,5 +1,5 @@
 const assert = require('assert');
-const sunatService = require('../services/sunatService');
+const sunatService = require('../src/services/sunat.service');
 const http = require('http');
 
 console.log('🧪 Ejecutando pruebas unitarias de Producción (Fase 100%)...\n');

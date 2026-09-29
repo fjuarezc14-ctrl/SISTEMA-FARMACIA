@@ -172,7 +172,7 @@ async function runRecipeTests() {
       const data = await res.json();
       assert.strictEqual(data.success, true);
       assert.ok(data.data.establishment);
-      assert.strictEqual(data.data.establishment.sanitaryLicense, 'DIRIS-LC N° 10842-FAR');
+      assert.strictEqual(data.data.establishment.sanitaryLicense, 'AUT-DIGEMID-2026-904');
       assert.ok(data.data.summary);
       assert.ok(data.data.summary.totalLedgerEntries >= 5);
       assert.ok(data.data.vaultInventory);

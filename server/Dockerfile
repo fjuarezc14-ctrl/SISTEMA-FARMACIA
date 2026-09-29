@@ -20,7 +20,6 @@ EXPOSE 4000
 # Default environment variables
 ENV NODE_ENV=production
 ENV PORT=4000
-ENV DATABASE_PATH=/app/src/db/pharmacy.db
 
 # Launch server (runs migrations & seed on startup automatically)
 CMD ["node", "index.js"]

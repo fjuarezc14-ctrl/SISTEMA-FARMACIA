@@ -152,11 +152,15 @@ async function closeZ(req, res, next) {
     const { countedBalance, denominations = {}, shiftId } = req.body;
     const activeUserId = (req.user && req.user.id) ? req.user.id : null;
 
+    CashModel.validateCloseZ({ countedBalance });
+
     const report = await transaction(async (tx) => {
-      // 1. Localizar turno abierto
+      // 1. Localizar turno abierto (permite a Administrador supervisar/cerrar el turno activo)
+      const isAdmin = (req.user && req.user.roleKey === 'admin');
       const shift = await CashModel.getOpenShift({
         shiftId: shiftId ? parseInt(shiftId, 10) : null,
-        userId: activeUserId
+        userId: isAdmin ? null : activeUserId,
+        adminUserId: isAdmin ? activeUserId : null
       }, tx);
 
       if (!shift) {

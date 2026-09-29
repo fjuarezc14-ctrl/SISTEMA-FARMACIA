@@ -165,7 +165,8 @@ CREATE TABLE IF NOT EXISTS clientes (
   phone VARCHAR(50),
   email VARCHAR(150),
   points_balance INTEGER NOT NULL DEFAULT 0 CHECK(points_balance >= 0),
-  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 12. Laboratorios Farmacéuticos Registrados
@@ -244,4 +245,21 @@ CREATE INDEX IF NOT EXISTS idx_clientes_doc ON clientes(document_number);
 CREATE INDEX IF NOT EXISTS idx_clientes_name ON clientes(full_name);
 CREATE INDEX IF NOT EXISTS idx_kardex_product ON kardex(product_id);
 CREATE INDEX IF NOT EXISTS idx_kardex_lot ON kardex(lot_id);
+
+-- Actualizaciones de Esquema Idempotentes para Bases de Datos Existentes
+ALTER TABLE productos ADD COLUMN IF NOT EXISTS sanitary_registry VARCHAR(100);
+ALTER TABLE productos ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active';
+ALTER TABLE ventas ADD COLUMN IF NOT EXISTS sunat_status VARCHAR(50) DEFAULT 'pending';
+ALTER TABLE ventas ADD COLUMN IF NOT EXISTS sunat_response TEXT;
+ALTER TABLE ventas ADD COLUMN IF NOT EXISTS sunat_ticket VARCHAR(100);
+ALTER TABLE ventas ADD COLUMN IF NOT EXISTS sunat_sent_at TIMESTAMPTZ;
+ALTER TABLE ventas ADD COLUMN IF NOT EXISTS hash_cpe TEXT;
+ALTER TABLE ventas ADD COLUMN IF NOT EXISTS xml_ubl TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
+
+-- Sincronización oficial de Licencia Sanitaria DIGEMID
+UPDATE configuraciones 
+SET sanitary_license = 'AUT-DIGEMID-2026-904' 
+WHERE sanitary_license IS NULL OR sanitary_license = 'DIRIS-LC N° 10842-FAR';
+
 
