@@ -241,6 +241,7 @@ CREATE INDEX IF NOT EXISTS idx_productos_dci ON productos(generic_dci);
 CREATE INDEX IF NOT EXISTS idx_lotes_fefo_expire ON lotes_fefo(expire_date);
 CREATE INDEX IF NOT EXISTS idx_recetas_folio ON recetas_digemid(folio);
 CREATE INDEX IF NOT EXISTS idx_ventas_created ON ventas(created_at);
+CREATE INDEX IF NOT EXISTS idx_ventas_customer_doc ON ventas(customer_doc);
 CREATE INDEX IF NOT EXISTS idx_clientes_doc ON clientes(document_number);
 CREATE INDEX IF NOT EXISTS idx_clientes_name ON clientes(full_name);
 CREATE INDEX IF NOT EXISTS idx_kardex_product ON kardex(product_id);
