@@ -117,7 +117,7 @@ class CashModel {
    * @param {Object} [dbClient] - Cliente transaccional opcional.
    * @returns {Promise<Object|null>}
    */
-  static async getOpenShift({ shiftId, userId } = {}, dbClient) {
+  static async getOpenShift({ shiftId, userId, adminUserId } = {}, dbClient) {
     const getFn = (dbClient && dbClient.get) ? dbClient.get.bind(dbClient) : get;
 
     if (shiftId) {
