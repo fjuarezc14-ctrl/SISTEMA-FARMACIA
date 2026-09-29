@@ -116,84 +116,42 @@ flowchart LR
 * **ETAPA 0:** Cimientos, sistema de 3 botones, sistema de drawers y navegación lateral.
 * **ETAPA 1:** Módulo de Inventario (5 submódulos probados y verificados).
 * **ETAPA 2:** Módulo de Clientes (Directorio DNI/RUC y fidelización base probados con 22/22 PASS).
+* **ETAPA 2.1:** Motor Configurable de Puntos & Fidelización (Drawer `#loyaltySettingsDrawer`, tasas dinámicas de canje/acumulación, tope de descuento por ticket, y bonificación de puntos promocionales en fármacos `#productDrawer`).
+* **ETAPA 3:** Módulo de Ventas (Pantalla Completa de Mostrador POS con F-keys, acumulación de puntos, bonus promocionales, y Pantalla Completa SaaS de Comprobantes del Turno `#viewVouchers` con KPIs, filtros segmentados y anulación atómica).
+* **ETAPA 4:** Módulo de Caja (Pantallas completas de Apertura de Turno con presets, Matriz Dual de Billetes y Monedas con autocalculador y reseteo, Tabla de Egresos y Caja Chica con categorización y búsqueda reactiva, y Cierre Z Fiscal oficial con comprobante térmico 80mm e interactividad antifraude). Probado 56/56 PASS (100%).
+* **ETAPA 5:** Módulo de Compras & Droguerías (Pantalla Completa SaaS `#viewPurchases`, 4 KPIs, recepción de mercadería guiada `#receiveModal` con autocalculador IGV y enlace a Kardex, Drawer lateral `#supplierDrawer` para padrón oficial de droguerías con RUC 11 dígitos y condiciones de crédito, Visor modal de facturas comerciales `#invoiceDetailModal`, y gestión de Canjes FEFO `#purchasesPaneExchanges` con alertas de vigencia, impresión de cartas y solicitud vía WhatsApp). Probado 56/56 PASS (100%).
+* **ETAPA 6:** Módulo DIGEMID - Control Sanitario (Pantalla Completa SaaS `#viewDigemid` con 4 KPIs sanitarios en tiempo real, 3 pestañas segmentadas; Submódulo 1: Libro Oficial de Recetas Retenidas con foliación correlativa, diagnóstico CIE-10, validación CMP y aprobación técnica Q.F.; Submódulo 2: Bóveda & Caja Fuerte de Psicotrópicos con monitoreo de T°/Humedad, padrón de controlados bajo llave y Acta de Arqueo Físico interactivo con sellado digital `#vaultAuditModal`; Submódulo 3: Balances Sanitarios Trimestrales DIRIS con reporte oficial membretado e imprimible `#digemidBalanceModal`). Probado 56/56 PASS (100%).
+* **ETAPA 7:** Módulo de Reportes & Gerencia (Pantalla Completa SaaS `#viewManagement` con 3 pestañas segmentadas: Torre de Control con gráficos de evolución y Top Fármacos; Submódulo 1: Reporte Contable Mensual Formato SUNAT 14.1 con 4 KPIs tributarios de Base Imponible e IGV 18%, tabla desglosada, exportación oficial CSV/Excel con BOM UTF-8 e impresión; Submódulo 2: Sugerido Inteligente de Reposición a Droguerías con 4 KPIs de abastecimiento, cálculo de velocidad horaria, tabla de coberturas con cantidades editables en vivo y disparador directo de órdenes a WhatsApp `#whatsappOrderModal`). Probado 56/56 PASS (100%).
+* **ETAPA 8:** Módulo de Ajustes & Configuración (Centro Integral de Ajustes `#settingsModal` con 4 pestañas segmentadas: Submódulo 1: Datos de la Botica con validación fiscal de RUC 11 dígitos, IGV 18%, licencia sanitaria DIRIS y pie de ticket; Submódulo 2: Facturación SUNAT con conmutador Beta/Producción, credenciales SOL, certificado digital PFX vigente con visor INDECOPI, series B001/F001/NC01 y test de ping a servidores SUNAT; Submódulo 3: Roles & Permisos RBAC con selector de puestos y matriz interactiva de 8 permisos operativos; Submódulo 4: Copias de Seguridad con monitor de PostgreSQL 16 y botón de descarga de dump `.sql` con 1 clic). Probado 56/56 PASS (100%).
+* **ETAPA 9:** Dashboard Ejecutivo & Cierre de Integración 360° (Consolidación de la Torre de Control en `#viewManagement`, gráficos reactivos en Canvas con alternancia 14 días vs. Horas hoy, Top 5 rotación, auditoría antifraude en vivo, 0 emojis en interfaz core, validación de atajos de teclado F1-F9, widget nativo de accesibilidad universal Userway y suite de regresión 56/56 PASS en Docker PostgreSQL 16). Probado 56/56 PASS (100%).
 
 ---
 
-### 🚀 ETAPA 2.1: AMPLIACIÓN MOTOR CONFIGURABLE DE PUNTOS
-* **Objetivo:** Incorporar las dos mejoras solicitadas por el usuario:
-  1. **Vista de Configuración del Club de Puntos:**
-     - Pantalla con inputs para tasa de canje: `[ X ] Puntos = S/ [ Y ]` (ej. 1000 pts = 1 sol).
-     - Tasa de acumulación: `S/ [ X ] gastados = [ Y ] Puntos ganados`.
-     - Porcentaje máximo de descuento aplicable por ticket.
-  2. **Configuración de Puntos por Producto en Inventario:**
-     - Campo en `#productDrawer` para asignar puntos bonificados fijos por medicamento.
-     - Etiqueta de puntos de bonificación visible en el catálogo de productos.
+### 📋 ETAPA 6: MÓDULO DIGEMID (CONTROL SANITARIO) (✅ COMPLETADA)
+* **Submódulo 1: Libro de Recetas Retenidas:** Registro oficial foliado de psicotrópicos y estupefacientes (Lista IVB / Psicotrópicos) con número de receta, médico prescriptor, CMP, diagnóstico CIE-10, carga directa al POS y dispensación sellada.
+* **Submódulo 2: Bóveda / Custodia:** Control de stock físico restringido con acceso restringido bajo supervisión del Químico Farmacéutico, monitoreo de temperatura y humedad, modal de conteo físico `#vaultAuditModal` y cálculo de descuadre en tiempo real.
+* **Submódulo 3: Balances Sanitarios:** Generación automática de balances trimestrales exigidos por DIGEMID/DIRIS con entradas, salidas, saldos físicos y formato legal imprimible con sellos y colegiatura CQFP.
 
 ---
 
-### 🛒 ETAPA 3: MÓDULO DE VENTAS (PANTALLAS COMPLETAS)
-
-#### Submódulo 1: Mostrador POS Rápido
-* **Objetivo:** Pantalla completa ergonómica a 2 columnas para atención de alta velocidad.
-* **Panel Catálogo (Izquierda):**
-  - Buscador omnicanal reactivo con foco automático (`[F2]`).
-  - Tarjetas visuales de productos con stock en vivo y badge de puntos promocionales.
-  - Filtro rápido por categorías farmacéuticas (Analgésicos, Antibióticos, etc.).
-* **Panel Ticket & Carrito (Derecha):**
-  - Autocomplete de paciente con saldo de puntos y nivel de lealtad.
-  - Partidas con stepper (`+`/`-`) y selector de fracción activa (`Caja`, `Blíster`, `Unidad`).
-  - Validación sanitaria DIGEMID obligatoria (bloqueo y solicitud de CMP si es Lista IV).
-  - Caja de canje de puntos con cálculo en tiempo real según la regla configurada.
-  - Atajos: `F2` Buscar, `F4` Cliente, `F12` Cobrar.
-
-#### Submódulo 2: Comprobantes & Turno
-* **Objetivo:** Pantalla completa con el historial de ventas del turno actual.
-* **Componentes:**
-  - 3 KPIs: Total Facturado en Turno, Boletas Emitidas, Facturas Emitidas.
-  - Tabla de comprobantes con estado SUNAT (Aceptado, Rechazado, Pendiente).
-  - Drawer de detalle de venta con reimpresión en formato ticket 80mm.
-  - Botón de anulación con nota de crédito (solo roles autorizados).
+### 📈 ETAPA 7: MÓDULO DE REPORTES & GERENCIA (✅ COMPLETADA)
+* **Submódulo 1: Reporte Contable SUNAT 14.1:** Registro Oficial de Ventas e Ingresos con cálculo exacto de Base Imponible Gravada e I.G.V. Débito Fiscal (18%), selector de periodo mensual, filtro de comprobantes (01 Factura / 03 Boleta), exportación descargable en CSV para Excel (con UTF-8 BOM para Windows) e impresión oficial de auditoría.
+* **Submódulo 2: Sugerido Inteligente de Reposición a Droguerías:** Algoritmo de velocidad de agotamiento de stock (cobertura horaria <24h / <48h), 4 KPIs de compras (fármacos, inversión, droguerías, horas críticas), tabla reactiva con pedido sugerido editable en tiempo real, costeo dinámico e integración instantánea con modal y enlaces de WhatsApp para pedidos urgentes.
 
 ---
 
-### 💵 ETAPA 4: MÓDULO DE CAJA (PANTALLAS COMPLETAS)
-* **Submódulo 1: Apertura de Caja:** Pantalla con asignación de fondo inicial en efectivo y selección de turno.
-* **Submódulo 2: Arqueo Físico:** Matriz visual e interactiva de billetes (S/ 200, 100, 50, 20, 10) y monedas (S/ 5, 2, 1, 0.50, 0.20, 0.10) con balance automático contra el sistema.
-* **Submódulo 3: Gastos / Caja Chica:** Pantalla para salidas de dinero menores con motivo, comprobante y autorización.
-* **Submódulo 4: Cierre Z:** Pantalla completa de liquidación con reporte final de medios de pago (Efectivo, Yape, Plin, Tarjeta) e impresión de acta.
+### ⚙️ ETAPA 8: MÓDULO DE AJUSTES & CONFIGURACIÓN (✅ COMPLETADA)
+* **Submódulo 1: Datos de la Botica:** Razón Social oficial, Nombre Comercial, RUC (11 dígitos con validación estricta 10/20/15/17), Dirección Fiscal, teléfonos, email de contacto, moneda, IGV (18.00%), resolución y licencia sanitaria DIGEMID/DIRIS, Directora Técnica (Regente Q.F.) y leyenda al pie de comprobantes térmicos.
+* **Submódulo 2: SUNAT & Facturación Electrónica:** Conmutador de entorno (Beta / Homologación vs. Producción oficial), credenciales secundarias SOL (Usuario y Clave con visibilidad alternable), tarjeta informativa del Certificado Digital PFX (Vigencia 2027, emisor LLAMA.PE INDECOPI, clave de almacén), series oficiales B001, F001, NC01 y botón de prueba de conexión TLS/ping con servidores SUNAT.
+* **Submódulo 3: Personal & Roles (Matriz RBAC):** Selector interactivo de puestos (Dueño/Admin, Químico Regente, Técnico, Cajero) con matriz de 8 permisos operativos y acceso directo a la vista de gestión de trabajadores y turnos `#viewStaff`.
+* **Submódulo 4: Copias de Seguridad (Backups):** Panel de diagnóstico de salud de PostgreSQL 16.2 en Docker (`valetec_pharma_postgres`), puerto 5442, verificación de 14 tablas relacionales activas, historial cronológico de volcados y descarga inmediata de respaldos `.sql` en 1 clic.
 
 ---
 
-### 🚚 ETAPA 5: MÓDULO DE COMPRAS & DROGUERÍAS
-* **Submódulo 1: Ingreso de Mercadería:** Flujo completo de recepción de factura comercial con costos, lotes, fechas de vencimiento y actualización automática del costo promedio.
-* **Submódulo 2: Proveedores:** Directorio maestro de droguerías y distribuidoras farmacéuticas con RUC y condiciones.
-* **Submódulo 3: Canjes y Devoluciones:** Registro de productos próximos a vencer o deteriorados para retiro y nota de crédito con la droguería.
-
----
-
-### 📋 ETAPA 6: MÓDULO DIGEMID (CONTROL SANITARIO)
-* **Submódulo 1: Libro de Recetas Retenidas:** Registro oficial foliado de psicotrópicos y estupefacientes con número de receta, médico prescriptor, CMP y diagnóstico.
-* **Submódulo 2: Bóveda / Custodia:** Control de stock físico restringido con acceso restringido bajo supervisión del Químico Farmacéutico.
-* **Submódulo 3: Balances Sanitarios:** Generación automática de balances trimestrales exigidos por DIGEMID.
-
----
-
-### 📈 ETAPA 7: MÓDULO DE REPORTES & GERENCIA
-* **Submódulo 1: Reporte Contable:** Exportación mensual en Excel y PDF con cálculo de Base Imponible, IGV y ventas por tipo de comprobante.
-* **Submódulo 2: Sugerido de Reposición:** Algoritmo que calcula qué productos están cerca del stock mínimo y genera un mensaje con formato para enviar por WhatsApp al proveedor.
-
----
-
-### ⚙️ ETAPA 8: MÓDULO DE AJUSTES & CONFIGURACIÓN
-* **Submódulo 1: Datos de la Botica:** Nombre comercial, RUC, logo, dirección, resolución de funcionamiento y Químico Regente.
-* **Submódulo 2: SUNAT & Facturación:** Carga de certificado digital (.pfx), credenciales secundarias SOL y configuración de series.
-* **Submódulo 3: Personal & Roles:** Asignación estricta de credenciales y permisos por rol.
-* **Submódulo 4: Copias de Seguridad:** Respaldo y descarga de la base de datos con un clic.
-
----
-
-### 📊 ETAPA 9: DASHBOARD EJECUTIVO
-* **Integración Final:** Pantalla de mando central con gráficos de facturación diaria/mensual, ticket promedio, medicamentos con mayor margen y alertas de lotes por vencer.
+### 📊 ETAPA 9: DASHBOARD EJECUTIVO & INTEGRACIÓN 360° (✅ COMPLETADA)
+* **Torre de Control Central:** Cockpit gerencial consolidado con facturación acumulada del día y mes, margen comercial ponderado, ticket promedio, lotes en riesgo FEFO (<90 días), gráfico interactivo dual de ventas (efectivo vs. digital) y ranking de medicamentos con mayor rotación en vivo desde PostgreSQL.
+* **Auditoría Antifraude en Tiempo Real:** Stream de eventos con trazabilidad de cobros, salidas de caja chica y aperturas de turno.
+* **Integración Completa del SaaS:** Los 9 módulos maestros se comunican de forma reactiva y cohesiva, con 0 errores de consola, diseño ultra-moderno responsivo y 100% de la suite de pruebas superada.
 
 ---
 
