@@ -142,10 +142,16 @@ function generateUBL21(saleData, customCompany) {
     ...(customCompany || {})
   };
 
-  const isFactura = invoiceType === 'factura';
+  const finalType = voucherType || invoiceType;
+  const isFactura = finalType === 'factura' || (directCpeId && directCpeId.startsWith('F'));
   const tipoCpe = isFactura ? '01' : '03'; // 01 Factura, 03 Boleta
-  const correlativeNumber = String(invoiceNumber).padStart(6, '0');
-  const cpeId = `${invoiceSeries}-${correlativeNumber}`;
+
+  let cpeId = directCpeId;
+  if (!cpeId) {
+    const series = invoiceSeries || (isFactura ? 'F001' : 'B001');
+    const correlativeNumber = String(invoiceNumber || 1).padStart(6, '0');
+    cpeId = `${series}-${correlativeNumber}`;
+  }
 
   const dateObj = createdAt ? new Date(createdAt) : new Date();
   const pad = (n) => String(n).padStart(2, '0');
@@ -161,24 +167,46 @@ function generateUBL21(saleData, customCompany) {
     customerDocType = '6'; // 6: RUC
   }
 
-  const montoLetras = numberToLetters(total);
-  const gravadaStr = Number(subtotal).toFixed(2);
-  const igvStr = Number(igv).toFixed(2);
-  const totalStr = Number(total).toFixed(2);
+  let totalNum = parseFloat(total);
+  let subtotalNum = parseFloat(subtotal);
+  let igvNum = parseFloat(igv);
+
+  if (isNaN(totalNum) || totalNum <= 0) {
+    totalNum = items.reduce((sum, it) => {
+      const q = parseFloat(it.quantity || it.qty || 1);
+      const p = parseFloat(it.unitPrice || it.price || 0);
+      return sum + (q * p);
+    }, 0);
+    totalNum = Math.round(totalNum * 100) / 100;
+  }
+
+  if (isNaN(subtotalNum) || subtotalNum <= 0) {
+    subtotalNum = Math.round((totalNum / 1.18) * 100) / 100;
+  }
+  if (isNaN(igvNum) || igvNum <= 0) {
+    igvNum = Math.round((totalNum - subtotalNum) * 100) / 100;
+  }
+
+  const montoLetras = numberToLetters(totalNum);
+  const gravadaStr = subtotalNum.toFixed(2);
+  const igvStr = igvNum.toFixed(2);
+  const totalStr = totalNum.toFixed(2);
 
   // Construcción de líneas de productos
   const linesXml = items.map((item, idx) => {
     const lineIndex = idx + 1;
-    const qty = parseInt(item.quantity, 10) || 1;
-    const unitPrice = parseFloat(item.unitPrice) || 0;
-    const lineSubtotal = parseFloat(item.subtotal) || (qty * unitPrice);
+    const qty = parseFloat(item.quantity || item.qty || 1);
+    const unitPrice = parseFloat(item.unitPrice || item.price || 0);
+    const lineSubtotal = parseFloat(item.total || item.subtotal) || (qty * unitPrice);
 
     // Desglose de línea: valor de venta sin IGV
     const lineBase = Math.round((lineSubtotal / 1.18) * 100) / 100;
     const lineIgv = Math.round((lineSubtotal - lineBase) * 100) / 100;
     const unitValue = Math.round((unitPrice / 1.18) * 10000) / 10000;
 
-    const unitCode = item.fractionType === 'box' ? 'BX' : (item.fractionType === 'blister' ? 'DZN' : 'NIU');
+    const frac = item.fractionType || item.frac || 'box';
+    const unitCode = frac === 'box' ? 'BX' : (frac === 'blister' ? 'DZN' : 'NIU');
+    const desc = item.productName || item.name || 'PRODUCTO FARMACÉUTICO';
 
     return `  <cac:InvoiceLine>
     <cbc:ID>${lineIndex}</cbc:ID>
@@ -207,7 +235,7 @@ function generateUBL21(saleData, customCompany) {
       </cac:TaxSubtotal>
     </cac:TaxTotal>
     <cac:Item>
-      <cbc:Description>${escapeXml(item.productName || 'PRODUCTO FARMACÉUTICO')}</cbc:Description>
+      <cbc:Description>${escapeXml(desc)}</cbc:Description>
     </cac:Item>
     <cac:Price>
       <cbc:PriceAmount currencyID="PEN">${unitValue.toFixed(4)}</cbc:PriceAmount>
@@ -358,7 +386,10 @@ ${linesXml}
     tipoCpe,
     hash: hashDigest,
     hashDigest,
+    digestValue: hashDigest,
     hashHex,
+    signatureValue: hashHex.substring(0, 64),
+    montoLetras,
     totalInWords: montoLetras,
     taxBreakdown: {
       gravada: parseFloat(gravadaStr),

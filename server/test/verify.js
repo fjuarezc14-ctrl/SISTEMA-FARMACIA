@@ -104,6 +104,7 @@ async function runAllTests() {
         assert.strictEqual(healthData.success, true);
         assert.strictEqual(healthData.database.status.includes('PostgreSQL'), true);
 
+
         const prodRes = await fetch(`${baseUrl}/api/test/products`, { headers: authHeaders });
         assert.strictEqual(prodRes.status, 200);
         const prodData = await prodRes.json();

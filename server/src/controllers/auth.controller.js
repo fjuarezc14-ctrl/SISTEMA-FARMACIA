@@ -1,10 +1,39 @@
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config/env');
-const { get } = require('../db');
+const UserModel = require('../models/user.model');
 
 /**
- * Iniciar sesión con validación de contraseña encriptada (bcrypt)
+ * ============================================================================
+ * VALETEC PHARMA - CONTROLADOR: AUTH (AUTENTICACIÓN Y SESIONES JWT)
+ * ============================================================================
+ * Orquesta el inicio de sesión, validación de credenciales y perfiles de acceso.
+ * La búsqueda de usuarios y verificación bcrypt residen en UserModel.
+ */
+
+/**
+ * Helper para asignar vistas permitidas y vista por defecto según el rol
+ */
+function getRoleViews(roleKey) {
+  let allowedViews = ['viewCounter'];
+  let defaultView = 'viewCounter';
+
+  if (roleKey === 'admin') {
+    allowedViews = ['viewCounter', 'viewCash', 'viewWarehouse', 'viewDigemid', 'viewStaff', 'viewManagement'];
+    defaultView = 'viewManagement';
+  } else if (roleKey === 'qf') {
+    allowedViews = ['viewCounter', 'viewWarehouse', 'viewDigemid'];
+    defaultView = 'viewDigemid';
+  } else if (roleKey === 'cashier') {
+    allowedViews = ['viewCounter', 'viewCash'];
+    defaultView = 'viewCash';
+  }
+
+  return { allowedViews, defaultView };
+}
+
+/**
+ * POST /api/auth/login
+ * Iniciar sesión con validación de credenciales encriptadas
  */
 async function login(req, res, next) {
   try {
@@ -18,26 +47,8 @@ async function login(req, res, next) {
       });
     }
 
-    // Buscar usuario en PostgreSQL con su rol
-    const user = await get(`
-      SELECT 
-        u.id,
-        u.role_id,
-        r.name AS "role_name",
-        r.label AS "role_label",
-        u.name,
-        u.email,
-        u.password_hash,
-        u.terminal,
-        u.shift,
-        u.permissions,
-        u.target,
-        u.status
-      FROM usuarios u
-      JOIN roles r ON u.role_id = r.id
-      WHERE LOWER(u.email) = LOWER($1)
-      LIMIT 1;
-    `, [email.trim()]);
+    // 1. Buscar usuario con su rol y hash mediante el modelo
+    const user = await UserModel.findByEmailWithRole(email);
 
     if (!user) {
       return res.status(401).json({
@@ -55,8 +66,8 @@ async function login(req, res, next) {
       });
     }
 
-    // Comparar contraseña con el hash de PostgreSQL
-    const passwordMatch = await bcrypt.compare(password, user.password_hash);
+    // 2. Comparar contraseña mediante método seguro del modelo
+    const passwordMatch = await UserModel.verifyPassword(password, user.password_hash);
     if (!passwordMatch) {
       return res.status(401).json({
         success: false,
@@ -65,22 +76,9 @@ async function login(req, res, next) {
       });
     }
 
-    // Definir vistas permitidas según rol
-    let allowedViews = ['viewCounter'];
-    let defaultView = 'viewCounter';
+    const { allowedViews, defaultView } = getRoleViews(user.role_name);
 
-    if (user.role_name === 'admin') {
-      allowedViews = ['viewCounter', 'viewCash', 'viewWarehouse', 'viewDigemid', 'viewStaff', 'viewManagement'];
-      defaultView = 'viewManagement';
-    } else if (user.role_name === 'qf') {
-      allowedViews = ['viewCounter', 'viewWarehouse', 'viewDigemid'];
-      defaultView = 'viewDigemid';
-    } else if (user.role_name === 'cashier') {
-      allowedViews = ['viewCounter', 'viewCash'];
-      defaultView = 'viewCash';
-    }
-
-    // Generar token JWT firmado
+    // 3. Generar token JWT firmado
     const payload = {
       id: user.id,
       name: user.name,
@@ -110,29 +108,12 @@ async function login(req, res, next) {
 }
 
 /**
- * Obtener perfil del usuario autenticado actual a partir del token
+ * GET /api/auth/me
+ * Obtener perfil del colaborador autenticado a partir del token
  */
 async function getMe(req, res, next) {
   try {
-    const user = await get(`
-      SELECT 
-        u.id,
-        u.role_id,
-        r.name AS "role_name",
-        r.label AS "role_label",
-        u.name,
-        u.email,
-        u.terminal,
-        u.shift,
-        u.permissions,
-        u.target,
-        u.status,
-        u.created_at AS "createdAt"
-      FROM usuarios u
-      JOIN roles r ON u.role_id = r.id
-      WHERE u.id = $1
-      LIMIT 1;
-    `, [req.user.id]);
+    const user = await UserModel.findById(req.user.id);
 
     if (!user) {
       return res.status(404).json({
@@ -142,19 +123,7 @@ async function getMe(req, res, next) {
       });
     }
 
-    let allowedViews = ['viewCounter'];
-    let defaultView = 'viewCounter';
-
-    if (user.role_name === 'admin') {
-      allowedViews = ['viewCounter', 'viewCash', 'viewWarehouse', 'viewDigemid', 'viewStaff', 'viewManagement'];
-      defaultView = 'viewManagement';
-    } else if (user.role_name === 'qf') {
-      allowedViews = ['viewCounter', 'viewWarehouse', 'viewDigemid'];
-      defaultView = 'viewDigemid';
-    } else if (user.role_name === 'cashier') {
-      allowedViews = ['viewCounter', 'viewCash'];
-      defaultView = 'viewCash';
-    }
+    const { allowedViews, defaultView } = getRoleViews(user.roleKey);
 
     res.status(200).json({
       success: true,
@@ -162,8 +131,8 @@ async function getMe(req, res, next) {
         id: user.id,
         name: user.name,
         email: user.email,
-        roleKey: user.role_name,
-        roleLabel: user.role_label,
+        roleKey: user.roleKey,
+        roleLabel: user.roleLabel,
         terminal: user.terminal,
         shift: user.shift,
         permissions: user.permissions,
@@ -180,6 +149,7 @@ async function getMe(req, res, next) {
 }
 
 /**
+ * POST /api/auth/logout
  * Cierre de sesión seguro
  */
 function logout(req, res) {

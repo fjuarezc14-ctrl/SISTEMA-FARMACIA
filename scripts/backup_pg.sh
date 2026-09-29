@@ -42,12 +42,23 @@ fi
 # 2. Ejecución del volcado con pg_dump
 echo -e "${BLUE}⏳ Iniciando volcado y compresión gzip...${NC}"
 
+# Cargar .env si existe en la raíz
+if [ -f "./.env" ]; then
+  set -a
+  source ./.env
+  set +a
+fi
+
 if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
   echo -e "🐳 Detectado contenedor Docker activo: ${CONTAINER_NAME}"
   docker exec -t "${CONTAINER_NAME}" pg_dump -U "${POSTGRES_USER}" "${POSTGRES_DB}" | gzip > "${BACKUP_FILE}"
 elif command -v pg_dump &> /dev/null; then
   echo -e "💻 Ejecutando pg_dump en host local (${POSTGRES_HOST}:${POSTGRES_PORT})"
-  PGPASSWORD="${PGPASSWORD:-valetec_secure_password_2026}" pg_dump -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" "${POSTGRES_DB}" | gzip > "${BACKUP_FILE}"
+  if [ -z "${PGPASSWORD:-}" ]; then
+    echo -e "${RED}❌ ERROR: PGPASSWORD no está configurada en las variables de entorno ni en .env.${NC}"
+    exit 1
+  fi
+  PGPASSWORD="${PGPASSWORD}" pg_dump -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" "${POSTGRES_DB}" | gzip > "${BACKUP_FILE}"
 else
   echo -e "${RED}❌ ERROR: No se encontró el contenedor Docker '${CONTAINER_NAME}' ni el comando local 'pg_dump'.${NC}"
   exit 1
