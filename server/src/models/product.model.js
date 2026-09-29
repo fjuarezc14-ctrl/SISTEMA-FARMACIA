@@ -76,19 +76,24 @@ class ProductModel {
     }
 
     // 6. Validación de Precios (Caja, Blíster, Unidad)
-    const checkPrice = (val, name) => {
-      if (val !== undefined && val !== null) {
+    const unitP = data.unit_price !== undefined ? data.unit_price : data.unitPrice;
+    const hasUnitPrice = unitP !== undefined && unitP !== null && !isNaN(parseFloat(unitP)) && parseFloat(unitP) >= 0;
+
+    const checkPrice = (val, name, allowFallback = false) => {
+      if (val !== undefined && val !== null && val !== '') {
         const p = parseFloat(val);
         if (isNaN(p) || p < 0) {
           errors.push(`El precio de ${name} debe ser un número mayor o igual a cero.`);
         }
       } else if (!isUpdate) {
-        errors.push(`El precio de ${name} es obligatorio.`);
+        if (!allowFallback || !hasUnitPrice) {
+          errors.push(`El precio de ${name} es obligatorio.`);
+        }
       }
     };
-    checkPrice(data.box_price !== undefined ? data.box_price : data.boxPrice, 'caja');
-    checkPrice(data.blister_price !== undefined ? data.blister_price : data.blisterPrice, 'blíster');
-    checkPrice(data.unit_price !== undefined ? data.unit_price : data.unitPrice, 'unidad');
+    checkPrice(data.box_price !== undefined ? data.box_price : data.boxPrice, 'caja', true);
+    checkPrice(data.blister_price !== undefined ? data.blister_price : data.blisterPrice, 'blíster', true);
+    checkPrice(unitP, 'unidad', false);
 
     // 7. Unidades por empaque (opcionales al crear con valores por defecto)
     if (data.units_per_box !== undefined || data.unitsPerBox !== undefined) {
@@ -512,11 +517,11 @@ class ProductModel {
       data.laboratory.trim(),
       parseInt(data.category_id || data.categoryId, 10),
       (data.location || 'Almacén Central').trim(),
-      parseFloat(data.box_price || data.boxPrice),
-      parseFloat(data.blister_price || data.blisterPrice),
+      parseFloat(data.box_price !== undefined ? data.box_price : (data.boxPrice !== undefined ? data.boxPrice : (data.unit_price || data.unitPrice))),
+      parseFloat(data.blister_price !== undefined ? data.blister_price : (data.blisterPrice !== undefined ? data.blisterPrice : (data.unit_price || data.unitPrice))),
       parseFloat(data.unit_price || data.unitPrice),
-      parseInt(data.units_per_box || data.unitsPerBox || 100, 10),
-      parseInt(data.units_per_blister || data.unitsPerBlister || 10, 10),
+      parseInt(data.units_per_box || data.unitsPerBox || (parseFloat(data.box_price || data.boxPrice || 0) === parseFloat(data.unit_price || data.unitPrice || 0) ? 1 : 100), 10),
+      parseInt(data.units_per_blister || data.unitsPerBlister || (parseFloat(data.blister_price || data.blisterPrice || 0) === parseFloat(data.unit_price || data.unitPrice || 0) ? 1 : 10), 10),
       data.prescription_type || data.prescriptionType || 'free',
       parseInt(data.generic_saving_percent || data.genericSavingPercent || 0, 10),
       data.sanitary_registry ? data.sanitary_registry.trim() : null,
