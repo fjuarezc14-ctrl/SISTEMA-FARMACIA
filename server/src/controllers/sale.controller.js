@@ -102,16 +102,33 @@ async function createSale(req, res, next) {
           }
         }
 
-        // Determinar precio: utilizar unitPrice provisto o recurrir al precio oficial de catálogo
+        // Determinar fracción solicitada y verificar que el producto esté habilitado para venderse en dicha presentación
+        const fraction = item.fractionType || 'unit';
+        let officialPrice = 0;
+        let fractionLabel = 'unidad';
+
+        if (fraction === 'box') {
+          officialPrice = parseFloat(prod.box_price) || 0;
+          fractionLabel = 'caja';
+        } else if (fraction === 'blister') {
+          officialPrice = parseFloat(prod.blister_price) || 0;
+          fractionLabel = 'blíster';
+        } else {
+          officialPrice = parseFloat(prod.unit_price) || 0;
+          fractionLabel = 'unidad';
+        }
+
+        if (officialPrice <= 0) {
+          const err = new Error(
+            `El producto "${prod.name}" no está habilitado para venderse por ${fractionLabel}.`
+          );
+          err.statusCode = 400;
+          throw err;
+        }
+
         let price = parseFloat(item.unitPrice);
         if (isNaN(price) || price <= 0) {
-          if (item.fractionType === 'box') {
-            price = parseFloat(prod.box_price);
-          } else if (item.fractionType === 'blister') {
-            price = parseFloat(prod.blister_price);
-          } else {
-            price = parseFloat(prod.unit_price);
-          }
+          price = officialPrice;
         }
         price = Math.round(price * 100) / 100;
 
