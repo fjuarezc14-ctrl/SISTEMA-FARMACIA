@@ -28,8 +28,9 @@ async function runSaleTests() {
 
   const jwt = require('jsonwebtoken');
   const config = require('../src/config/env');
+  const adminUser = await get("SELECT id, name FROM usuarios WHERE email = 'gerencia@valetec.pe' LIMIT 1");
   const testToken = jwt.sign(
-    { id: 1, name: 'Admin Test', roleKey: 'admin', roleLabel: 'Administrador' },
+    { id: adminUser ? adminUser.id : 1, name: adminUser ? adminUser.name : 'Admin Test', roleKey: 'admin', roleLabel: 'Administrador' },
     config.jwtSecret,
     { expiresIn: '2h' }
   );

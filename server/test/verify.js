@@ -92,17 +92,27 @@ async function runAllTests() {
         assert.strictEqual(healthData.success, true);
         assert.strictEqual(healthData.database.status.includes('PostgreSQL'), true);
 
-        const prodRes = await fetch(`${baseUrl}/api/test/products`);
+        const jwt = require('jsonwebtoken');
+        const config = require('../src/config/env');
+        const adminUser = await get("SELECT id, name FROM usuarios WHERE email = 'gerencia@valetec.pe' LIMIT 1");
+        const testToken = jwt.sign(
+          { id: adminUser.id, name: adminUser.name, roleKey: 'admin', roleLabel: 'Administrador' },
+          config.jwtSecret,
+          { expiresIn: '2h' }
+        );
+        const authHeaders = { 'Authorization': `Bearer ${testToken}` };
+
+        const prodRes = await fetch(`${baseUrl}/api/test/products`, { headers: authHeaders });
         assert.strictEqual(prodRes.status, 200);
         const prodData = await prodRes.json();
         assert.strictEqual(prodData.count >= 8, true);
 
-        const userRes = await fetch(`${baseUrl}/api/test/users`);
+        const userRes = await fetch(`${baseUrl}/api/test/users`, { headers: authHeaders });
         assert.strictEqual(userRes.status, 200);
         const userData = await userRes.json();
         assert.strictEqual(userData.data.every(u => !u.password_hash && !u.password), true);
 
-        const statsRes = await fetch(`${baseUrl}/api/test/stats`);
+        const statsRes = await fetch(`${baseUrl}/api/test/stats`, { headers: authHeaders });
         assert.strictEqual(statsRes.status, 200);
         const statsData = await statsRes.json();
         assert.strictEqual(statsData.stats.totalProducts >= 8, true);

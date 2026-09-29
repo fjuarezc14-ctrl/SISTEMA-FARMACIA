@@ -1,27 +1,20 @@
-const { query } = require('../db');
+const UserModel = require('../models/user.model');
 
 /**
- * Obtener perfiles y lista de personal desde PostgreSQL
+ * ============================================================================
+ * VALETEC PHARMA - CONTROLADOR: USER (PERSONAL, EMPLEADOS Y ROLES)
+ * ============================================================================
+ * Orquesta la obtención y perfiles del personal de la botica para administración.
+ * Las consultas y el acceso seguro a usuarios residen en UserModel.
+ */
+
+/**
+ * GET /api/users
+ * Obtener perfiles y lista de personal desde PostgreSQL (Solo Administrador)
  */
 async function getAllUsers(req, res, next) {
   try {
-    const users = await query(`
-      SELECT 
-        u.id,
-        u.name,
-        u.email,
-        r.name AS "roleKey",
-        r.label AS "roleLabel",
-        u.terminal,
-        u.shift,
-        u.permissions,
-        u.target,
-        u.status,
-        u.created_at AS "createdAt"
-      FROM usuarios u
-      JOIN roles r ON u.role_id = r.id
-      ORDER BY u.id ASC;
-    `);
+    const users = await UserModel.getAllWithRoles();
 
     // Estructurar perfiles de trabajo rápidos para login
     const profiles = {};

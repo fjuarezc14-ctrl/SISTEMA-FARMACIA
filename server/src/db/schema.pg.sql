@@ -134,6 +134,10 @@ CREATE TABLE IF NOT EXISTS ventas (
   change_given NUMERIC(10, 2) NOT NULL DEFAULT 0.00 CHECK(change_given >= 0),
   payment_reference VARCHAR(100),
   status VARCHAR(20) NOT NULL DEFAULT 'completed' CHECK(status IN ('completed', 'cancelled')),
+  sunat_status VARCHAR(30) NOT NULL DEFAULT 'pending',
+  sunat_response TEXT,
+  sunat_ticket VARCHAR(100),
+  sunat_sent_at TIMESTAMPTZ,
   hash_cpe TEXT,
   xml_ubl TEXT,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP

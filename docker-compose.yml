@@ -1,24 +1,39 @@
+# ==============================================================================
+# VALETEC PHARMA - ORQUESTADOR MAESTRO UNIFICADO DE CONTENEDORES (DOCKER COMPOSE)
+# ==============================================================================
+# Gestiona integralmente Base de Datos, Backend REST API, Frontend Nginx y
+# Servicio de Respaldos Automáticos sin archivos duplicados.
+# Configuración controlada 100% mediante variables del archivo '.env'.
+# ==============================================================================
+
 services:
-  # 1. CAPA DE BASE DE DATOS (POSTGRESQL 16)
+  # ----------------------------------------------------------------------------
+  # 1. BASE DE DATOS TRANSACCIONAL (POSTGRESQL 16)
+  # ----------------------------------------------------------------------------
   valetec-db:
     image: postgres:16-alpine
     container_name: valetec_pharma_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: valetec_user
-      POSTGRES_PASSWORD: valetec_secure_password_2026
-      POSTGRES_DB: valetec_pharma
+      POSTGRES_USER: ${PGUSER:-valetec_user}
+      POSTGRES_PASSWORD: ${PGPASSWORD:-valetec_secure_password_2026}
+      POSTGRES_DB: ${PGDATABASE:-valetec_pharma}
     ports:
       - "${BD_PUERTO:-5442}:5432"
     volumes:
       - valetec_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U valetec_user -d valetec_pharma"]
-      interval: 3s
-      timeout: 3s
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER:-valetec_user} -d ${PGDATABASE:-valetec_pharma}"]
+      interval: 5s
+      timeout: 5s
       retries: 5
+      start_period: 10s
+    networks:
+      - valetec_network
 
-  # 2. CAPA DE BACKEND (NODE.JS & EXPRESS REST API)
+  # ----------------------------------------------------------------------------
+  # 2. CAPA DE BACKEND (NODE.JS EXPRESS REST API & SERVICIO SUNAT UBL 2.1)
+  # ----------------------------------------------------------------------------
   valetec-backend:
     build:
       context: ./server
@@ -29,22 +44,31 @@ services:
       - "${PUERTO:-4030}:4000"
     environment:
       PORT: 4000
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-development}
       DB_CLIENT: postgres
       PGHOST: valetec-db
       PGPORT: 5432
-      PGUSER: valetec_user
-      PGPASSWORD: valetec_secure_password_2026
-      PGDATABASE: valetec_pharma
-      JWT_SECRET: valetec_pharma_production_secret_key_2026
-      CORS_ORIGIN: "*"
+      PGUSER: ${PGUSER:-valetec_user}
+      PGPASSWORD: ${PGPASSWORD:-valetec_secure_password_2026}
+      PGDATABASE: ${PGDATABASE:-valetec_pharma}
+      JWT_SECRET: ${JWT_SECRET:-valetec_pharma_production_secret_key_2026}
+      POS_WEBHOOK_SECRET: ${POS_WEBHOOK_SECRET:-valetec_pos_webhook_secret_2026}
+      CORS_ORIGIN: "${CORS_ORIGIN:-*}"
+      SUNAT_ENV: ${SUNAT_ENV:-beta}
+      SUNAT_USER: ${SUNAT_USER:-20601234567MODDATOS}
+      SUNAT_PASS: ${SUNAT_PASS:-moddatos}
+      CERT_PFX_PATH: ${CERT_PFX_PATH:-./certs/certificate_demo.pfx}
     depends_on:
       valetec-db:
         condition: service_healthy
     volumes:
       - ./server/src:/app/src
+    networks:
+      - valetec_network
 
-  # 3. CAPA DE FRONTEND (CLIENTE WEB SEPARADO EN PUERTO 3000)
+  # ----------------------------------------------------------------------------
+  # 3. CAPA DE FRONTEND (CLIENTE WEB SERVIDO POR NGINX CON PROXY INVERSO)
+  # ----------------------------------------------------------------------------
   valetec-frontend:
     build:
       context: ./client
@@ -57,7 +81,52 @@ services:
       - ./client:/usr/share/nginx/html
     depends_on:
       - valetec-backend
+    networks:
+      - valetec_network
 
+  # ----------------------------------------------------------------------------
+  # 4. CAPA DE RESPALDO AUTOMATIZADO (CRON BACKUP DIARIO CON ROTACIÓN)
+  # ----------------------------------------------------------------------------
+  valetec-backup:
+    image: postgres:16-alpine
+    container_name: valetec_pharma_backup
+    restart: unless-stopped
+    environment:
+      PGHOST: valetec-db
+      PGPORT: 5432
+      PGUSER: ${PGUSER:-valetec_user}
+      PGPASSWORD: ${PGPASSWORD:-valetec_secure_password_2026}
+      PGDATABASE: ${PGDATABASE:-valetec_pharma}
+      BACKUP_INTERVAL: ${BACKUP_INTERVAL:-86400}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-15}
+    volumes:
+      - ./backups:/backups
+    entrypoint: >
+      /bin/sh -c "
+        while true; do
+          echo '[BACKUP CRON] Iniciando respaldo programado de PostgreSQL...';
+          TS=$$(date +%Y%m%d_%H%M%S);
+          mkdir -p /backups;
+          pg_dump -h $$PGHOST -p $$PGPORT -U $$PGUSER -d $$PGDATABASE --clean --if-exists | gzip > /backups/valetec_pharma_backup_$${TS}.sql.gz;
+          echo '[BACKUP CRON] Respaldo generado con éxito: valetec_pharma_backup_$${TS}.sql.gz';
+          find /backups -name 'valetec_pharma_backup_*.sql.gz' -mtime +$$BACKUP_RETENTION_DAYS -delete;
+          echo '[BACKUP CRON] Próxima ejecución en $$BACKUP_INTERVAL segundos...';
+          sleep $$BACKUP_INTERVAL;
+        done
+      "
+    depends_on:
+      valetec-db:
+        condition: service_healthy
+    networks:
+      - valetec_network
+
+# ------------------------------------------------------------------------------
+# REDES Y VOLÚMENES PERSISTENTES
+# ------------------------------------------------------------------------------
 volumes:
   valetec_postgres_data:
     driver: local
+
+networks:
+  valetec_network:
+    driver: bridge

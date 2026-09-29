@@ -1,4 +1,14 @@
-const { query, get } = require('../db');
+const DashboardModel = require('../models/dashboard.model');
+const CashModel = require('../models/cash.model');
+
+/**
+ * ============================================================================
+ * VALETEC PHARMA - CONTROLADOR: DASHBOARD (MÉTRICAS Y REPORTES EJECUTIVOS)
+ * ============================================================================
+ * Orquesta KPIs financieros, cronología de ventas y rotación de inventario.
+ * Cero SQL en el controlador (Arquitectura MVC Estricta).
+ * ============================================================================
+ */
 
 /**
  * GET /api/dashboard/kpis
@@ -6,47 +16,13 @@ const { query, get } = require('../db');
  */
 async function getKpis(req, res, next) {
   try {
-    // 1. Resumen de ventas (hoy vs acumulado)
-    const salesSummary = await get(`
-      SELECT 
-        COALESCE(SUM(CASE WHEN created_at >= CURRENT_DATE THEN total ELSE 0 END), 0) AS today_sales,
-        COALESCE(COUNT(CASE WHEN created_at >= CURRENT_DATE THEN 1 END), 0) AS today_vouchers,
-        COALESCE(SUM(CASE WHEN payment_method = 'cash' AND created_at >= CURRENT_DATE THEN total ELSE 0 END), 0) AS today_cash_sales,
-        COALESCE(SUM(CASE WHEN payment_method != 'cash' AND created_at >= CURRENT_DATE THEN total ELSE 0 END), 0) AS today_digital_sales,
-        COALESCE(SUM(total), 0) AS month_sales,
-        COALESCE(COUNT(*), 0) AS month_vouchers,
-        COALESCE(SUM(CASE WHEN payment_method = 'cash' THEN total ELSE 0 END), 0) AS month_cash_sales,
-        COALESCE(SUM(CASE WHEN payment_method != 'cash' THEN total ELSE 0 END), 0) AS month_digital_sales,
-        COALESCE(SUM(subtotal), 0) AS month_taxable_base,
-        COALESCE(SUM(igv), 0) AS month_igv,
-        COALESCE(AVG(total), 0) AS avg_ticket
-      FROM ventas 
-      WHERE status = 'completed';
-    `);
+    const salesSummary = await DashboardModel.getSalesSummary();
+    const lotStats = await DashboardModel.getLotStats();
+    const activeShift = await CashModel.getOpenShift();
 
     const totalRevenue = parseFloat(salesSummary.month_sales);
     const estimatedGrossProfit = Math.round((totalRevenue * 0.35) * 100) / 100;
     const profitMarginPercent = totalRevenue > 0 ? 35.0 : 0;
-
-    // 2. Resumen sanitario de lotes FEFO
-    const lotStats = await get(`
-      SELECT 
-        COUNT(*) AS total_lots,
-        COALESCE(SUM(CASE WHEN expire_date <= CURRENT_DATE + INTERVAL '90 days' AND stock_units > 0 THEN 1 ELSE 0 END), 0) AS warning_lots,
-        COALESCE(SUM(CASE WHEN expire_date < CURRENT_DATE OR stock_units = 0 THEN 1 ELSE 0 END), 0) AS expired_or_empty_lots,
-        COALESCE(SUM(CASE WHEN expire_date > CURRENT_DATE + INTERVAL '90 days' AND stock_units > 0 THEN 1 ELSE 0 END), 0) AS healthy_lots
-      FROM lotes_fefo;
-    `);
-
-    // 3. Estado de caja chica y turno
-    const activeShift = await get(`
-      SELECT t.id, t.terminal, u.name AS cashier_name, t.opening_balance, t.cash_sales, t.digital_sales, t.expenses, t.expected_balance, t.status 
-      FROM caja_turnos t
-      LEFT JOIN usuarios u ON t.user_id = u.id
-      WHERE t.status = 'open' 
-      ORDER BY t.id DESC 
-      LIMIT 1;
-    `);
 
     res.status(200).json({
       success: true,
@@ -97,32 +73,7 @@ async function getKpis(req, res, next) {
  */
 async function getSalesChart(req, res, next) {
   try {
-    // 1. Histórico de ventas de los últimos 14 días
-    const dailyStats = await query(`
-      SELECT 
-        TO_CHAR(created_at, 'YYYY-MM-DD') AS date,
-        TO_CHAR(created_at, 'Dy') AS day_name,
-        COUNT(*) AS vouchers,
-        COALESCE(SUM(total), 0) AS total_sales,
-        COALESCE(SUM(CASE WHEN payment_method = 'cash' THEN total ELSE 0 END), 0) AS cash_sales,
-        COALESCE(SUM(CASE WHEN payment_method != 'cash' THEN total ELSE 0 END), 0) AS digital_sales
-      FROM ventas 
-      WHERE status = 'completed' AND created_at >= CURRENT_DATE - INTERVAL '14 days'
-      GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD'), TO_CHAR(created_at, 'Dy')
-      ORDER BY date ASC;
-    `);
-
-    // 2. Ventas agrupadas por hora de hoy
-    const hourlyToday = await query(`
-      SELECT 
-        EXTRACT(HOUR FROM created_at)::integer AS hour,
-        COUNT(*) AS vouchers,
-        COALESCE(SUM(total), 0) AS total_sales
-      FROM ventas
-      WHERE status = 'completed' AND created_at >= CURRENT_DATE
-      GROUP BY EXTRACT(HOUR FROM created_at)
-      ORDER BY hour ASC;
-    `);
+    const { dailyStats, hourlyToday } = await DashboardModel.getSalesChart(14);
 
     res.status(200).json({
       success: true,
@@ -157,26 +108,7 @@ async function getSalesChart(req, res, next) {
 async function getTopProducts(req, res, next) {
   try {
     const limit = parseInt(req.query.limit, 10) || 10;
-
-    const topProducts = await query(`
-      SELECT 
-        p.id,
-        p.name,
-        p.generic_dci AS generic_dci,
-        p.category_id,
-        c.name AS category_name,
-        SUM(d.quantity)::int AS units_sold,
-        SUM(d.subtotal)::float AS revenue,
-        COUNT(DISTINCT d.sale_id)::int AS orders
-      FROM ventas_detalles d
-      JOIN productos p ON d.product_id = p.id
-      LEFT JOIN categorias c ON p.category_id = c.id
-      JOIN ventas v ON d.sale_id = v.id
-      WHERE v.status = 'completed'
-      GROUP BY p.id, p.name, p.generic_dci, p.category_id, c.name
-      ORDER BY units_sold DESC 
-      LIMIT $1;
-    `, [limit]);
+    const topProducts = await DashboardModel.getTopSellingProducts(limit);
 
     res.status(200).json({
       success: true,

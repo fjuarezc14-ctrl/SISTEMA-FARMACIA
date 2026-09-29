@@ -29,8 +29,11 @@ async function runCashTests() {
 
   const jwt = require('jsonwebtoken');
   const config = require('../src/config/env');
+  const openShiftRow = await get("SELECT * FROM caja_turnos WHERE status = 'open' ORDER BY id DESC LIMIT 1");
+  const shiftUser = openShiftRow ? await get("SELECT id, name FROM usuarios WHERE id = $1", [openShiftRow.user_id]) : null;
+  const testUser = shiftUser || await get("SELECT id, name FROM usuarios WHERE email = 'caja@valetec.pe' LIMIT 1") || { id: 1, name: 'Cajero Test' };
   const testToken = jwt.sign(
-    { id: 1, name: 'Admin Test', roleKey: 'admin', roleLabel: 'Administrador' },
+    { id: testUser.id, name: testUser.name, roleKey: 'admin', roleLabel: 'Administrador' },
     config.jwtSecret,
     { expiresIn: '2h' }
   );
