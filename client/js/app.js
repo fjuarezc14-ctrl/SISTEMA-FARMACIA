@@ -25,8 +25,30 @@ function escHtml(str) {
     .replace(/'/g, '&#x27;')
     .replace(/\//g, '&#x2F;');
 }
+window.escHtml = escHtml;
+window.escapeHTML = escHtml;
 
-// =============================================================
+/**
+ * Resuelve el nombre del personal activo priorizando la sesión autenticada de PostgreSQL (JWT)
+ * @param {string} fallbackRole - Rol de contingencia ('cashier', 'qf', etc.)
+ * @param {string} defaultName - Nombre de contingencia por defecto
+ * @returns {string} - Nombre resuelto del usuario
+ */
+function getActiveStaffName(fallbackRole = 'cashier', defaultName = 'Cajero de Turno') {
+  if (window.authManager && window.authManager.currentUser && window.authManager.currentUser.name) {
+    return window.authManager.currentUser.name;
+  }
+  if (window.currentUser && window.currentUser.name) {
+    return window.currentUser.name;
+  }
+  const role = window.appNav ? (window.appNav.currentRole || fallbackRole) : fallbackRole;
+  if (typeof mockStaffProfiles !== 'undefined' && mockStaffProfiles && mockStaffProfiles[role] && mockStaffProfiles[role].name) {
+    return mockStaffProfiles[role].name;
+  }
+  return defaultName;
+}
+window.getActiveStaffName = getActiveStaffName;
+
 // 1. DATASET DE PRUEBA: MEDICAMENTOS CON EQUIVALENCIAS DCI
 // =============================================================
 let testPharmacyCatalog = [
@@ -337,6 +359,8 @@ class AuthManager {
     try {
       // Petición real al backend con validación bcrypt y firma JWT
       const res = await window.api.login(email, password);
+      this.currentUser = res.user;
+      window.currentUser = res.user;
 
       if (this.loginScreen) this.loginScreen.classList.add('d-none');
       if (this.appScreen) this.appScreen.classList.remove('d-none');
@@ -390,6 +414,8 @@ class AuthManager {
     try {
       const user = await window.api.getMe();
       if (user) {
+        this.currentUser = user;
+        window.currentUser = user;
         if (this.loginScreen) this.loginScreen.classList.add('d-none');
         if (this.appScreen) this.appScreen.classList.remove('d-none');
 
@@ -416,6 +442,8 @@ class AuthManager {
 
   logout() {
     if (confirm("¿Seguro que deseas cerrar la sesión de tu turno actual?")) {
+      this.currentUser = null;
+      window.currentUser = null;
       window.api.logout();
       if (this.appScreen) this.appScreen.classList.add('d-none');
       if (this.loginScreen) this.loginScreen.classList.remove('d-none');
@@ -1263,12 +1291,12 @@ class CounterModule {
         <article class="product-staff-card ${isOut ? 'out-stock' : ''}" data-id="${p.id}">
           <div>
             <div class="card-top-badges">
-              <span class="shelf-tag"><i class="bi bi-geo-alt"></i> ${p.location}</span>
+              <span class="shelf-tag"><i class="bi bi-geo-alt"></i> ${escHtml(p.location)}</span>
               ${rxPill}
             </div>
 
-            <div class="prod-name">${p.name}</div>
-            <div class="prod-dci">DCI: ${p.genericDci}</div>
+            <div class="prod-name">${escHtml(p.name)}</div>
+            <div class="prod-dci">DCI: ${escHtml(p.genericDci)}</div>
 
             <div class="prod-stock-strip">
               <span>Stock: <strong>${p.stockBoxes} Cajas</strong> (${p.stockBlisters} blíst.)</span>
@@ -1299,7 +1327,7 @@ class CounterModule {
             ${p.genericAlt ? `
               <button type="button" class="btn-alt-generic" onclick="counterApp.suggestAlt(${p.id})">
                 <i class="bi bi-arrow-repeat"></i>
-                <span>Alternativa DCI: ${p.genericAlt.name} (-${p.genericAlt.savingPercent}% ahorro)</span>
+                <span>Alternativa DCI: ${escHtml(p.genericAlt.name)} (-${p.genericAlt.savingPercent}% ahorro)</span>
               </button>
             ` : ''}
           </div>
@@ -1350,8 +1378,8 @@ class CounterModule {
     this.autocomplete.innerHTML = matches.map(p => `
       <div class="suggest-card-row" onclick="counterApp.selectSuggestItem(${p.id})">
         <div>
-          <strong style="font-size: 12.5px; color: var(--valetec-navy);">${p.name}</strong><br>
-          <small style="font-size: 10.5px; color: var(--text-muted);">${p.genericDci} • Ubic: ${p.location}</small>
+          <strong style="font-size: 12.5px; color: var(--valetec-navy);">${escHtml(p.name)}</strong><br>
+          <small style="font-size: 10.5px; color: var(--text-muted);">${escHtml(p.genericDci)} • Ubic: ${escHtml(p.location)}</small>
         </div>
         <div style="text-align: right;">
           <strong style="font-size: 12.5px; color: var(--valetec-teal-dark);">S/ ${p.boxPrice.toFixed(2)}</strong><br>
@@ -1531,8 +1559,8 @@ class CounterModule {
       this.itemsScroll.innerHTML = this.order.map((item, index) => `
         <div class="ticket-item-row">
           <div class="item-left-desc">
-            <div class="i-name">${item.product.name}</div>
-            <div class="i-sub">${item.label} • S/ ${item.price.toFixed(2)}</div>
+            <div class="i-name">${escHtml(item.product.name)}</div>
+            <div class="i-sub">${escHtml(item.label)} • S/ ${item.price.toFixed(2)}</div>
           </div>
           <div class="item-qty-wrap">
             <button type="button" class="btn-item-qty" onclick="counterApp.updateQty(${index}, -1)" title="Disminuir"><i class="bi bi-dash"></i></button>
@@ -1610,8 +1638,8 @@ class CounterModule {
       return `
         <tr>
           <td>
-            <div><strong>${item.productName}</strong></div>
-            <small style="color: #64748b;">${item.quantity} ${fracLabel} × S/ ${unitPrice} [Lote: ${item.lotNumber || 'FEFO'}]</small>
+            <div><strong>${escHtml(item.productName)}</strong></div>
+            <small style="color: #64748b;">${item.quantity} ${fracLabel} × S/ ${unitPrice} [Lote: ${escHtml(item.lotNumber || 'FEFO')}]</small>
           </td>
           <td class="text-right" style="font-weight: 700;">
             S/ ${subtotal}
@@ -1640,7 +1668,7 @@ class CounterModule {
 
         <div class="receipt-doc-title">${voucherLabel}</div>
         <div style="text-align: center; font-size: 15px; font-weight: 900; color: #0a2540; margin-bottom: 3px; ${isCancelled ? 'text-decoration: line-through; color: #dc2626;' : ''}">
-          ${sale.correlative}
+          ${escHtml(sale.correlative)}
         </div>
         <div style="text-align: center; font-size: 10px; color: #0d9488; font-weight: 800; margin-bottom: 6px;">
           ESTÁNDAR SUNAT UBL 2.1
@@ -1655,19 +1683,19 @@ class CounterModule {
           </div>
           <div class="receipt-info-row">
             <span>Atendido por:</span>
-            <span>${mockStaffProfiles[appNav?.currentRole || 'cashier']?.name || 'Cajero de Turno'}</span>
+            <span>${escHtml(getActiveStaffName(appNav?.currentRole || 'cashier', 'Cajero de Turno'))}</span>
           </div>
           <div class="receipt-info-row">
             <span>Cliente:</span>
-            <strong>${sale.customerName || 'CLIENTE GENERAL'}</strong>
+            <strong>${escHtml(sale.customerName || 'CLIENTE GENERAL')}</strong>
           </div>
           <div class="receipt-info-row">
             <span>Doc. Identidad:</span>
-            <span>${cleanDoc}</span>
+            <span>${escHtml(cleanDoc)}</span>
           </div>
           <div class="receipt-info-row">
             <span>Forma de Pago:</span>
-            <span style="font-weight: 700;">${payLabel}</span>
+            <span style="font-weight: 700;">${escHtml(payLabel)}</span>
           </div>
           <div class="receipt-info-row">
             <span>Estado:</span>
@@ -1718,7 +1746,7 @@ class CounterModule {
 
         ${totalWords ? `
           <div style="font-size: 10px; font-weight: 700; color: #334155; margin: 6px 0; text-transform: uppercase; line-height: 1.3;">
-            SON: ${totalWords}
+            SON: ${escHtml(totalWords)}
           </div>
         ` : ''}
 
@@ -1727,7 +1755,7 @@ class CounterModule {
         <!-- Bloque de Firma Digital y Hash SHA-256 (SUNAT) -->
         <div class="receipt-hash-box">
           <div style="font-weight: 700; color: #475569; margin-bottom: 2px;">CÓDIGO HASH SHA-256 (CPE):</div>
-          <code style="font-size: 9px; color: #0f172a; word-break: break-all;">${hashVal}</code>
+          <code style="font-size: 9px; color: #0f172a; word-break: break-all;">${escHtml(hashVal)}</code>
         </div>
 
         <!-- Código QR Oficial SUNAT -->
@@ -2279,7 +2307,7 @@ class CashModule {
         const detail = this.expDetailInput?.value?.trim();
         const motive = this.expConceptSelect?.value || 'gasto';
         const concept = detail ? `${detail} (${motive})` : `Gasto autorizado de caja chica (${motive})`;
-        const responsible = mockStaffProfiles[appNav?.currentRole || 'cashier']?.name || 'Rodrigo Soto';
+        const responsible = getActiveStaffName(appNav?.currentRole || 'cashier', 'Cajero de Turno');
 
         try {
           if (window.api && window.api.isConnected) {
@@ -2424,7 +2452,7 @@ class CashModule {
         const localReport = {
           turnoId: this.currentShift?.id || 1,
           terminal: this.currentShift?.terminal || 'Caja 01',
-          cashierName: mockStaffProfiles[appNav?.currentRole || 'cashier']?.name || 'Rodrigo Soto',
+          cashierName: getActiveStaffName(appNav?.currentRole || 'cashier', 'Cajero de Turno'),
           openedAt: this.currentShift?.openedAt || new Date(Date.now() - 28800000).toISOString(),
           closedAt: new Date().toISOString(),
           openingBalance: this.openingBalance,
@@ -2578,9 +2606,9 @@ class CashModule {
       return `
         <tr style="border-bottom: 1px solid #f1f5f9;">
           <td style="padding: 8px 12px; color: #64748b; font-family: monospace;">${timeStr}</td>
-          <td style="padding: 8px 12px;"><span style="${badgeStyle}">${(m.type || 'egreso').toUpperCase()}</span></td>
-          <td style="padding: 8px 12px; font-weight: 500; color: #1e293b;">${m.concept || 'Gasto operativo'}</td>
-          <td style="padding: 8px 12px; color: #64748b;">${m.responsible || 'Cajero'}</td>
+          <td style="padding: 8px 12px;"><span style="${badgeStyle}">${escHtml((m.type || 'egreso').toUpperCase())}</span></td>
+          <td style="padding: 8px 12px; font-weight: 500; color: #1e293b;">${escHtml(m.concept || 'Gasto operativo')}</td>
+          <td style="padding: 8px 12px; color: #64748b;">${escHtml(m.responsible || 'Cajero')}</td>
           <td style="padding: 8px 12px; text-align: right; font-weight: 700; color: ${amountColor};">
             ${prefix}${parseFloat(m.amount || 0).toFixed(2)}
           </td>
@@ -2742,7 +2770,7 @@ class CashModule {
 
         <div class="receipt-doc-title">REPORTE Z OFICIAL DE CIERRE</div>
         <div style="text-align: center; font-size: 13px; font-weight: 800; color: #0a2540;">
-          TURNO N° ${String(report.turnoId).padStart(4, '0')} • ${report.terminal || 'Caja 01'}
+          TURNO N° ${String(report.turnoId).padStart(4, '0')} • ${escHtml(report.terminal || 'Caja 01')}
         </div>
 
         <div class="receipt-dashed-line"></div>
@@ -2750,7 +2778,7 @@ class CashModule {
         <div class="receipt-info-grid">
           <div class="receipt-info-row">
             <span>Cajero Responsable:</span>
-            <strong>${report.cashierName}</strong>
+            <strong>${escHtml(report.cashierName)}</strong>
           </div>
           <div class="receipt-info-row">
             <span>Apertura de Turno:</span>
@@ -2957,7 +2985,7 @@ class WarehouseModule {
     if (!prod) return;
 
     document.getElementById('medId').value = prod.id;
-    document.getElementById('medModalTitle').innerHTML = `<i class="bi bi-pencil-square text-blue"></i> Editar Fármaco: ${prod.name}`;
+    document.getElementById('medModalTitle').innerHTML = `<i class="bi bi-pencil-square text-blue"></i> Editar Fármaco: ${escHtml(prod.name)}`;
     document.getElementById('medName').value = prod.name || '';
     document.getElementById('medGenericDci').value = prod.genericDci || '';
     document.getElementById('medBarcode').value = prod.barcode || '';
@@ -3120,17 +3148,17 @@ class WarehouseModule {
 
       return `
         <tr style="${isInactive ? 'opacity: 0.65; background-color: #f8fafc;' : ''}">
-          <td><code>${p.barcode}</code></td>
+          <td><code>${escHtml(p.barcode)}</code></td>
           <td>
-            <strong>${p.name}</strong>
+            <strong>${escHtml(p.name)}</strong>
             ${isInactive ? '<span style="background:#fee2e2; color:#b91c1c; font-size:10px; font-weight:800; margin-left:6px; padding:2px 6px; border-radius:4px;">INACTIVO</span>' : ''}
-            <br><small style="color: var(--text-muted);">${p.genericDci}</small>
+            <br><small style="color: var(--text-muted);">${escHtml(p.genericDci)}</small>
           </td>
-          <td>${p.laboratory}</td>
-          <td><span class="shelf-tag"><i class="bi bi-geo-alt"></i> ${p.location}</span></td>
+          <td>${escHtml(p.laboratory)}</td>
+          <td><span class="shelf-tag"><i class="bi bi-geo-alt"></i> ${escHtml(p.location)}</span></td>
           <td><strong>${p.stockBoxes} cajas</strong> (${p.stockBlisters} blíst. / ${p.stockUnits} past.)</td>
-          <td><code>${p.lotNumber}</code></td>
-          <td><strong>${p.expireDate}</strong></td>
+          <td><code>${escHtml(p.lotNumber)}</code></td>
+          <td><strong>${escHtml(p.expireDate)}</strong></td>
           <td><span class="fefo-chip ${fefoClass}">${fefoLabel}</span></td>
           <td style="white-space: nowrap;">
             <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; font-weight: 700; margin-right: 4px;" onclick="warehouseApp.openEditModal(${p.id})" title="Editar Fármaco">
@@ -3156,7 +3184,7 @@ class WarehouseModule {
     const select = document.getElementById('adjProductId');
     if (select && testPharmacyCatalog) {
       select.innerHTML = '<option value="">-- Seleccionar Medicamento --</option>' +
-        testPharmacyCatalog.map(p => `<option value="${p.id}" ${productId && p.id === productId ? 'selected' : ''}>${p.name} (${p.genericDci || ''}) - Stock: ${p.stockUnits} un.</option>`).join('');
+        testPharmacyCatalog.map(p => `<option value="${p.id}" ${productId && p.id === productId ? 'selected' : ''}>${escHtml(p.name)} (${escHtml(p.genericDci || '')}) - Stock: ${p.stockUnits} un.</option>`).join('');
     }
 
     if (productId) {
@@ -3195,11 +3223,11 @@ class WarehouseModule {
 
     if (info) info.style.display = 'block';
     if (stockEl) stockEl.innerText = `${prod.stockBoxes} cajas (${prod.stockBlisters} blísters / ${prod.stockUnits} unid.)`;
-    if (locBadge) locBadge.innerHTML = `<i class="bi bi-geo-alt"></i> ${prod.location || 'Sin ubicación'}`;
+    if (locBadge) locBadge.innerHTML = `<i class="bi bi-geo-alt"></i> ${escHtml(prod.location || 'Sin ubicación')}`;
 
     if (lotSelect) {
       lotSelect.innerHTML = `
-        <option value="">Lote Principal: ${prod.lotNumber || 'L-Default'} (Vence: ${prod.expireDate || 'N/A'})</option>
+        <option value="">Lote Principal: ${escHtml(prod.lotNumber || 'L-Default')} (Vence: ${escHtml(prod.expireDate || 'N/A')})</option>
       `;
     }
   }
@@ -3325,10 +3353,10 @@ class WarehouseModule {
             return `
               <tr>
                 <td><span class="badge" style="background:${badgeClass}; font-weight:800; padding:4px 8px; border-radius:6px; display: inline-flex; align-items: center; gap: 4px;">${label}</span></td>
-                <td><strong>${l.productName}</strong><br><small class="text-muted">${l.genericDci || ''}</small></td>
-                <td>${l.laboratory}</td>
-                <td><code>${l.lotNumber}</code></td>
-                <td><strong>${l.expireDate}</strong></td>
+                <td><strong>${escHtml(l.productName)}</strong><br><small class="text-muted">${escHtml(l.genericDci || '')}</small></td>
+                <td>${escHtml(l.laboratory)}</td>
+                <td><code>${escHtml(l.lotNumber)}</code></td>
+                <td><strong>${escHtml(l.expireDate)}</strong></td>
                 <td><strong style="color:${l.daysLeft <= 30 ? '#dc2626' : (l.daysLeft <= 90 ? '#d97706' : '#16a34a')}">${l.daysLeft} días</strong></td>
                 <td><strong>${l.stockBoxes} cajas</strong> (${l.stockUnits} un.)</td>
                 <td style="text-align: right; white-space: nowrap;">
@@ -3450,7 +3478,7 @@ class WarehouseModule {
 
         const titleEl = document.getElementById('kardexModalTitle');
         const subEl = document.getElementById('kardexModalSubtitle');
-        if (titleEl) titleEl.innerHTML = `<i class="bi bi-journal-medical text-teal"></i> Kardex: ${p.name}`;
+        if (titleEl) titleEl.innerHTML = `<i class="bi bi-journal-medical text-teal"></i> Kardex: ${escHtml(p.name)}`;
         if (subEl) subEl.innerText = `${p.genericDci || ''} • Lab: ${p.laboratory} • Ubic: ${p.location} • Cód: ${p.barcode}`;
 
         const stockEl = document.getElementById('kardexStockDisplay');
@@ -3494,15 +3522,15 @@ class WarehouseModule {
 
               return `
                 <tr>
-                  <td><code>${m.createdAt}</code></td>
+                  <td><code>${escHtml(m.createdAt)}</code></td>
                   <td><span class="badge" style="background:${badgeColor}20; color:${badgeColor}; font-weight:800; padding:4px 8px; border-radius:6px;">${badgeText}</span></td>
-                  <td><strong>${m.referenceType}</strong><br><small class="text-muted">${m.referenceId || ''}</small></td>
-                  <td><code>${m.lotNumber || 'N/A'}</code></td>
+                  <td><strong>${escHtml(m.referenceType)}</strong><br><small class="text-muted">${escHtml(m.referenceId || '')}</small></td>
+                  <td><code>${escHtml(m.lotNumber || 'N/A')}</code></td>
                   <td style="text-align: right; color:#15803d; font-weight:700;">${inQty}</td>
                   <td style="text-align: right; color:#b91c1c; font-weight:700;">${outQty}</td>
                   <td style="text-align: right; font-weight:800;" title="Saldo anterior: ${m.previousStock} → Saldo nuevo: ${m.newStock}">${m.newStock} <small style="font-weight:400; color:#94a3b8; font-size:10px;">(ant:${m.previousStock})</small></td>
-                  <td><small>${m.userName || 'Sistema'}</small></td>
-                  <td><small style="color: #475569;">${m.reason || ''}</small></td>
+                  <td><small>${escHtml(m.userName || 'Sistema')}</small></td>
+                  <td><small style="color: #475569;">${escHtml(m.reason || '')}</small></td>
                 </tr>
               `;
             }).join('');
@@ -3549,9 +3577,9 @@ class WarehouseModule {
         if (tbody) {
           tbody.innerHTML = res.data.map(item => `
             <tr>
-              <td><strong>${item.name}</strong><br><small class="text-muted">${item.genericDci || ''}</small></td>
-              <td>${item.laboratory}</td>
-              <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:700; padding:4px 8px; border-radius:4px;">${item.category}</span></td>
+              <td><strong>${escHtml(item.name)}</strong><br><small class="text-muted">${escHtml(item.genericDci || '')}</small></td>
+              <td>${escHtml(item.laboratory)}</td>
+              <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:700; padding:4px 8px; border-radius:4px;">${escHtml(item.category)}</span></td>
               <td><strong>${item.totalBoxes} cajas</strong> (${item.totalUnits} un.)</td>
               <td>S/ ${item.estimatedCostUnit.toFixed(2)}</td>
               <td><strong>S/ ${item.unitPrice.toFixed(2)}</strong></td>
@@ -3793,38 +3821,30 @@ class DigemidModule {
     };
 
     try {
-      if (window.api) {
-        const res = await window.api.createRecipe(payload);
-        if (res && res.data) {
-          digemidMockRecords.unshift({
-            folio: res.data.folio,
-            patientName: res.data.patientName,
-            patientDni: res.data.patientDni,
-            doctorName: res.data.doctorName,
-            doctorCmp: res.data.doctorCmp,
-            medication: res.data.medication,
-            dateIssued: res.data.dateIssued,
-            status: res.data.status,
-            notes: res.data.notes
-          });
-          showValetecToast(`Receta ${res.data.folio} foliada con éxito en Libro Oficial DIGEMID.`, 'success');
-        }
+      if (!window.api) {
+        throw new Error("Conexión con el servidor no disponible.");
+      }
+      const res = await window.api.createRecipe(payload);
+      if (res && res.data) {
+        digemidMockRecords.unshift({
+          folio: res.data.folio,
+          patientName: res.data.patientName,
+          patientDni: res.data.patientDni,
+          doctorName: res.data.doctorName,
+          doctorCmp: res.data.doctorCmp,
+          medication: res.data.medication,
+          dateIssued: res.data.dateIssued,
+          status: res.data.status,
+          notes: res.data.notes
+        });
+        showValetecToast(`Receta ${res.data.folio} foliada con éxito en Libro Oficial DIGEMID.`, 'success');
+      } else {
+        throw new Error(res?.message || "No se pudo registrar la receta en la base de datos.");
       }
     } catch (err) {
-      console.warn("Foliación en memoria local:", err.message);
-      const fakeFolio = `REC-2026-${String(digemidMockRecords.length + 42).padStart(4, '0')}`;
-      digemidMockRecords.unshift({
-        folio: fakeFolio,
-        patientName: payload.patientName,
-        patientDni: payload.patientDni,
-        doctorName: payload.doctorName,
-        doctorCmp: payload.doctorCmp.toUpperCase().startsWith('CMP') ? payload.doctorCmp.toUpperCase() : `CMP-${payload.doctorCmp}`,
-        medication: payload.medicationDetails,
-        dateIssued: new Date().toLocaleDateString('es-PE'),
-        status: 'retained',
-        notes: payload.notes
-      });
-      showValetecToast(`Receta ${fakeFolio} foliada en memoria local.`, 'info');
+      console.error("Error al foliar receta en PostgreSQL:", err.message);
+      showValetecToast(`Error al foliar receta: ${err.message || 'Fallo en base de datos PostgreSQL'}`, 'danger');
+      return;
     }
 
     // Limpiar campos y cerrar modal
@@ -3898,13 +3918,13 @@ class DigemidModule {
             <span style="font-size: 10px; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 2px 6px; border-radius: 4px;">REGISTRO OFICIAL</span>
           </div>
           <h2 style="font-size: 15px; font-weight: 900; color: #004d99; margin: 0 0 2px 0; letter-spacing: -0.2px;">
-            ${est.name}
+            ${escHtml(est.name)}
           </h2>
           <div style="font-size: 10.5px; color: #475569;">
-            <strong>RUC:</strong> ${est.ruc} &nbsp;|&nbsp; <strong>Licencia:</strong> ${est.sanitaryLicense}
+            <strong>RUC:</strong> ${escHtml(est.ruc)} &nbsp;|&nbsp; <strong>Licencia:</strong> ${escHtml(est.sanitaryLicense)}
           </div>
           <div style="font-size: 10px; color: #64748b; margin-top: 2px;">
-            ${est.address}
+            ${escHtml(est.address)}
           </div>
           <div style="display: inline-block; margin-top: 6px; padding: 3px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 20px; font-weight: 700; color: #0f172a; font-size: 11px;">
             BALANCE OFICIAL DE MEDICAMENTOS CONTROLADOS & PSICOTRÓPICOS
@@ -3915,7 +3935,7 @@ class DigemidModule {
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px;">
           <div>
             <span style="color: #64748b; font-size: 9.5px; text-transform: uppercase; font-weight: 700; display: block;">Directora Técnica Responsable:</span>
-            <strong style="color: #004d99; font-size: 11.5px;">${est.technicalDirector}</strong>
+            <strong style="color: #004d99; font-size: 11.5px;">${escHtml(est.technicalDirector)}</strong>
           </div>
           <div style="text-align: right;">
             <span style="color: #64748b; font-size: 9.5px; text-transform: uppercase; font-weight: 700; display: block;">Fecha de Emisión:</span>
@@ -4199,25 +4219,25 @@ class StaffManagementModule {
 
     this.tableBody.innerHTML = staffMembersList.map((m, index) => {
       const isAct = (m.status === 'active');
-      const initials = m.name.split(' ').map(n => n[0]).join('').substring(0, 2);
+      const initials = escHtml(m.name.split(' ').map(n => n[0]).join('').substring(0, 2));
       return `
         <tr>
           <td>
             <div style="display: flex; align-items: center; gap: 8px;">
               <div class="user-avatar" style="width:28px; height:28px; font-size:11px; flex-shrink:0;">${initials}</div>
-              <strong>${m.name}</strong>
+              <strong>${escHtml(m.name)}</strong>
             </div>
           </td>
-          <td><span class="shelf-tag" style="background-color: var(--valetec-blue-light); color: var(--valetec-blue);">${m.role}</span></td>
-          <td><strong>${m.terminal}</strong></td>
-          <td>${m.shift}</td>
-          <td><small style="color: var(--text-muted);">${m.permissions}</small></td>
+          <td><span class="shelf-tag" style="background-color: var(--valetec-blue-light); color: var(--valetec-blue);">${escHtml(m.role)}</span></td>
+          <td><strong>${escHtml(m.terminal)}</strong></td>
+          <td>${escHtml(m.shift)}</td>
+          <td><small style="color: var(--text-muted);">${escHtml(m.permissions)}</small></td>
           <td>
             <span class="pulse-indicator" style="background-color: ${isAct ? 'rgba(13, 148, 136, 0.15)' : '#f1f5f9'}; color: ${isAct ? '#0d9488' : '#64748b'};">
               <span class="status-dot ${isAct ? 'active' : ''}"></span> ${isAct ? 'En Turno' : 'Pausa / Fuera'}
             </span>
           </td>
-          <td><strong>${m.target}</strong></td>
+          <td><strong>${escHtml(m.target)}</strong></td>
           <td>
             <button type="button" class="btn-action-outline btn-staff-perm" data-index="${index}" style="padding: 4px 10px; font-size: 11px; font-weight: 700;" onclick="window.staffApp ? window.staffApp.openPermissionsModal(${index}, event) : window.openPermissionsModal(${index}, event)">
               <i class="bi bi-sliders"></i> <span>Permisos</span>
@@ -4528,8 +4548,8 @@ class ClassificationModule {
     this.categoriesTable.innerHTML = this.categories.map(c => `
       <tr>
         <td><code>#${c.id}</code></td>
-        <td><strong><i class="bi ${c.icon || 'bi-capsule'} text-teal"></i> ${c.name}</strong></td>
-        <td><code>${c.slug}</code></td>
+        <td><strong><i class="bi ${escHtml(c.icon || 'bi-capsule')} text-teal"></i> ${escHtml(c.name)}</strong></td>
+        <td><code>${escHtml(c.slug)}</code></td>
         <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:800; padding:4px 8px; border-radius:6px;">${c.productCount || 0} medicamentos</span></td>
         <td style="text-align: right; white-space: nowrap;">
           <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="classificationApp.editCategory(${c.id}, '${c.name.replace(/'/g, "\\'")}', '${c.icon || ''}')" title="Editar Categoría">
@@ -4556,8 +4576,8 @@ class ClassificationModule {
     this.laboratoriesTable.innerHTML = this.laboratories.map(l => `
       <tr>
         <td><code>#${l.id}</code></td>
-        <td><strong><i class="bi bi-building text-blue"></i> ${l.name}</strong></td>
-        <td><span><i class="bi bi-geo-alt" style="color: #64748b; margin-right: 3px;"></i>${l.country || 'Perú'}</span></td>
+        <td><strong><i class="bi bi-building text-blue"></i> ${escHtml(l.name)}</strong></td>
+        <td><span><i class="bi bi-geo-alt" style="color: #64748b; margin-right: 3px;"></i>${escHtml(l.country || 'Perú')}</span></td>
         <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:800; padding:4px 8px; border-radius:6px;">${l.productCount || 0} medicamentos</span></td>
         <td style="text-align: right; white-space: nowrap;">
           <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="classificationApp.editLaboratory(${l.id}, '${l.name.replace(/'/g, "\\'")}', '${l.country || 'Perú'}', '${l.contact || ''}')" title="Editar Laboratorio">
@@ -4579,7 +4599,7 @@ class ClassificationModule {
     if (medCatSelect && this.categories.length > 0) {
       const currentVal = medCatSelect.value;
       medCatSelect.innerHTML = this.categories.map(c => `
-        <option value="${c.id}">${c.name}</option>
+        <option value="${c.id}">${escHtml(c.name)}</option>
       `).join('');
       if (currentVal) medCatSelect.value = currentVal;
     }

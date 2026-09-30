@@ -88,10 +88,11 @@ async function runAllTests() {
       const baseUrl = `http://127.0.0.1:${port}`;
 
       try {
+        const adminUser = await get("SELECT id, name FROM usuarios WHERE email = 'gerencia@valetec.pe' LIMIT 1");
         const adminToken = jwt.sign(
-          { id: 1, name: 'Ing. Juan Pérez', email: 'gerencia@valetec.pe', roleKey: 'admin' },
+          { id: adminUser ? adminUser.id : 1, name: adminUser ? adminUser.name : 'Ing. Juan Pérez', email: 'gerencia@valetec.pe', roleKey: 'admin', roleLabel: 'Administrador' },
           config.jwtSecret,
-          { expiresIn: '1h' }
+          { expiresIn: '2h' }
         );
         const authHeaders = {
           'Authorization': `Bearer ${adminToken}`,
@@ -103,7 +104,6 @@ async function runAllTests() {
         const healthData = await healthRes.json();
         assert.strictEqual(healthData.success, true);
         assert.strictEqual(healthData.database.status.includes('PostgreSQL'), true);
-
         const prodRes = await fetch(`${baseUrl}/api/test/products`, { headers: authHeaders });
         assert.strictEqual(prodRes.status, 200);
         const prodData = await prodRes.json();

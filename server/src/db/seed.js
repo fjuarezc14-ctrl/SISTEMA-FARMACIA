@@ -351,7 +351,6 @@ async function seedDatabase() {
     if (cashierUser) {
       // Sellar cualquier turno anterior para garantizar estado limpio y predecible
       await run("UPDATE caja_turnos SET status = 'closed_z', closed_at = NOW() WHERE status = 'open'");
-
       let turno = await get('SELECT id FROM caja_turnos WHERE user_id = $1 AND status = $2', [cashierUser.id, 'open']);
       if (!turno) {
         await run(

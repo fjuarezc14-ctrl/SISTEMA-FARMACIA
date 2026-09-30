@@ -134,6 +134,10 @@ CREATE TABLE IF NOT EXISTS ventas (
   change_given NUMERIC(10, 2) NOT NULL DEFAULT 0.00 CHECK(change_given >= 0),
   payment_reference VARCHAR(100),
   status VARCHAR(20) NOT NULL DEFAULT 'completed' CHECK(status IN ('completed', 'cancelled')),
+  sunat_status VARCHAR(30) NOT NULL DEFAULT 'pending',
+  sunat_response TEXT,
+  sunat_ticket VARCHAR(100),
+  sunat_sent_at TIMESTAMPTZ,
   hash_cpe TEXT,
   xml_ubl TEXT,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -245,6 +249,10 @@ CREATE INDEX IF NOT EXISTS idx_kardex_lot ON kardex(lot_id);
 -- Actualizaciones de Esquema Idempotentes para Bases de Datos Existentes
 ALTER TABLE productos ADD COLUMN IF NOT EXISTS sanitary_registry VARCHAR(100);
 ALTER TABLE productos ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active';
+ALTER TABLE ventas ADD COLUMN IF NOT EXISTS sunat_status VARCHAR(30) NOT NULL DEFAULT 'pending';
+ALTER TABLE ventas ADD COLUMN IF NOT EXISTS sunat_response TEXT;
+ALTER TABLE ventas ADD COLUMN IF NOT EXISTS sunat_ticket VARCHAR(100);
+ALTER TABLE ventas ADD COLUMN IF NOT EXISTS sunat_sent_at TIMESTAMPTZ;
 ALTER TABLE ventas ADD COLUMN IF NOT EXISTS hash_cpe TEXT;
 ALTER TABLE ventas ADD COLUMN IF NOT EXISTS xml_ubl TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;

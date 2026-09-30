@@ -1,6 +1,6 @@
 const { spawn } = require('child_process');
 const config = require('../config/env');
-const { get, query } = require('../db');
+const SystemModel = require('../models/system.model');
 
 /**
  * GET /api/system/backup
@@ -13,16 +13,10 @@ async function generateBackup(req, res, next) {
 
     // Si el cliente solicita modo JSON informativo (para verificación/auditoría rápida)
     if (req.query.mode === 'json') {
-      const tables = await query(`
-        SELECT tablename 
-        FROM pg_catalog.pg_tables 
-        WHERE schemaname = 'public' 
-        ORDER BY tablename ASC;
-      `);
-
-      const dbStats = await get(`
-        SELECT pg_size_pretty(pg_database_size(current_database())) AS db_size;
-      `);
+      const [tables, dbStats] = await Promise.all([
+        SystemModel.getPublicTables(),
+        SystemModel.getDatabaseSize()
+      ]);
 
       return res.status(200).json({
         success: true,

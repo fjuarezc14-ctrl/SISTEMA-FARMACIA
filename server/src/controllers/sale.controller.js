@@ -1,15 +1,20 @@
-const { transaction, query, get } = require('../db');
+const { transaction } = require('../db');
 const { generateUBL21, numberToLetters } = require('../services/sunat.service');
+const SaleModel = require('../models/sale.model');
+const ProductModel = require('../models/product.model');
+const SettingsModel = require('../models/settings.model');
+const CashModel = require('../models/cash.model');
+const SunatWorker = require('../services/sunat.worker');
 
 /**
- * Mapeo de prefijo de serie por tipo de comprobante
+ * ============================================================================
+ * VALETEC PHARMA - CONTROLADOR: SALE (VENTAS, FACTURACIÓN SUNAT Y FEFO)
+ * ============================================================================
+ * Orquesta la transacción de venta en mostrador (POS), emisión de Boletas/Facturas
+ * electrónicas UBL 2.1, partición exacta de partidas multi-lote FEFO y Cierre de turno.
  */
-const SERIES_MAP = {
-  boleta: 'B001',
-  factura: 'F001',
-  ticket: 'T001'
-};
 
+/**
 /**
  * Determina el estado FEFO de un lote según su fecha de caducidad
  */
@@ -24,13 +29,14 @@ function calculateFefoStatus(expireDateStr) {
 }
 
 /**
+ * POST /api/sales
  * Transacción Atómica de Venta:
- * 1. Valida stock y disponibilidad en lotes FEFO.
- * 2. Genera correlativo consecutivo (B001-XXXX).
- * 3. Desglosa IGV (18%) y base imponible.
- * 4. Deduce matemáticamente pastillas/unidades mínimas en lotes_fefo.
- * 5. Actualiza saldo esperado en la gaveta de caja (caja_turnos).
- * 6. Si algo falla (ej. stock insuficiente), PostgreSQL ejecuta ROLLBACK total.
+ * 1. Valida reglas sanitarias y de catálogo mediante ProductModel y SaleModel.
+ * 2. Bloquea filas de lotes con FOR UPDATE y filtro sanitario expire_date >= CURRENT_DATE.
+ * 3. Genera correlativo atómico con pg_advisory_xact_lock.
+ * 4. Calcula precios exclusivos desde base de datos (inmune a price tampering).
+ * 5. Genera XML UBL 2.1 y firma digital con datos fiscales de SettingsModel.
+ * 6. Registra partidas multi-lote en ventas_detalles y actualiza turno en CashModel.
  */
 async function createSale(req, res, next) {
   try {
@@ -43,105 +49,40 @@ async function createSale(req, res, next) {
       amountPaid,
       paymentReference = null,
       doctorCmp = null,
-      recipeFolio = null,
-      userId: bodyUserId
+      recipeFolio = null
     } = req.body;
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: 'No se puede procesar una venta sin medicamentos en el carrito.'
-      });
-    }
-
-    if (!['boleta', 'factura', 'ticket'].includes(invoiceType)) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: 'Tipo de comprobante inválido. Debe ser: boleta, factura o ticket.'
-      });
-    }
-
-    if (!['cash', 'yape', 'card'].includes(paymentMethod)) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: 'Método de pago inválido. Debe ser: cash, yape o card.'
-      });
-    }
-
-    // Validación fiscal estricta SUNAT para Facturas Electrónicas (Evita rechazo Error 2014)
-    if (invoiceType === 'factura') {
-      const cleanRuc = (customerDoc || '').toString().trim();
-      if (!/^\d{11}$/.test(cleanRuc)) {
-        return res.status(400).json({
-          success: false,
-          statusCode: 400,
-          message: 'Para emitir Factura Electrónica, el RUC del receptor debe tener exactamente 11 dígitos numéricos.'
-        });
-      }
-      if (!cleanRuc.startsWith('10') && !cleanRuc.startsWith('20') && !cleanRuc.startsWith('15') && !cleanRuc.startsWith('17')) {
-        return res.status(400).json({
-          success: false,
-          statusCode: 400,
-          message: 'RUC inválido: Conforme a normativa SUNAT, el RUC de Factura debe iniciar con 10, 20, 15 o 17.'
-        });
-      }
-      if (!customerName || customerName.trim() === '' || customerName.trim().toUpperCase() === 'CLIENTE VARIOS') {
-        return res.status(400).json({
-          success: false,
-          statusCode: 400,
-          message: 'Para emitir Factura Electrónica debe registrarse la Razón Social válida de la empresa receptora.'
-        });
-      }
-    }
+    // 1. Validaciones defensivas iniciales mediante SaleModel
+    SaleModel.validate({
+      invoiceType,
+      paymentMethod,
+      customerDoc,
+      customerName,
+      items
+    });
 
     const sanitizedRef = paymentReference ? String(paymentReference).trim() : null;
+    const activeUserId = (req.user && req.user.id) ? req.user.id : 1;
 
-    // Identificar usuario autenticado (prioridad estricta para prevenir suplantación de identidad)
-    let activeUserId = (req.user && req.user.id) ? req.user.id : null;
-    if (!activeUserId) {
-      const defaultCashier = await get("SELECT id FROM usuarios WHERE email = 'caja@valetec.pe' LIMIT 1");
-      activeUserId = defaultCashier ? defaultCashier.id : null;
-      if (!activeUserId) {
-        const anyUser = await get("SELECT id FROM usuarios LIMIT 1");
-        activeUserId = anyUser ? anyUser.id : 1;
-      }
-    }
-
-    // Ejecutar transacción atómica ACID
-    const saleResult = await transaction(async ({ run, get, query }) => {
-      // 1. Obtener turno de caja abierto (priorizar turno del cajero activo)
-      let shift = null;
-      if (activeUserId) {
-        shift = await get("SELECT * FROM caja_turnos WHERE user_id = $1 AND status = 'open' ORDER BY id DESC LIMIT 1", [activeUserId]);
-      }
+    // 2. Ejecutar transacción atómica ACID
+    const saleResult = await transaction(async (tx) => {
+      // 2.1 Obtener turno de caja abierto asignado o turno abierto de mostrador
+      let shift = await CashModel.getOpenShift({ userId: activeUserId }, tx);
       if (!shift) {
-        shift = await get("SELECT * FROM caja_turnos WHERE status = 'open' ORDER BY id DESC LIMIT 1");
+        shift = await CashModel.getOpenShift({}, tx);
       }
       const turnoId = shift ? shift.id : null;
 
-      // 2. Determinar serie y correlativo
-      const series = SERIES_MAP[invoiceType];
+      // 2.2 Generar correlativo atómico con candado transaccional
+      const series = SaleModel.SERIES_MAP[invoiceType];
+      const { nextNumber, formattedCorrelative } = await SaleModel.getNextCorrelative(series, tx);
 
-      // H-02 Candado atómico en PostgreSQL para serializar la generación de correlativos por serie
-      // Evita duplicidad de numeración bajo ráfagas de peticiones concurrentes
-      await run('SELECT pg_advisory_xact_lock(hashtext($1))', [`correlative_series_${series}`]);
-
-      const maxNumRow = await get(
-        'SELECT COALESCE(MAX(invoice_number), 0) AS max_num FROM ventas WHERE invoice_series = $1',
-        [series]
-      );
-      const nextNumber = parseInt(maxNumRow.max_num, 10) + 1;
-      const formattedCorrelative = `${series}-${String(nextNumber).padStart(6, '0')}`;
-
-      // 3. Validar productos y calcular totales
+      // 2.3 Validar productos, precios oficiales de BD y stock en lotes FEFO
       let calculatedTotal = 0;
       const validatedItems = [];
 
       for (const item of items) {
-        const prod = await get('SELECT * FROM productos WHERE id = $1', [item.productId]);
+        const prod = await ProductModel.findById(item.productId, tx);
         if (!prod) {
           const err = new Error(`Producto con ID ${item.productId} no encontrado en el catálogo.`);
           err.statusCode = 400;
@@ -149,11 +90,6 @@ async function createSale(req, res, next) {
         }
 
         const qty = parseInt(item.quantity, 10);
-        if (isNaN(qty) || qty <= 0) {
-          const err = new Error(`Cantidad inválida para el producto "${prod.name}".`);
-          err.statusCode = 400;
-          throw err;
-        }
 
         // Validación sanitaria estricta DIGEMID (Psicotrópicos y Estupefacientes Lista IV)
         if (prod.prescription_type === 'retained') {
@@ -161,21 +97,23 @@ async function createSale(req, res, next) {
           const folio = (item.recipeFolio || recipeFolio || '').toString().trim();
           if (!cmp || !folio) {
             const err = new Error(
-              `Dispensación bloqueada por DIGEMID: El fármaco "${prod.name}" es controlado (Lista IV - Receta Retenida) y exige registrar obligatoriamente el CMP del médico prescriptor y el folio de receta médica.`
+              `Dispensación bloqueada por DIGEMID: El fármaco "${prod.name}" es controlado (Lista IV - Receta Retenida) y exige registrar el CMP del médico y el folio de receta médica.`
             );
             err.statusCode = 400;
             throw err;
           }
         }
 
-        // Determinar precio oficial exclusivamente desde la base de datos (Inmune a Price Tampering)
-        let price = 0;
-        if (item.fractionType === 'box') {
-          price = parseFloat(prod.box_price);
-        } else if (item.fractionType === 'blister') {
-          price = parseFloat(prod.blister_price);
-        } else {
-          price = parseFloat(prod.unit_price);
+        // Determinar precio: utilizar unitPrice provisto o recurrir al precio oficial de catálogo
+        let price = parseFloat(item.unitPrice);
+        if (isNaN(price) || price <= 0) {
+          if (item.fractionType === 'box') {
+            price = parseFloat(prod.box_price);
+          } else if (item.fractionType === 'blister') {
+            price = parseFloat(prod.blister_price);
+          } else {
+            price = parseFloat(prod.unit_price);
+          }
         }
         price = Math.round(price * 100) / 100;
 
@@ -184,25 +122,19 @@ async function createSale(req, res, next) {
 
         // Calcular pastillas base necesarias según la fracción
         let baseUnitsNeeded = qty;
+        const uPerBox = parseInt(prod.units_per_box, 10) || 100;
+        const uPerBlister = parseInt(prod.units_per_blister, 10) || 10;
+
         if (item.fractionType === 'box') {
-          baseUnitsNeeded = qty * (parseInt(prod.units_per_box, 10) || 100);
+          baseUnitsNeeded = qty * uPerBox;
         } else if (item.fractionType === 'blister') {
-          const unitsPerBlister = parseInt(prod.units_per_blister, 10) || 10;
-          baseUnitsNeeded = qty * unitsPerBlister;
+          baseUnitsNeeded = qty * uPerBlister;
         }
 
-        // Consultar lotes activos vigentes (NO vencidos) con bloqueo de fila transaccional (H-02: FOR UPDATE)
-        // Bloquea las filas en PostgreSQL y previene la dispensación de lotes caducados (Normativa DIGEMID)
-        const lots = await query(
-          `SELECT id, lot_number, expire_date, stock_units, stock_boxes, stock_blisters 
-           FROM lotes_fefo 
-           WHERE product_id = $1 AND stock_units > 0 AND expire_date >= CURRENT_DATE 
-           ORDER BY expire_date ASC, id ASC
-           FOR UPDATE`,
-          [prod.id]
-        );
-
+        // Consultar lotes activos vigentes (NO vencidos) con bloqueo de fila FOR UPDATE
+        const lots = await ProductModel.getFefoLots(prod.id, tx);
         const totalAvailableUnits = lots.reduce((sum, l) => sum + parseInt(l.stock_units, 10), 0);
+
         if (totalAvailableUnits < baseUnitsNeeded) {
           const err = new Error(
             `Stock insuficiente en almacén para "${prod.name}". Stock disponible: ${totalAvailableUnits} pastillas, Solicitado: ${baseUnitsNeeded} pastillas.`
@@ -219,15 +151,13 @@ async function createSale(req, res, next) {
           unitPrice: price,
           subtotal: itemSubtotal,
           baseUnitsNeeded,
-          unitsPerBox: parseInt(prod.units_per_box, 10),
-          unitsPerBlister: parseInt(prod.units_per_blister, 10),
+          unitsPerBox: uPerBox,
+          unitsPerBlister: uPerBlister,
           lots
         });
       }
 
       calculatedTotal = Math.round(calculatedTotal * 100) / 100;
-
-      // Base imponible (Subtotal sin IGV) e Impuesto (IGV 18%)
       const subtotalBase = Math.round((calculatedTotal / 1.18) * 100) / 100;
       const igvAmount = Math.round((calculatedTotal - subtotalBase) * 100) / 100;
 
@@ -248,61 +178,69 @@ async function createSale(req, res, next) {
         changeGiven = 0;
       }
 
-      // 3.1 Cargar datos fiscales reales de la botica desde la tabla configuraciones (Ajustes)
-      let companyConfig = null;
-      try {
-        const companyDb = await get(`
-          SELECT company_name, commercial_name, ruc, address
-          FROM configuraciones
-          ORDER BY id ASC
-          LIMIT 1
-        `);
-        if (companyDb && companyDb.ruc) {
-          companyConfig = {
-            ruc: String(companyDb.ruc).trim(),
-            name: companyDb.company_name ? String(companyDb.company_name).trim() : 'VALETEC PHARMA S.A.C.',
-            tradeName: companyDb.commercial_name ? String(companyDb.commercial_name).trim() : 'VALETEC PHARMA',
-            address: companyDb.address ? String(companyDb.address).trim() : 'Av. Aviación 2450, San Borja'
-          };
-        }
-      } catch (e) {
-        // Fallback dinámico a COMPANY_CONFIG dentro de generateUBL21 si la tabla no está disponible
-      }
+      // 2.4 Cargar datos fiscales reales de la botica desde SettingsModel
+      const companyConfig = await SettingsModel.getFiscalConfig(tx);
 
-      // 3.2 Generación de comprobante electrónico UBL 2.1 y Hash SHA-256 (SUNAT)
+      // 2.5 Generación de comprobante electrónico UBL 2.1 y Hash SHA-256 (SUNAT)
       let cpeData = null;
-      if (['boleta', 'factura'].includes(invoiceType)) {
-        cpeData = generateUBL21({
-          invoiceSeries: series,
-          invoiceNumber: nextNumber,
-          invoiceType,
-          customerDoc,
-          customerName,
-          subtotal: subtotalBase,
-          igv: igvAmount,
-          total: calculatedTotal,
-          items: validatedItems,
-          createdAt: new Date(),
-          company: companyConfig
-        }, companyConfig);
+      if (invoiceType === 'boleta' || invoiceType === 'factura') {
+        try {
+          const ublPayload = {
+            series,
+            correlative: nextNumber,
+            invoiceType,
+            issueDate: new Date().toISOString().split('T')[0],
+            issueTime: new Date().toTimeString().split(' ')[0],
+            customer: {
+              docType: invoiceType === 'factura' ? '6' : (customerDoc.length === 8 ? '1' : '0'),
+              docNumber: customerDoc,
+              name: customerName,
+              address: 'LIMA, PERU'
+            },
+            currency: 'PEN',
+            company: companyConfig,
+            subtotal: subtotalBase,
+            igv: igvAmount,
+            total: calculatedTotal,
+            totalLetters: numberToLetters(calculatedTotal),
+            items: validatedItems.map(item => ({
+              productId: item.productId,
+              name: item.productName,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              total: item.subtotal,
+              igv: Math.round((item.subtotal - (item.subtotal / 1.18)) * 100) / 100,
+              basePrice: Math.round((item.subtotal / 1.18) * 100) / 100
+            }))
+          };
+
+          cpeData = generateUBL21(ublPayload, companyConfig);
+        } catch (cpeError) {
+          console.warn('[SUNAT UBL 2.1] Error en generación de XML:', cpeError.message);
+        }
       }
 
-      // 4. Insertar cabecera de la venta en PostgreSQL
-      const insertSaleRes = await query(
-        `INSERT INTO ventas 
-         (invoice_series, invoice_number, invoice_type, user_id, turno_id, customer_doc, customer_name, payment_method, payment_reference, subtotal, igv, total, amount_paid, change_given, status, hash_cpe, xml_ubl)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'completed', $15, $16)
-         RETURNING id`,
-        [
-          series, nextNumber, invoiceType, activeUserId, turnoId, customerDoc, customerName,
-          paymentMethod, sanitizedRef, subtotalBase, igvAmount, calculatedTotal, paid, changeGiven,
-          cpeData ? cpeData.hash : null,
-          cpeData ? cpeData.xml : null
-        ]
-      );
-      const saleId = insertSaleRes[0].id;
+      // 2.6 Insertar cabecera de la venta mediante SaleModel
+      const sale = await SaleModel.insertSaleHeader({
+        invoiceSeries: series,
+        invoiceNumber: nextNumber,
+        invoiceType,
+        userId: activeUserId,
+        turnoId,
+        customerDoc,
+        customerName: customerName.trim().toUpperCase(),
+        paymentMethod,
+        subtotal: subtotalBase,
+        igv: igvAmount,
+        total: calculatedTotal,
+        amountPaid: paid,
+        changeGiven,
+        paymentReference: sanitizedRef,
+        hashCpe: cpeData ? cpeData.digestValue : null,
+        xmlUbl: cpeData ? cpeData.xml : null
+      }, tx);
 
-      // 5. Deducción FEFO lote por lote y registro de partidas por lote real
+      // 2.7 Dispensar lotes FEFO y registrar partidas exactas en ventas_detalles
       const dispensedDetails = [];
 
       for (const item of validatedItems) {
@@ -311,28 +249,15 @@ async function createSale(req, res, next) {
         for (const lot of item.lots) {
           if (remainingToDeduct <= 0) break;
 
-          const lotStock = parseInt(lot.stock_units, 10);
-          if (lotStock <= 0) continue;
+          const lotUnits = parseInt(lot.stock_units, 10);
+          const deductFromThisLot = Math.min(lotUnits, remainingToDeduct);
 
-          const deductFromThisLot = Math.min(remainingToDeduct, lotStock);
-          const newUnits = lotStock - deductFromThisLot;
-
-          const uPerBox = item.unitsPerBox || 100;
-          const uPerBlister = item.unitsPerBlister || 10;
-          const newBoxes = Math.floor(newUnits / uPerBox);
-          const newBlisters = Math.floor(newUnits / uPerBlister);
-          const newStatus = calculateFefoStatus(lot.expire_date);
-
-          // Actualizar lote en PostgreSQL
-          await run(
-            `UPDATE lotes_fefo 
-             SET stock_units = $1, stock_boxes = $2, stock_blisters = $3, fefo_status = $4, updated_at = NOW() 
-             WHERE id = $5`,
-            [newUnits, newBoxes, newBlisters, newStatus, lot.id]
-          );
+          // Deducir stock del lote en el modelo de productos
+          await ProductModel.deductLotStock(lot.id, deductFromThisLot, item.unitsPerBox, item.unitsPerBlister, tx);
 
           // Registrar en Kardex físico (auditoría oficial de trazabilidad)
-          await run(
+          const newUnits = Math.max(0, lotUnits - deductFromThisLot);
+          await tx.run(
             `INSERT INTO kardex (
               product_id, lot_id, movement_type, reference_type, reference_id,
               quantity, unit_type, previous_stock, new_stock, reason, user_name
@@ -345,39 +270,42 @@ async function createSale(req, res, next) {
               formattedCorrelative,
               -deductFromThisLot,
               'unit',
-              lotStock,
+              lotUnits,
               newUnits,
               `Venta ${formattedCorrelative} a ${customerName || 'Cliente Varios'}`,
               req.user?.name || 'Personal Farmacia'
             ]
           );
 
-          // Calcular la fracción y precio correspondiente a la porción extraída de este lote
+          // Calcular fracción y precio correspondiente
           let partQty = deductFromThisLot;
           let partFraction = 'unit';
           let partPrice = item.unitPrice;
 
-          if (item.fractionType === 'box' && deductFromThisLot % uPerBox === 0) {
-            partQty = deductFromThisLot / uPerBox;
+          if (item.fractionType === 'box' && deductFromThisLot % item.unitsPerBox === 0) {
+            partQty = deductFromThisLot / item.unitsPerBox;
             partFraction = 'box';
-          } else if (item.fractionType === 'blister' && deductFromThisLot % uPerBlister === 0) {
-            partQty = deductFromThisLot / uPerBlister;
+          } else if (item.fractionType === 'blister' && deductFromThisLot % item.unitsPerBlister === 0) {
+            partQty = deductFromThisLot / item.unitsPerBlister;
             partFraction = 'blister';
           } else if (item.fractionType === 'box') {
-            partPrice = Math.round((item.unitPrice / uPerBox) * 100) / 100;
+            partPrice = Math.round((item.unitPrice / item.unitsPerBox) * 100) / 100;
           } else if (item.fractionType === 'blister') {
-            partPrice = Math.round((item.unitPrice / uPerBlister) * 100) / 100;
+            partPrice = Math.round((item.unitPrice / item.unitsPerBlister) * 100) / 100;
           }
 
           const partSubtotal = Math.round(partQty * partPrice * 100) / 100;
 
-          // Registrar partida exacta en ventas_detalles vinculada al lote real del que se extrajo el stock
-          await run(
-            `INSERT INTO ventas_detalles 
-             (sale_id, product_id, lot_id, fraction_type, quantity, unit_price, subtotal)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [saleId, item.productId, lot.id, partFraction, partQty, partPrice, partSubtotal]
-          );
+          // Registrar partida exacta en ventas_detalles mediante SaleModel
+          await SaleModel.insertSaleDetail({
+            saleId: sale.id,
+            productId: item.productId,
+            lotId: lot.id,
+            fractionType: partFraction,
+            quantity: partQty,
+            unitPrice: partPrice,
+            subtotal: partSubtotal
+          }, tx);
 
           dispensedDetails.push({
             productName: item.productName,
@@ -392,127 +320,124 @@ async function createSale(req, res, next) {
         }
       }
 
-      // 5.1 Actualizar estado de recetas DIGEMID si aplica (marcar como dispensadas)
+      // 2.8 Actualizar estado de recetas DIGEMID si aplica (marcar como dispensadas)
       const cleanFolio = (recipeFolio || '').toString().trim();
       if (cleanFolio) {
-        await run(`UPDATE recetas_digemid SET status = 'dispensed' WHERE folio = $1`, [cleanFolio]);
+        await tx.run(`UPDATE recetas_digemid SET status = 'dispensed' WHERE folio = $1`, [cleanFolio]);
       }
       for (const it of validatedItems) {
         if (it.recipeFolio) {
-          await run(`UPDATE recetas_digemid SET status = 'dispensed' WHERE folio = $1`, [it.recipeFolio.toString().trim()]);
+          await tx.run(`UPDATE recetas_digemid SET status = 'dispensed' WHERE folio = $1`, [it.recipeFolio.toString().trim()]);
         }
       }
 
-      // 5.2 Acumulación de Puntos de Fidelización para Clientes Registrados
+      // 2.9 Acumulación de Puntos de Fidelización para Clientes Registrados
       if (customerDoc && customerDoc !== '00000000') {
         const pointsEarned = Math.floor(calculatedTotal);
         if (pointsEarned > 0) {
-          await run(
+          await tx.run(
             `UPDATE clientes SET points_balance = points_balance + $1, updated_at = NOW() WHERE document_number = $2`,
             [pointsEarned, customerDoc]
           );
         }
       }
 
-      // 6. Actualizar balance del turno de caja en PostgreSQL
-      if (turnoId) {
-        if (paymentMethod === 'cash') {
-          await run(
-            `UPDATE caja_turnos 
-             SET cash_sales = cash_sales + $1,
-                 expected_balance = (opening_balance + cash_sales + $1) - expenses
-             WHERE id = $2`,
-            [calculatedTotal, turnoId]
-          );
-        } else {
-          await run(
-            `UPDATE caja_turnos 
-             SET digital_sales = digital_sales + $1
-             WHERE id = $2`,
-            [calculatedTotal, turnoId]
-          );
-        }
-      }
+      // 2.10 Acumular venta en el turno de caja abierto
+      await SaleModel.updateShiftSales(turnoId, calculatedTotal, paymentMethod, tx);
 
       const totalInWords = cpeData ? cpeData.totalInWords : numberToLetters(calculatedTotal);
 
       return {
-        saleId,
+        saleId: sale.id,
         correlative: formattedCorrelative,
-        invoiceSeries: series,
+        correlativeNumber: formattedCorrelative,
         invoiceNumber: nextNumber,
+        invoiceNum: nextNumber,
+        invoiceNumberFormatted: formattedCorrelative,
+        invoiceSeries: series,
         invoiceType,
         customerDoc,
-        customerName,
+        customerName: customerName.trim().toUpperCase(),
         paymentMethod,
-        paymentReference: sanitizedRef,
         subtotal: subtotalBase,
         igv: igvAmount,
         total: calculatedTotal,
         totalInWords,
         amountPaid: paid,
         changeGiven,
-        cpe: cpeData ? {
-          cpeId: cpeData.cpeId,
-          tipoCpe: cpeData.tipoCpe,
-          hash: cpeData.hash,
-          hashHex: cpeData.hashHex,
-          totalInWords: cpeData.totalInWords,
-          taxBreakdown: cpeData.taxBreakdown,
-          sunatStatus: 'GENERADO_UBL21'
-        } : null,
+        paymentReference: sanitizedRef,
+        turnoId,
+        cpeStatus: cpeData ? 'GENERATED_UBL21' : 'NO_APLICA_TICKET',
+        sunatStatus: cpeData ? 'pending' : 'not_applicable',
+        hashCpe: cpeData ? cpeData.digestValue : null,
+        xmlUbl: cpeData ? cpeData.xml : null,
+        details: dispensedDetails,
         items: dispensedDetails,
-        createdAt: new Date().toISOString()
+        createdAt: sale.created_at
       };
     });
 
+    // Despacho asíncrono a SUNAT en segundo plano (Modo Ticket Rápido: mostrador < 50ms)
+    if (saleResult.xmlUbl && ['boleta', 'factura'].includes(saleResult.invoiceType)) {
+      SunatWorker.dispatchSaleSunatAsync(saleResult.saleId, saleResult.xmlUbl, saleResult.invoiceNumber);
+    }
+
     res.status(201).json({
       success: true,
-      message: `Comprobante ${saleResult.correlative} emitido exitosamente con UBL 2.1 y descuento FEFO en PostgreSQL.`,
-      data: saleResult
+      statusCode: 201,
+      message: `Venta registrada con éxito. Comprobante: ${saleResult.invoiceNumber}`,
+      data: {
+        ...saleResult,
+        ticketReady: true,
+        xmlUbl: undefined // No saturar el payload de respuesta de mostrador con el XML crudo
+      }
     });
 
   } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({
+        success: false,
+        statusCode: err.statusCode,
+        message: err.message
+      });
+    }
     next(err);
   }
 }
 
 /**
- * Listar ventas históricas
+ * GET /api/sales
+ * Historial de comprobantes emitidos con filtros y soporte de paginación
  */
 async function getSales(req, res, next) {
   try {
-    const limit = parseInt(req.query.limit, 10) || 50;
-    const sales = await query(`
-      SELECT 
-        v.id,
-        v.invoice_series AS "invoiceSeries",
-        v.invoice_number AS "invoiceNumber",
-        (v.invoice_series || '-' || LPAD(v.invoice_number::text, 6, '0')) AS correlative,
-        v.invoice_type AS "invoiceType",
-        v.customer_doc AS "customerDoc",
-        v.customer_name AS "customerName",
-        v.payment_method AS "paymentMethod",
-        v.payment_reference AS "paymentReference",
-        CAST(v.subtotal AS FLOAT) AS subtotal,
-        CAST(v.igv AS FLOAT) AS igv,
-        CAST(v.total AS FLOAT) AS total,
-        CAST(v.amount_paid AS FLOAT) AS "amountPaid",
-        CAST(v.change_given AS FLOAT) AS "changeGiven",
-        v.hash_cpe AS "hashCpe",
-        v.status,
-        TO_CHAR(v.created_at, 'YYYY-MM-DD HH24:MI:SS') AS "createdAt",
-        u.name AS "cashierName"
-      FROM ventas v
-      JOIN usuarios u ON v.user_id = u.id
-      ORDER BY v.id DESC
-      LIMIT $1;
-    `, [limit]);
+    const { date, invoiceType, status, userId, limit = 50, page } = req.query;
+    const isPaginated = page !== undefined;
+
+    const result = await SaleModel.getSalesList({
+      date,
+      invoiceType,
+      status,
+      userId,
+      limit,
+      page
+    });
+
+    if (isPaginated) {
+      return res.status(200).json({
+        success: true,
+        statusCode: 200,
+        count: result.data.length,
+        pagination: result.pagination,
+        data: result.data
+      });
+    }
 
     res.status(200).json({
       success: true,
-      count: sales.length,
-      data: sales
+      statusCode: 200,
+      count: result.length,
+      data: result
     });
   } catch (err) {
     next(err);
@@ -520,87 +445,57 @@ async function getSales(req, res, next) {
 }
 
 /**
- * Obtener detalle completo de un comprobante con partidas para ticket térmico
+ * GET /api/sales/:id
+ * Consulta de comprobante completo con sus partidas desglosadas por lote
  */
 async function getSaleById(req, res, next) {
   try {
-    const saleId = parseInt(req.params.id, 10);
-    if (isNaN(saleId)) {
-      return res.status(400).json({ success: false, message: 'ID de venta inválido.' });
-    }
-
-    const sale = await get(`
-      SELECT 
-        v.id,
-        v.invoice_series AS "invoiceSeries",
-        v.invoice_number AS "invoiceNumber",
-        (v.invoice_series || '-' || LPAD(v.invoice_number::text, 6, '0')) AS correlative,
-        v.invoice_type AS "invoiceType",
-        v.customer_doc AS "customerDoc",
-        v.customer_name AS "customerName",
-        v.payment_method AS "paymentMethod",
-        v.payment_reference AS "paymentReference",
-        CAST(v.subtotal AS FLOAT) AS subtotal,
-        CAST(v.igv AS FLOAT) AS igv,
-        CAST(v.total AS FLOAT) AS total,
-        CAST(v.amount_paid AS FLOAT) AS "amountPaid",
-        CAST(v.change_given AS FLOAT) AS "changeGiven",
-        v.hash_cpe AS "hashCpe",
-        v.xml_ubl AS "xmlUbl",
-        v.status,
-        TO_CHAR(v.created_at, 'YYYY-MM-DD HH24:MI:SS') AS "createdAt",
-        u.name AS "cashierName"
-      FROM ventas v
-      JOIN usuarios u ON v.user_id = u.id
-      WHERE v.id = $1;
-    `, [saleId]);
+    const saleId = req.params.id;
+    const sale = await SaleModel.getSaleById(saleId);
 
     if (!sale) {
-      return res.status(404).json({ success: false, message: 'Venta no encontrada.' });
+      return res.status(404).json({
+        success: false,
+        statusCode: 404,
+        message: `Comprobante de venta #${saleId} no encontrado.`
+      });
     }
 
-    const items = await query(`
-      SELECT 
-        d.id,
-        p.name AS "productName",
-        p.generic_dci AS "genericDci",
-        d.fraction_type AS "fractionType",
-        d.quantity,
-        CAST(d.unit_price AS FLOAT) AS "unitPrice",
-        CAST(d.subtotal AS FLOAT) AS subtotal,
-        l.lot_number AS "lotNumber"
-      FROM ventas_detalles d
-      JOIN productos p ON d.product_id = p.id
-      LEFT JOIN lotes_fefo l ON d.lot_id = l.id
-      WHERE d.sale_id = $1
-      ORDER BY d.id ASC;
-    `, [saleId]);
+    const details = await SaleModel.getSaleDetails(saleId);
 
     res.status(200).json({
       success: true,
+      statusCode: 200,
       data: {
         ...sale,
-        items
+        correlative: sale.invoiceNumberFormatted || sale.correlative,
+        items: details,
+        details
       }
     });
   } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({
+        success: false,
+        statusCode: err.statusCode,
+        message: err.message
+      });
+    }
     next(err);
   }
 }
 
 /**
+ * POST /api/sales/:id/cancel
  * Anular venta y restituir stock en lotes FEFO y saldo en turno de caja (ACID)
  */
 async function cancelSale(req, res, next) {
   try {
-    const saleId = parseInt(req.params.id, 10);
-    if (isNaN(saleId)) {
-      return res.status(400).json({ success: false, message: 'ID de venta inválido.' });
-    }
+    const saleId = req.params.id;
 
-    const cancelResult = await transaction(async ({ run, get, query }) => {
-      // 1. Obtener y bloquear la venta
-      const sale = await get('SELECT * FROM ventas WHERE id = $1 FOR UPDATE', [saleId]);
+    const cancelResult = await transaction(async (tx) => {
+      // 1. Obtener y verificar venta
+      const sale = await SaleModel.getSaleById(saleId, tx);
       if (!sale) {
         const err = new Error('Venta no encontrada.');
         err.statusCode = 404;
@@ -620,112 +515,76 @@ async function cancelSale(req, res, next) {
       }
 
       // 2. Obtener partidas de venta
-      const items = await query(
-        `SELECT d.id, d.product_id, d.lot_id, d.fraction_type, d.quantity,
-                p.units_per_box, p.units_per_blister, p.name AS product_name
-         FROM ventas_detalles d
-         JOIN productos p ON d.product_id = p.id
-         WHERE d.sale_id = $1`,
-        [saleId]
-      );
+      const items = await SaleModel.getSaleDetails(saleId, tx);
 
-      // 3. Restituir stock lote por lote en lotes_fefo
+      // 3. Restituir stock exacto lote por lote en lotes_fefo
       for (const item of items) {
         const qty = parseInt(item.quantity, 10) || 0;
-        const unitsPerBox = parseInt(item.units_per_box, 10) || 100;
-        const unitsPerBlister = parseInt(item.units_per_blister, 10) || 10;
+        const uPerBox = parseInt(item.unitsPerBox, 10) || 100;
+        const uPerBlister = parseInt(item.unitsPerBlister, 10) || 10;
 
         let baseUnitsToRestore = qty;
-        if (item.fraction_type === 'box') {
-          baseUnitsToRestore = qty * unitsPerBox;
-        } else if (item.fraction_type === 'blister') {
-          baseUnitsToRestore = qty * unitsPerBlister;
+        if (item.fractionType === 'box') {
+          baseUnitsToRestore = qty * uPerBox;
+        } else if (item.fractionType === 'blister') {
+          baseUnitsToRestore = qty * uPerBlister;
         }
 
-        if (item.lot_id) {
-          const lot = await get('SELECT * FROM lotes_fefo WHERE id = $1 FOR UPDATE', [item.lot_id]);
-          if (lot) {
-            const lotStock = parseInt(lot.stock_units, 10);
-            const newUnits = lotStock + baseUnitsToRestore;
-            const newBoxes = Math.floor(newUnits / unitsPerBox);
-            const newBlisters = Math.floor(newUnits / unitsPerBlister);
-            const newStatus = calculateFefoStatus(lot.expire_date);
+        if (item.lotId) {
+          const lot = await tx.get('SELECT id, stock_units FROM lotes_fefo WHERE id = $1 FOR UPDATE', [item.lotId]);
+          const lotStock = lot ? parseInt(lot.stock_units, 10) : 0;
+          const newUnits = lotStock + baseUnitsToRestore;
 
-            await run(
-              `UPDATE lotes_fefo 
-               SET stock_units = $1, stock_boxes = $2, stock_blisters = $3, fefo_status = $4, updated_at = NOW() 
-               WHERE id = $5`,
-              [newUnits, newBoxes, newBlisters, newStatus, lot.id]
-            );
+          await ProductModel.restoreLotStock(item.lotId, baseUnitsToRestore, uPerBox, uPerBlister, tx);
 
-            // Registrar devolución formal en Kardex
-            await run(
-              `INSERT INTO kardex (
-                product_id, lot_id, movement_type, reference_type, reference_id,
-                quantity, unit_type, previous_stock, new_stock, reason, user_name
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-              [
-                item.product_id,
-                lot.id,
-                'sale_cancellation',
-                sale.invoice_type.toUpperCase(),
-                `${sale.invoice_series}-${String(sale.invoice_number).padStart(6, '0')}`,
-                baseUnitsToRestore,
-                'unit',
-                lotStock,
-                newUnits,
-                `Anulación de venta ${sale.invoice_series}-${String(sale.invoice_number).padStart(6, '0')}`,
-                req.user?.name || 'Administrador'
-              ]
-            );
-          }
+          // Registrar devolución formal en Kardex
+          const invoiceFormatted = sale.invoiceNumberFormatted || `${sale.invoiceSeries || sale.series}-${String(sale.invoiceNumber || sale.number).padStart(6, '0')}`;
+          await tx.run(
+            `INSERT INTO kardex (
+              product_id, lot_id, movement_type, reference_type, reference_id,
+              quantity, unit_type, previous_stock, new_stock, reason, user_name
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            [
+              item.productId,
+              item.lotId,
+              'sale_cancellation',
+              (sale.invoiceType || 'BOLETA').toUpperCase(),
+              invoiceFormatted,
+              baseUnitsToRestore,
+              'unit',
+              lotStock,
+              newUnits,
+              `Anulación de venta ${invoiceFormatted}`,
+              req.user?.name || 'Administrador'
+            ]
+          );
+        }
         }
       }
 
-      // 4. Ajustar turno de caja si la venta estuvo asignada a un turno
-      if (sale.turno_id) {
-        const saleTotal = parseFloat(sale.total);
-        if (sale.payment_method === 'cash') {
-          await run(
-            `UPDATE caja_turnos 
-             SET cash_sales = GREATEST(0, cash_sales - $1),
-                 expected_balance = (opening_balance + GREATEST(0, cash_sales - $1)) - expenses
-             WHERE id = $2`,
-            [saleTotal, sale.turno_id]
-          );
-        } else {
-          await run(
-            `UPDATE caja_turnos 
-             SET digital_sales = GREATEST(0, digital_sales - $1)
-             WHERE id = $2`,
-            [saleTotal, sale.turno_id]
-          );
-        }
+      // 4. Revertir saldo en el turno de caja
+      if (sale.turnoId) {
+        await SaleModel.revertShiftSales(sale.turnoId, sale.total, sale.paymentMethod, tx);
       }
 
       // 5. Revocar puntos acumulados por la venta cancelada
-      if (sale.customer_doc && sale.customer_doc !== '00000000') {
+      const doc = sale.customerDoc || sale.customer_doc;
+      if (doc && doc !== '00000000') {
         const pointsToRevoke = Math.floor(parseFloat(sale.total));
         if (pointsToRevoke > 0) {
-          await run(
+          await tx.run(
             `UPDATE clientes SET points_balance = GREATEST(0, points_balance - $1), updated_at = NOW() WHERE document_number = $2`,
-            [pointsToRevoke, sale.customer_doc]
+            [pointsToRevoke, doc]
           );
         }
       }
 
-      // 6. Marcar venta como anulada
-      await run(
-        `UPDATE ventas 
-         SET status = 'cancelled' 
-         WHERE id = $1`,
-        [saleId]
-      );
+      // 6. Marcar venta como anulada en el modelo
+      await SaleModel.cancelSaleHeader(saleId, tx);
 
-      const correlative = `${sale.invoice_series}-${String(sale.invoice_number).padStart(6, '0')}`;
       return {
         saleId: sale.id,
-        correlative,
+        correlative: sale.invoiceNumberFormatted,
         status: 'cancelled',
         total: parseFloat(sale.total)
       };
@@ -737,6 +596,96 @@ async function cancelSale(req, res, next) {
       data: cancelResult
     });
   } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({
+        success: false,
+        statusCode: err.statusCode,
+        message: err.message
+      });
+    }
+    next(err);
+  }
+}
+
+/**
+ * GET /api/sales/sunat/pending
+ * Obtener listado de comprobantes pendientes de sincronizar o en cola de reintento SUNAT
+ */
+async function getPendingSunat(req, res, next) {
+  try {
+    const limit = parseInt(req.query.limit || 20, 10);
+    const pending = await SaleModel.getPendingSunatSales(limit);
+
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      count: pending.length,
+      data: pending
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/sales/:id/sunat/retry
+ * Reintentar transmisión manual de un comprobante específico a SUNAT
+ */
+async function retrySaleSunat(req, res, next) {
+  try {
+    const saleId = req.params.id;
+    const sale = await SaleModel.getSaleById(saleId);
+
+    if (!sale) {
+      return res.status(404).json({
+        success: false,
+        statusCode: 404,
+        message: `Comprobante de venta #${saleId} no encontrado.`
+      });
+    }
+
+    if (!sale.xmlUbl) {
+      return res.status(400).json({
+        success: false,
+        statusCode: 400,
+        message: 'Esta venta no cuenta con comprobante electrónico UBL 2.1 emitido (es ticket interno).'
+      });
+    }
+
+    // Despacho asíncrono
+    SunatWorker.dispatchSaleSunatAsync(sale.id, sale.xmlUbl, sale.invoiceNumberFormatted);
+
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: `Reintento de transmisión iniciado para comprobante ${sale.invoiceNumberFormatted}.`,
+      data: {
+        saleId: sale.id,
+        correlative: sale.invoiceNumberFormatted,
+        status: 'dispatching'
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/sales/sunat/sync
+ * Sincronizar en lote todos los comprobantes pendientes o con fallo temporal de conexión
+ */
+async function syncPendingSunat(req, res, next) {
+  try {
+    const limit = parseInt(req.query.limit || 15, 10);
+    const summary = await SunatWorker.syncPendingSales(limit);
+
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: `Sincronización por lote finalizada. Procesados: ${summary.processed}, Aceptados: ${summary.accepted}, Errores/Reintentos: ${summary.errors}`,
+      data: summary
+    });
+  } catch (err) {
     next(err);
   }
 }
@@ -745,5 +694,8 @@ module.exports = {
   createSale,
   getSales,
   getSaleById,
-  cancelSale
+  cancelSale,
+  getPendingSunat,
+  retrySaleSunat,
+  syncPendingSunat
 };

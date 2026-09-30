@@ -1,29 +1,37 @@
-const { query, get, run } = require('../db');
+const ClientModel = require('../models/client.model');
 
 /**
- * Obtener listado de clientes
+ * ============================================================================
+ * VALETEC PHARMA - CONTROLADOR: CLIENT (PADRÓN FISCAL DNI / RUC Y PACIENTES)
+ * ============================================================================
+ * Orquesta la búsqueda predictiva para el mostrador POS y el padrón de clientes.
+ * Las validaciones de formato de DNI/RUC y la persistencia residen en ClientModel.
+ */
+
+/**
+ * GET /api/clients
+ * Obtener listado de todos los clientes
  */
 async function getAllClients(req, res, next) {
   try {
-    const clients = await query(`
-      SELECT 
-        id,
-        document_type AS "documentType",
-        document_number AS "documentNumber",
-        full_name AS "fullName",
-        COALESCE(address, '') AS "address",
-        COALESCE(phone, '') AS "phone",
-        COALESCE(email, '') AS "email",
-        points_balance AS "pointsBalance",
-        TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') AS "createdAt"
-      FROM clientes
-      ORDER BY full_name ASC;
-    `);
+    const { page, limit, search } = req.query;
+    const hasPagination = page !== undefined || limit !== undefined;
+
+    const result = await ClientModel.getAll({ page, limit, search });
+
+    if (hasPagination) {
+      return res.status(200).json({
+        success: true,
+        count: result.data.length,
+        pagination: result.pagination,
+        data: result.data
+      });
+    }
 
     res.status(200).json({
       success: true,
-      count: clients.length,
-      data: clients
+      count: result.length,
+      data: result
     });
   } catch (err) {
     next(err);
@@ -31,32 +39,17 @@ async function getAllClients(req, res, next) {
 }
 
 /**
+ * GET /api/clients/search
  * Búsqueda predictiva de cliente por DNI, RUC o Nombre para el Mostrador de Ventas (POS)
  */
 async function searchClients(req, res, next) {
   try {
     const q = req.query.query ? req.query.query.trim() : '';
     if (!q) {
-      return res.status(200).json({ success: true, data: [] });
+      return res.status(200).json({ success: true, count: 0, data: [] });
     }
 
-    const clients = await query(`
-      SELECT 
-        id,
-        document_type AS "documentType",
-        document_number AS "documentNumber",
-        full_name AS "fullName",
-        COALESCE(address, '') AS "address",
-        COALESCE(phone, '') AS "phone",
-        COALESCE(email, '') AS "email",
-        points_balance AS "pointsBalance"
-      FROM clientes
-      WHERE document_number ILIKE $1 OR full_name ILIKE $1
-      ORDER BY 
-        CASE WHEN document_number = $2 THEN 0 ELSE 1 END,
-        full_name ASC
-      LIMIT 10;
-    `, [`%${q}%`, q]);
+    const clients = await ClientModel.search(q, 10);
 
     res.status(200).json({
       success: true,
@@ -69,25 +62,13 @@ async function searchClients(req, res, next) {
 }
 
 /**
- * Obtener un cliente por ID
+ * GET /api/clients/:id
+ * Obtener un cliente por su ID
  */
 async function getClientById(req, res, next) {
   try {
     const { id } = req.params;
-    const client = await get(`
-      SELECT 
-        id,
-        document_type AS "documentType",
-        document_number AS "documentNumber",
-        full_name AS "fullName",
-        COALESCE(address, '') AS "address",
-        COALESCE(phone, '') AS "phone",
-        COALESCE(email, '') AS "email",
-        points_balance AS "pointsBalance",
-        TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') AS "createdAt"
-      FROM clientes
-      WHERE id = $1;
-    `, [id]);
+    const client = await ClientModel.findById(id);
 
     if (!client) {
       return res.status(404).json({
@@ -101,138 +82,48 @@ async function getClientById(req, res, next) {
       data: client
     });
   } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({
+        success: false,
+        message: err.message
+      });
+    }
     next(err);
   }
 }
 
 /**
- * Registrar un nuevo cliente con validación de DNI / RUC
+ * POST /api/clients
+ * Registrar un nuevo cliente con validación sanitaria y fiscal de DNI / RUC
  */
 async function createClient(req, res, next) {
   try {
-    const { documentType, documentNumber, fullName, address, phone, email } = req.body;
-
-    if (!documentNumber || !fullName) {
-      return res.status(400).json({
-        success: false,
-        message: 'El número de documento y el nombre completo (o razón social) son obligatorios.'
-      });
-    }
-
-    const docType = documentType ? documentType.toUpperCase() : 'DNI';
-    const docNum = documentNumber.trim();
-    const name = fullName.trim();
-
-    // Validaciones sanitarias y fiscales peruanas
-    if (docType === 'DNI' && docNum !== '00000000') {
-      if (!/^\d{8}$/.test(docNum)) {
-        return res.status(400).json({
-          success: false,
-          message: 'El DNI debe tener exactamente 8 dígitos numéricos.'
-        });
-      }
-    } else if (docType === 'RUC') {
-      if (!/^\d{11}$/.test(docNum)) {
-        return res.status(400).json({
-          success: false,
-          message: 'El RUC debe tener exactamente 11 dígitos numéricos.'
-        });
-      }
-      if (!docNum.startsWith('10') && !docNum.startsWith('20') && !docNum.startsWith('15') && !docNum.startsWith('17')) {
-        return res.status(400).json({
-          success: false,
-          message: 'El RUC debe iniciar con 10, 20, 15 o 17 conforme a normativa SUNAT.'
-        });
-      }
-    }
-
-    // Verificar duplicidad
-    const dup = await get('SELECT id FROM clientes WHERE document_number = $1', [docNum]);
-    if (dup) {
-      return res.status(409).json({
-        success: false,
-        message: `El cliente con documento ${docNum} ya se encuentra registrado.`
-      });
-    }
-
-    const newClient = await get(`
-      INSERT INTO clientes (document_type, document_number, full_name, address, phone, email, points_balance)
-      VALUES ($1, $2, $3, $4, $5, $6, 0)
-      RETURNING 
-        id,
-        document_type AS "documentType",
-        document_number AS "documentNumber",
-        full_name AS "fullName",
-        COALESCE(address, '') AS "address",
-        COALESCE(phone, '') AS "phone",
-        COALESCE(email, '') AS "email",
-        points_balance AS "pointsBalance";
-    `, [docType, docNum, name, address ? address.trim() : '', phone ? phone.trim() : '', email ? email.trim() : '']);
+    const newClient = await ClientModel.create(req.body);
 
     res.status(201).json({
       success: true,
-      message: `Cliente "${name}" registrado exitosamente.`,
+      message: `Cliente "${newClient.fullName}" registrado exitosamente.`,
       data: newClient
     });
   } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({
+        success: false,
+        message: err.message
+      });
+    }
     next(err);
   }
 }
 
 /**
- * Actualizar cliente existente
+ * PUT /api/clients/:id
+ * Actualizar cliente existente con validación de no duplicidad de documento
  */
 async function updateClient(req, res, next) {
   try {
     const { id } = req.params;
-    const { documentType, documentNumber, fullName, address, phone, email } = req.body;
-
-    const client = await get('SELECT * FROM clientes WHERE id = $1', [id]);
-    if (!client) {
-      return res.status(404).json({
-        success: false,
-        message: `Cliente #${id} no encontrado.`
-      });
-    }
-
-    if (documentNumber && documentNumber !== client.document_number) {
-      const dup = await get('SELECT id FROM clientes WHERE document_number = $1 AND id != $2', [documentNumber.trim(), id]);
-      if (dup) {
-        return res.status(409).json({
-          success: false,
-          message: `El documento ${documentNumber} ya está registrado para otro cliente.`
-        });
-      }
-    }
-
-    const updated = await get(`
-      UPDATE clientes SET
-        document_type = COALESCE($1, document_type),
-        document_number = COALESCE($2, document_number),
-        full_name = COALESCE($3, full_name),
-        address = COALESCE($4, address),
-        phone = COALESCE($5, phone),
-        email = COALESCE($6, email),
-        updated_at = NOW()
-      WHERE id = $7
-      RETURNING 
-        id,
-        document_type AS "documentType",
-        document_number AS "documentNumber",
-        full_name AS "fullName",
-        COALESCE(address, '') AS "address",
-        COALESCE(phone, '') AS "phone",
-        COALESCE(email, '') AS "email",
-        points_balance AS "pointsBalance";
-    `, [
-      documentType ? documentType.toUpperCase() : null,
-      documentNumber ? documentNumber.trim() : null,
-      fullName ? fullName.trim() : null,
-      address !== undefined ? address.trim() : null,
-      phone !== undefined ? phone.trim() : null,
-      email !== undefined ? email.trim() : null,
-      id
-    ]);
+    const updated = await ClientModel.update(id, req.body);
 
     res.status(200).json({
       success: true,
@@ -240,6 +131,12 @@ async function updateClient(req, res, next) {
       data: updated
     });
   } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({
+        success: false,
+        message: err.message
+      });
+    }
     next(err);
   }
 }
