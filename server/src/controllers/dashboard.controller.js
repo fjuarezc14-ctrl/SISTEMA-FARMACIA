@@ -108,7 +108,7 @@ async function getSalesChart(req, res, next) {
 async function getTopProducts(req, res, next) {
   try {
     const limit = parseInt(req.query.limit, 10) || 10;
-    const topProducts = await DashboardModel.getTopSellingProducts(limit);
+    const topProducts = await DashboardModel.getTopProducts(limit);
 
     res.status(200).json({
       success: true,

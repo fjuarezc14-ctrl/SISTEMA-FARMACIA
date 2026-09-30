@@ -312,34 +312,41 @@ class AuthManager {
     this.appScreen = document.getElementById('appScreen');
     this.usernameInput = document.getElementById('loginUsername');
     this.passwordInput = document.getElementById('loginPassword');
+    this.rememberCheck = document.getElementById('rememberMe');
 
-    // Cargar clave inicial por defecto para agilizar pruebas
-    if (this.passwordInput && !this.passwordInput.value) {
-      this.passwordInput.value = 'admin123';
+    // Restaurar usuario recordado previamente si existe
+    const savedEmail = localStorage.getItem('valetec_remember_email');
+    if (savedEmail && this.usernameInput) {
+      this.usernameInput.value = savedEmail;
+      if (this.rememberCheck) this.rememberCheck.checked = true;
+    } else {
+      if (this.rememberCheck) this.rememberCheck.checked = false;
+    }
+  }
+
+  togglePasswordVisibility() {
+    if (!this.passwordInput) this.passwordInput = document.getElementById('loginPassword');
+    const icon = document.getElementById('togglePasswordIcon');
+    if (!this.passwordInput) return;
+
+    if (this.passwordInput.type === 'password') {
+      this.passwordInput.type = 'text';
+      if (icon) {
+        icon.classList.remove('bi-eye');
+        icon.classList.add('bi-eye-slash');
+      }
+    } else {
+      this.passwordInput.type = 'password';
+      if (icon) {
+        icon.classList.remove('bi-eye-slash');
+        icon.classList.add('bi-eye');
+      }
     }
   }
 
   selectQuickProfile(roleKey) {
+    // Compatibilidad segura con llamados externos
     this.selectedRole = roleKey;
-    document.querySelectorAll('.profile-card-btn').forEach(btn => {
-      if (btn.dataset.role === roleKey) btn.classList.add('active');
-      else btn.classList.remove('active');
-    });
-
-    const passwordMap = {
-      admin: 'admin123',
-      qf: 'qf123',
-      tech: 'tech123',
-      cashier: 'cashier123'
-    };
-
-    const profile = mockStaffProfiles[roleKey];
-    if (profile && this.usernameInput) {
-      this.usernameInput.value = profile.email;
-    }
-    if (this.passwordInput && passwordMap[roleKey]) {
-      this.passwordInput.value = passwordMap[roleKey];
-    }
   }
 
   async login(e) {
@@ -364,6 +371,17 @@ class AuthManager {
       this.currentUser = res.user;
       window.currentUser = res.user;
 
+      // Gestión de preferencia "Recordar en esta computadora"
+      const rememberEl = document.getElementById('rememberMe');
+      if (rememberEl && rememberEl.checked) {
+        localStorage.setItem('valetec_remember_email', email);
+      } else {
+        localStorage.removeItem('valetec_remember_email');
+      }
+
+      // Limpiar campo de clave por seguridad
+      if (this.passwordInput) this.passwordInput.value = '';
+
       if (this.loginScreen) this.loginScreen.classList.add('d-none');
       if (this.appScreen) this.appScreen.classList.remove('d-none');
 
@@ -381,6 +399,13 @@ class AuthManager {
       }
       appNav.applyRolePermissions(res.user.roleKey);
 
+      // Redirección inmediata al Dashboard / Mostrador para evitar pantalla en blanco
+      if (window.appNav) {
+        const profile = mockStaffProfiles[res.user.roleKey];
+        const defaultView = (res.user.roleKey === 'cashier') ? 'viewCounter' : (profile?.defaultView || 'viewManagement');
+        window.appNav.navigateTo(defaultView);
+      }
+
       showValetecToast(`¡Sesión autorizada por JWT! Bienvenido, ${res.user.name}.`, "success");
       // Sincronizar catálogo y datos del backend tras login exitoso
       syncWithBackend();
@@ -395,23 +420,7 @@ class AuthManager {
   }
 
   updateQuickProfileCards(profiles) {
-    if (!profiles) return;
-    document.querySelectorAll('.profile-card-btn').forEach(btn => {
-      const role = btn.dataset.role;
-      const prof = profiles[role];
-      if (prof) {
-        const strong = btn.querySelector('.prof-text strong');
-        const small = btn.querySelector('.prof-text small');
-        if (strong && prof.roleLabel) {
-          strong.innerText = prof.roleLabel;
-        }
-        if (small) {
-          const parts = small.innerText.split('•');
-          const desc = parts.length > 1 ? parts[1].trim() : '';
-          small.innerText = desc ? `${prof.name} • ${desc}` : prof.name;
-        }
-      }
-    });
+    // No-op seguro para evitar excepciones si se llama en sincronizaciones
   }
 
   async checkActiveSession() {
@@ -439,6 +448,13 @@ class AuthManager {
           }
         }
         appNav.applyRolePermissions(user.roleKey);
+
+        // Redirección inmediata al Dashboard o Mostrador
+        if (window.appNav) {
+          const profile = mockStaffProfiles[user.roleKey];
+          const defaultView = (user.roleKey === 'cashier') ? 'viewCounter' : (profile?.defaultView || 'viewManagement');
+          window.appNav.navigateTo(defaultView);
+        }
 
         showValetecToast(`Sesión activa recuperada por JWT: ${user.name}.`, "info");
         // Sincronizar catálogo y datos protegidos
@@ -473,186 +489,80 @@ class AuthManager {
 }
 
 // =============================================================
-// 4. WIDGET NATIVO DE ACCESIBILIDAD UNIVERSAL (USERWAY ENGINE)
 // =============================================================
-class AccessibilityEngine {
+// 4. MOTOR NATIVO DE TEMA (MODO CLARO / MODO OSCURO)
+// =============================================================
+class ThemeEngine {
   constructor() {
-    this.drawer = document.getElementById('userwayDrawer');
-    this.btnOpen = document.getElementById('btnOpenUserway');
-    this.btnClose = document.getElementById('btnCloseUserway');
     this.body = document.getElementById('appBody') || document.body;
-
-    this.fontSize = 'normal';
     this.isDark = false;
-    this.isDyslexia = false;
-    this.isSpaced = false;
-    this.isLinksHighlight = false;
-
-    this.init();
-    this.loadSavedSettings();
+    this.loadSavedTheme();
   }
 
-  init() {
-    if (this.btnOpen) {
-      this.btnOpen.addEventListener('click', (e) => {
-        if (e && e.preventDefault) e.preventDefault();
-        this.toggleDrawer();
-      });
-    }
-
-    if (this.btnClose) {
-      this.btnClose.addEventListener('click', (e) => {
-        if (e && e.preventDefault) e.preventDefault();
-        e.stopPropagation();
-        this.closeDrawer();
-      });
-    }
-
-    // Cerrar al hacer clic fuera del panel
-    document.addEventListener('click', (e) => {
-      if (this.drawer && this.btnOpen) {
-        if (!this.drawer.contains(e.target) && !this.btnOpen.contains(e.target)) {
-          this.closeDrawer();
-        }
-      }
-    });
-
-    // Cerrar al presionar tecla Escape
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.drawer?.classList.contains('active')) {
-        this.closeDrawer();
-      }
-    });
-  }
-
-  loadSavedSettings() {
+  loadSavedTheme() {
     try {
-      const saved = localStorage.getItem('valetec_accessibility_settings');
-      if (saved) {
-        const cfg = JSON.parse(saved);
-        if (cfg.fontSize && cfg.fontSize !== 'normal') {
-          this.setFontSize(cfg.fontSize);
-        }
-        if (cfg.isDark) this.toggleDarkMode(true);
-        if (cfg.isDyslexia) this.toggleDyslexia(true);
-        if (cfg.isSpaced) this.toggleSpacedText(true);
-        if (cfg.isLinksHighlight) this.toggleHighlightLinks(true);
+      const saved = localStorage.getItem('valetec_theme');
+      if (saved === 'dark') {
+        this.toggleDarkMode(true, false);
+      } else {
+        this.toggleDarkMode(false, false);
       }
     } catch (e) {
-      console.warn("Error cargando configuración de accesibilidad:", e);
+      console.warn("Error cargando preferencia de tema:", e);
     }
   }
 
-  saveSettings() {
-    try {
-      const cfg = {
-        fontSize: this.fontSize,
-        isDark: this.isDark,
-        isDyslexia: this.isDyslexia,
-        isSpaced: this.isSpaced,
-        isLinksHighlight: this.isLinksHighlight
-      };
-      localStorage.setItem('valetec_accessibility_settings', JSON.stringify(cfg));
-    } catch (e) {
-      console.warn("Error guardando configuración de accesibilidad:", e);
-    }
-  }
-
-  toggleDrawer() {
-    if (!this.drawer) return;
-    const isActive = this.drawer.classList.toggle('active');
-    if (this.btnOpen) {
-      this.btnOpen.setAttribute('aria-expanded', isActive ? 'true' : 'false');
-    }
-  }
-
-  closeDrawer() {
-    if (!this.drawer) return;
-    this.drawer.classList.remove('active');
-    if (this.btnOpen) {
-      this.btnOpen.setAttribute('aria-expanded', 'false');
-    }
-  }
-
-  setFontSize(size, el) {
-    this.fontSize = size || 'normal';
-    this.body.classList.remove('uw-font-lg', 'uw-font-xl');
-    const btns = document.querySelectorAll('.btn-uw-ctrl');
-    btns.forEach(b => b.classList.remove('active'));
-
-    if (this.fontSize === 'lg') {
-      this.body.classList.add('uw-font-lg');
-      if (el) el.classList.add('active');
-      else btns[1]?.classList.add('active');
-    } else if (this.fontSize === 'xl') {
-      this.body.classList.add('uw-font-xl');
-      if (el) el.classList.add('active');
-      else btns[2]?.classList.add('active');
-    } else {
-      if (el) el.classList.add('active');
-      else btns[0]?.classList.add('active');
-    }
-    this.saveSettings();
-    showValetecToast(`Tamaño de texto: ${this.fontSize.toUpperCase()}`, "info");
-  }
-
-  toggleDarkMode(forceState) {
+  toggleDarkMode(forceState, notify = true) {
     this.isDark = typeof forceState === 'boolean' ? forceState : !this.isDark;
+    
+    // Conmutar clases del body (uw-dark-mode conserva las reglas CSS profundas existentes)
     this.body.classList.toggle('uw-dark-mode', this.isDark);
-    document.getElementById('btnToggleDarkMode')?.classList.toggle('active', this.isDark);
-    this.saveSettings();
-    showValetecToast(`Modo Oscuro ${this.isDark ? 'Activado' : 'Desactivado'}`, "info");
-  }
+    this.body.classList.toggle('dark-mode', this.isDark);
 
-  toggleDyslexia(forceState) {
-    this.isDyslexia = typeof forceState === 'boolean' ? forceState : !this.isDyslexia;
-    this.body.classList.toggle('uw-dyslexia', this.isDyslexia);
-    document.getElementById('btnToggleDyslexia')?.classList.toggle('active', this.isDyslexia);
-    this.saveSettings();
-    showValetecToast(`Lectura Fácil ${this.isDyslexia ? 'Activada' : 'Desactivada'}`, "info");
-  }
-
-  toggleSpacedText(forceState) {
-    this.isSpaced = typeof forceState === 'boolean' ? forceState : !this.isSpaced;
-    this.body.classList.toggle('uw-spaced-text', this.isSpaced);
-    document.getElementById('btnToggleSpacedText')?.classList.toggle('active', this.isSpaced);
-    this.saveSettings();
-    showValetecToast(`Espaciado de Texto ${this.isSpaced ? 'Activado' : 'Desactivado'}`, "info");
-  }
-
-  toggleHighlightLinks(forceState) {
-    this.isLinksHighlight = typeof forceState === 'boolean' ? forceState : !this.isLinksHighlight;
-    this.body.classList.toggle('uw-highlight-links', this.isLinksHighlight);
-    document.getElementById('btnToggleHighlightLinks')?.classList.toggle('active', this.isLinksHighlight);
-    this.saveSettings();
-    showValetecToast(`Resaltado de Botones ${this.isLinksHighlight ? 'Activado' : 'Desactivado'}`, "info");
-  }
-
-  resetAll() {
-    this.body.classList.remove(
-      'uw-font-lg',
-      'uw-font-xl',
-      'uw-dark-mode',
-      'uw-dyslexia',
-      'uw-spaced-text',
-      'uw-highlight-links'
-    );
-    this.fontSize = 'normal';
-    this.isDark = false;
-    this.isDyslexia = false;
-    this.isSpaced = false;
-    this.isLinksHighlight = false;
-
-    document.querySelectorAll('.btn-uw-feature').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.btn-uw-ctrl').forEach((b, i) => b.classList.toggle('active', i === 0));
-
+    // Persistir preferencia
     try {
-      localStorage.removeItem('valetec_accessibility_settings');
+      localStorage.setItem('valetec_theme', this.isDark ? 'dark' : 'light');
     } catch (e) { }
 
-    showValetecToast("Accesibilidad restablecida a modo estándar.", "success");
+    // Actualizar botón en la barra superior
+    this.updateToggleUI();
+
+    if (notify && typeof showValetecToast === 'function') {
+      showValetecToast(`Modo ${this.isDark ? 'Oscuro' : 'Claro'} activado`, "info");
+    }
+  }
+
+  updateToggleUI() {
+    const btn = document.getElementById('btnThemeToggle');
+    const icon = document.getElementById('themeToggleIcon');
+    const text = document.getElementById('themeToggleText');
+
+    if (btn) {
+      btn.classList.toggle('active', this.isDark);
+      btn.setAttribute('aria-pressed', this.isDark ? 'true' : 'false');
+    }
+    if (icon) {
+      if (this.isDark) {
+        icon.className = 'bi bi-sun-fill text-warning';
+      } else {
+        icon.className = 'bi bi-moon-stars';
+      }
+    }
+    if (text) {
+      text.textContent = this.isDark ? 'Modo Claro' : 'Modo Oscuro';
+    }
+  }
+
+  // Métodos de compatibilidad retroactiva
+  setFontSize() {}
+  toggleDyslexia() {}
+  toggleSpacedText() {}
+  toggleHighlightLinks() {}
+  resetAll() {
+    this.toggleDarkMode(false);
   }
 }
+
 
 // =============================================================
 // 5. CONTROLADOR DE ROLES Y NAVEGACIÓN (SPA CONTROLLER)
@@ -672,6 +582,15 @@ class NavigationController {
     if (this.roleSelect) {
       this.applyRolePermissions(this.currentRole);
     }
+
+    // Asegurar que la vista inicial quede inmediatamente activa en el DOM
+    this.navigateTo(this.currentViewId);
+  }
+
+  resolveViewId(viewId) {
+    if (!viewId) return 'viewManagement';
+    if (viewId === 'viewDashboard' || viewId === 'dashboard') return 'viewManagement';
+    return viewId;
   }
 
   initSidebarState() {
@@ -854,6 +773,7 @@ class NavigationController {
   }
 
   canAccessView(viewId) {
+    viewId = this.resolveViewId(viewId);
     const profile = mockStaffProfiles[this.currentRole];
     return profile ? profile.allowedViews.includes(viewId) : false;
   }
@@ -1070,6 +990,7 @@ class NavigationController {
   }
 
   navigateTo(viewId) {
+    viewId = this.resolveViewId(viewId);
     if (!this.canAccessView(viewId)) {
       showValetecToast("Tu rol actual no tiene permiso para ingresar a esta sección.", "warning");
       return;
@@ -9614,7 +9535,7 @@ class SettingsModule {
 // =============================================================
 // 13. INICIALIZACIÓN GLOBAL & SINCRONIZACIÓN CON BACKEND (POSTGRESQL)
 // =============================================================
-let authManager, accessibilityEngine, appNav, counterApp, cashApp, warehouseApp, digemidApp, staffApp, classificationApp, clientsApp, managementApp, settingsApp;
+let authManager, themeEngine, accessibilityEngine, appNav, counterApp, cashApp, warehouseApp, digemidApp, staffApp, classificationApp, clientsApp, managementApp, settingsApp;
 
 async function syncWithBackend() {
   if (!window.api) return;
@@ -9789,7 +9710,10 @@ window.closeWhatsAppModal = function (e) {
 document.addEventListener('DOMContentLoaded', () => {
   authManager = new AuthManager();
   window.authManager = authManager;
-  accessibilityEngine = new AccessibilityEngine();
+  themeEngine = new ThemeEngine();
+  window.themeEngine = themeEngine;
+  accessibilityEngine = themeEngine;
+  window.accessibilityEngine = themeEngine;
   appNav = new NavigationController();
   window.appNav = appNav;
   counterApp = new CounterModule();

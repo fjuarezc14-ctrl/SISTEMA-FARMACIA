@@ -8,16 +8,16 @@
   <meta http-equiv="Expires" content="0">
   <title>VALETEC PHARMA - Sistema Integral de Gestión & Dispensación v2</title>
 
-  <!-- Tipografía Plus Jakarta Sans -->
+  <!-- Tipografía Oficial: Inter (Máxima Legibilidad Médica y Cifras Tabulares) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- Iconografía Bootstrap Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
   <!-- Estilos Maestros Responsive Modernos -->
-  <link rel="stylesheet" href="./css/styles.css?v=6.2">
+  <link rel="stylesheet" href="./css/styles.css?v=7.0">
 </head>
 <body class="valetec-app-body" id="appBody">
 
@@ -68,70 +68,36 @@
       <div class="login-form-side">
         <div class="login-form-header">
           <h2>Bienvenido a tu Botica</h2>
-          <p>Toca tu perfil de trabajo para entrar rápido o escribe tu clave:</p>
+          <p>Ingresa tus credenciales autorizadas para acceder al sistema:</p>
         </div>
 
-        <!-- Perfiles de Acceso Rápido (1 Clic) con Emojis y Textos Claros -->
-        <div class="quick-profiles-grid">
-          <div class="profile-card-btn active" data-role="admin" onclick="authManager.selectQuickProfile('admin')" title="Ver todo el negocio">
-            <div class="prof-avatar"><i class="bi bi-briefcase"></i></div>
-            <div class="prof-text">
-              <strong>Dueño / Gerente</strong>
-              <small>Ing. Juan Pérez • Todo el negocio</small>
-            </div>
-            <i class="bi bi-check-circle prof-check"></i>
-          </div>
-
-          <div class="profile-card-btn" data-role="qf" onclick="authManager.selectQuickProfile('qf')" title="Recetas y Almacén">
-            <div class="prof-avatar"><i class="bi bi-file-earmark-medical"></i></div>
-            <div class="prof-text">
-              <strong>Químico (Q.F.)</strong>
-              <small>Dra. Elena Vega • DIGEMID & Lotes</small>
-            </div>
-            <i class="bi bi-check-circle prof-check"></i>
-          </div>
-
-          <div class="profile-card-btn" data-role="tech" onclick="authManager.selectQuickProfile('tech')" title="Atención a Clientes">
-            <div class="prof-avatar"><i class="bi bi-capsule"></i></div>
-            <div class="prof-text">
-              <strong>Técnico Mostrador</strong>
-              <small>Carlos Mendoza • Ventas rápidas</small>
-            </div>
-            <i class="bi bi-check-circle prof-check"></i>
-          </div>
-
-          <div class="profile-card-btn" data-role="cashier" onclick="authManager.selectQuickProfile('cashier')" title="Cobros y Caja">
-            <div class="prof-avatar"><i class="bi bi-cash-stack"></i></div>
-            <div class="prof-text">
-              <strong>Cajero de Turno</strong>
-              <small>Rodrigo Soto • Cobro & Arqueo</small>
-            </div>
-            <i class="bi bi-check-circle prof-check"></i>
-          </div>
-        </div>
-
-        <!-- Formulario Manual de Autenticación -->
+        <!-- Formulario Manual de Autenticación Seguro -->
         <form class="login-form-fields" onsubmit="authManager.login(event)">
           <div class="login-input-group">
-            <label><i class="bi bi-person"></i> Correo o Usuario:</label>
-            <input type="text" id="loginUsername" class="login-field" value="gerencia@valetec.pe" required>
+            <label for="loginUsername"><i class="bi bi-person"></i> Correo o Usuario:</label>
+            <input type="text" id="loginUsername" class="login-field" placeholder="ej. usuario@valetec.pe" autocomplete="username" required>
           </div>
-          <div class="login-input-group mt-2">
-            <label><i class="bi bi-key"></i> Clave / PIN de Turno:</label>
-            <input type="password" id="loginPassword" class="login-field" value="••••••••" required>
+          <div class="login-input-group mt-3">
+            <label for="loginPassword"><i class="bi bi-key"></i> Clave / PIN de Turno:</label>
+            <div class="password-wrapper">
+              <input type="password" id="loginPassword" class="login-field" placeholder="Escribe tu contraseña" autocomplete="current-password" required>
+              <button type="button" class="btn-toggle-password" id="btnTogglePassword" onclick="authManager.togglePasswordVisibility()" title="Mostrar u ocultar contraseña" aria-label="Mostrar u ocultar contraseña">
+                <i class="bi bi-eye" id="togglePasswordIcon"></i>
+              </button>
+            </div>
           </div>
 
-          <div class="login-options-row mt-2">
-            <label class="remember-check"><input type="checkbox" checked> Recordar en esta computadora</label>
+          <div class="login-options-row mt-3">
+            <label class="remember-check"><input type="checkbox" id="rememberMe"> Recordar en esta computadora</label>
             <a href="#" class="forgot-link" onclick="showValetecToast('Pide asistencia al Administrador para restablecer tu contraseña.', 'info')">¿Olvidaste tu clave?</a>
           </div>
 
-          <button type="submit" class="btn-login-submit">
+          <button type="submit" class="btn-login-submit" style="margin-top: 18px;">
             <i class="bi bi-box-arrow-in-right"></i> Ingresar al Sistema
           </button>
         </form>
 
-        <div class="login-security-notice">
+        <div class="login-security-notice" style="margin-top: 20px;">
           <i class="bi bi-shield-check text-teal"></i> Sistema protegido y seguro para farmacias
         </div>
       </div>
@@ -455,6 +421,11 @@
             <i class="bi bi-clock"></i>
             <span id="liveAppClock">18/09/2026 • 17:05:00</span>
           </div>
+
+          <!-- Botón de Conmutación de Modo Oscuro / Modo Claro Nativo -->
+          <button type="button" class="btn-shortcuts-modal" id="btnThemeToggle" onclick="themeEngine.toggleDarkMode()" title="Alternar Modo Claro / Modo Oscuro">
+            <i class="bi bi-moon-stars" id="themeToggleIcon"></i> <span id="themeToggleText">Modo Oscuro</span>
+          </button>
 
           <!-- Botón Configuración de Empresa (Admin) -->
           <button type="button" class="btn-shortcuts-modal" id="btnOpenSettingsHeader" title="Configuraciones Generales de la Empresa [Admin]">
@@ -1776,7 +1747,7 @@
       <!-- *************************************************************
            VISTA 6: REPORTES & TORRE DE CONTROL GERENCIAL (MÓDULOS 7 Y 9)
       ************************************************************* -->
-      <section id="viewManagement" class="app-view-panel">
+      <section id="viewManagement" class="app-view-panel active">
         <div class="valetec-card-box">
           
           <div class="card-header-flex">
@@ -1786,12 +1757,13 @@
               <p class="view-subheading">Reporte contable tributario para SUNAT, sugerido inteligente de reposición a droguerías y auditoría de rentabilidad en vivo.</p>
             </div>
             <div class="header-actions-group">
-              <button type="button" class="btn-action-outline" id="btnOpenSettingsFromMgmt" style="font-weight: 600; font-size: 12px;" onclick="settingsApp.openModal()">
+              <button type="button" class="btn-action-outline" id="btnOpenSettingsFromMgmt" onclick="settingsApp.openModal()">
                 <i class="bi bi-gear"></i> <span>Configuración</span>
               </button>
-              <button type="button" class="btn-action-solid" id="btnDownloadBackupMgmt" style="font-weight: 600; font-size: 12px;">
+              <button type="button" class="btn-action-solid" id="btnDownloadBackupMgmt">
                 <i class="bi bi-database-down"></i> <span>Descargar Backup BD</span>
               </button>
+
               <span class="live-stream-badge"><span class="status-dot free pulse"></span> Nube Activa</span>
             </div>
           </div>
@@ -4332,73 +4304,6 @@
     </div>
   </div>
 
-  <!-- =============================================================
-       WIDGET DE ACCESIBILIDAD NATIVO (ESTILO USERWAY)
-  ============================================================= -->
-  <!-- Botón Flotante UserWay -->
-  <button type="button" class="userway-floating-btn" id="btnOpenUserway" title="Menú de Ayuda Visual y Accesibilidad" aria-label="Abrir Menú de Accesibilidad">
-    <i class="bi bi-universal-access" style="font-size:22px; pointer-events: none;"></i>
-    <span class="userway-pulse-dot" style="pointer-events: none;"></span>
-  </button>
-
-  <!-- Panel Desplegable UserWay Nativo -->
-  <div class="userway-drawer-panel" id="userwayDrawer" role="dialog" aria-modal="true" aria-label="Ayuda Visual y Accesibilidad">
-    <div class="userway-header">
-      <div class="userway-title-wrap">
-        <i class="bi bi-universal-access" style="font-size:24px;"></i>
-        <div>
-          <h4>Ayuda Visual & Accesibilidad</h4>
-          <small>Herramientas sencillas para personas de toda edad</small>
-        </div>
-      </div>
-      <button type="button" class="btn-userway-close" id="btnCloseUserway" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
-    </div>
-
-    <div class="userway-body">
-      
-      <!-- 1. Tamaño del Texto -->
-      <div class="userway-widget-card">
-        <div class="uw-widget-label">Tamaño del Texto:</div>
-        <div class="uw-btn-group">
-          <button type="button" class="btn-uw-ctrl active" onclick="accessibilityEngine.setFontSize('normal', this)">A (Normal)</button>
-          <button type="button" class="btn-uw-ctrl" onclick="accessibilityEngine.setFontSize('lg', this)">A+ (Grande)</button>
-          <button type="button" class="btn-uw-ctrl" onclick="accessibilityEngine.setFontSize('xl', this)">A++ (Muy Grande)</button>
-        </div>
-      </div>
-
-      <!-- 2. Modos de Pantalla y Lectura -->
-      <div class="userway-widget-card mt-2">
-        <div class="uw-widget-label">Modo de Pantalla & Lectura:</div>
-        <div class="uw-grid-2">
-          <button type="button" class="btn-uw-feature" id="btnToggleDarkMode" onclick="accessibilityEngine.toggleDarkMode()">
-            <i class="bi bi-moon"></i> <span>Modo Noche</span>
-          </button>
-          <button type="button" class="btn-uw-feature" id="btnToggleDyslexia" onclick="accessibilityEngine.toggleDyslexia()">
-            <i class="bi bi-book"></i> <span>Lectura Fácil</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- 3. Espaciado y Botones -->
-      <div class="userway-widget-card mt-2">
-        <div class="uw-widget-label">Comodidad Visual:</div>
-        <div class="uw-grid-2">
-          <button type="button" class="btn-uw-feature" id="btnToggleSpacedText" onclick="accessibilityEngine.toggleSpacedText()">
-            <i class="bi bi-arrows-expand"></i> <span>Separar Letras</span>
-          </button>
-          <button type="button" class="btn-uw-feature" id="btnToggleHighlightLinks" onclick="accessibilityEngine.toggleHighlightLinks()">
-            <i class="bi bi-bounding-box"></i> <span>Resaltar Botones</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Botón de Restablecer -->
-      <button type="button" class="btn-userway-reset mt-2" onclick="accessibilityEngine.resetAll()">
-        <i class="bi bi-arrow-counterclockwise"></i> <span>Volver a Modo Normal</span>
-      </button>
-
-    </div>
-  </div>
 
   <!-- Toast Flotante de Notificaciones del Sistema -->
   <div class="valetec-toast" id="valetecToast">
@@ -4409,6 +4314,6 @@
   <!-- Capa de Comunicación API (Frontend ↔ Backend) -->
   <script src="./js/api.js?v=6.2"></script>
   <!-- Script Principal de la Aplicación -->
-  <script src="./js/app.js?v=6.2"></script>
+  <script src="./js/app.js?v=6.3"></script>
 </body>
 </html>

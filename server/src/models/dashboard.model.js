@@ -113,6 +113,14 @@ class DashboardModel {
       LIMIT $1;
     `, [limit]);
   }
+
+  /**
+   * Alias de compatibilidad para ranking de productos más vendidos.
+   */
+  static async getTopSellingProducts(limit = 10, dbClient) {
+    return await this.getTopProducts(limit, dbClient);
+  }
 }
 
 module.exports = DashboardModel;
+

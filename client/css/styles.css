@@ -1,39 +1,39 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 /**
  * VALETEC PHARMA - SISTEMA DE GESTIÓN FARMACÉUTICA V2
- * Identidad Visual Oficial: VALETEC Deep Navy (#0a2540, #0f2942), Electric Teal (#00d4b2, #00a884), Medical Blue (#0066cc)
- * Componentes Especiales: Pantalla de Login, Widget Nativo de Accesibilidad (UserWay), Cockpit Gerencial y Mostrador Ergonómico
+ * Identidad Visual Oficial: Salud Digital (Teal Médico #0d9488, Azul Dispensación #0284c7, Deep Navy #0b1329)
+ * Tipografía Oficial: Inter con Cifras Tabulares Numéricas
  */
 
 :root {
   /* =============================================================
-     VALETEC GOURMET / CLEAN SAAS DESIGN SYSTEM
-     Superficies limpias, contraste sutil y cero ruido visual
+     VALETEC PHARMA - SALUD DIGITAL DESIGN SYSTEM 2026
+     Superficies limpias, contraste clínico nítido y cifras tabulares
      ============================================================= */
   --bg-app: #f8fafc;
   --bg-main: #f8fafc;
   --bg-surface: #ffffff;
-  --bg-subtle: #f8fafc;
+  --bg-subtle: #f1f5f9;
   --bg-card: #ffffff;
   --bg-hover: #f1f5f9;
 
-  /* Bordes ultra sutiles y aireados */
-  --border-subtle: #f1f5f9;
-  --border-card: rgba(0, 0, 0, 0.04);
-  --border-strong: #e2e8f0;
+  /* Bordes limpios y precisos */
+  --border-subtle: #e2e8f0;
+  --border-card: #e2e8f0;
+  --border-strong: #cbd5e1;
   --border-focus: #0d9488;
 
   /* Jerarquía Tipográfica de Alto Contraste */
-  --text-main: #1e293b;
-  --text-dark: #0f172a;
-  --text-muted: #64748b;
-  --text-light: #94a3b8;
+  --text-main: #0f172a;
+  --text-dark: #020617;
+  --text-muted: #475569;
+  --text-light: #64748b;
   --text-white: #ffffff;
 
-  /* Paleta Corporativa Limpia */
+  /* Paleta Corporativa "Salud Digital" */
   --valetec-navy: #0f172a;
-  --valetec-navy-dark: #0b1320;
+  --valetec-navy-dark: #0b1329;
   --valetec-navy-light: #1e293b;
 
   --valetec-accent: #0d9488;
@@ -63,7 +63,6 @@
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
   --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.06);
   --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.05);
   --shadow-lg: 0 14px 34px rgba(0, 0, 0, 0.07);
   --shadow-modal: 0 20px 50px rgba(0, 0, 0, 0.10);
@@ -78,10 +77,11 @@
   --radius-modal: 20px;
   --radius-full: 100px;
 
-  --font-family: 'Inter', 'Poppins', system-ui, -apple-system, sans-serif;
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
   --transition-fast: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   --transition-smooth: 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
+
 
 /* =============================================================
    SISTEMA DE PUNTOS DE ESTADO Y ETIQUETAS MINIMALISTAS
@@ -157,6 +157,7 @@ html {
 
 body.valetec-app-body {
   font-family: var(--font-family);
+  font-size: 14.5px;
   background-color: var(--bg-app);
   color: var(--text-main);
   line-height: 1.5;
@@ -169,6 +170,22 @@ body.valetec-app-body {
   display: flex;
   flex-direction: column;
 }
+
+/* Soporte Nativo de Cifras Tabulares para Precios y Cantidades */
+.tabular-nums,
+.price-value,
+.valetec-price,
+.catalog-price,
+.cart-price,
+.cart-total-value,
+.kpi-value,
+.stat-number,
+.badge-tab-notify,
+.valetec-table td:nth-child(n+4) {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
 
 /* Utilidades */
 .d-none { display: none !important; }
@@ -397,6 +414,40 @@ body.valetec-app-body {
   background-color: #ffffff;
   border-color: var(--valetec-teal);
   box-shadow: 0 0 0 3px rgba(var(--valetec-teal-rgb), 0.2);
+}
+
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.password-wrapper .login-field {
+  padding-right: 44px;
+}
+
+.btn-toggle-password {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  transition: color 0.2s ease, transform 0.1s ease;
+}
+
+.btn-toggle-password:hover {
+  color: var(--valetec-teal);
+}
+
+.btn-toggle-password:active {
+  transform: scale(0.92);
 }
 
 .login-options-row {
@@ -643,12 +694,12 @@ body.valetec-app-body {
   border: 1px solid transparent;
   color: #94a3b8;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 500;
-  padding: 10px 14px;
+  padding: 11px 16px;
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 12px;
   cursor: pointer;
   position: relative;
   border-radius: 10px;
@@ -678,9 +729,9 @@ body.valetec-app-body {
 }
 
 .tab-icon {
-  font-size: 16px;
-  width: 20px;
-  height: 20px;
+  font-size: 18px;
+  width: 22px;
+  height: 22px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -688,6 +739,7 @@ body.valetec-app-body {
   color: #94a3b8;
   transition: color var(--transition-fast);
 }
+
 
 .tab-icon i.bi {
   font-size: 16px;
@@ -767,9 +819,9 @@ body.valetec-app-body {
   border: 1px solid transparent;
   color: #94a3b8;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
-  padding: 8px 12px;
+  padding: 10px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -857,9 +909,9 @@ body.valetec-app-body {
   border: none;
   color: #94a3b8;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 500;
-  padding: 6px 10px;
+  padding: 8px 12px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1618,10 +1670,10 @@ body.valetec-app-body {
   background-color: #ffffff;
   border: 1px solid #e2e8f0;
   color: #475569;
-  padding: 7px 16px;
+  padding: 8px 18px;
   border-radius: 50px;
   font-family: var(--font-family);
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 500;
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
@@ -1761,15 +1813,16 @@ body.valetec-app-body {
    3. ESPACIO DE TRABAJO (WORKSPACE)
 ------------------------------------------------------------- */
 .app-workspace-main {
-  max-width: 1600px;
+  max-width: 100% !important;
   width: 100%;
-  margin: 0 auto;
-  padding: 16px 20px;
+  margin: 0;
+  padding: 20px 28px;
   flex: 1;
   box-sizing: border-box;
   overflow-x: hidden;
   background: var(--bg-app);
 }
+
 
 .app-view-panel {
   display: none;
@@ -1804,22 +1857,24 @@ body.valetec-app-body {
 }
 
 .view-heading {
-  font-size: 18.5px;
+  font-size: 22px;
   font-weight: 700;
   color: #1e293b;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .view-subheading {
-  font-size: 0.85rem;
+  font-size: 14px;
   color: #64748b;
-  margin-top: 2px;
+  margin-top: 4px;
+  line-height: 1.5;
 }
 
 .header-actions-group {
   display: flex;
+  align-items: center;
   gap: 10px;
 }
 
@@ -1827,20 +1882,21 @@ body.valetec-app-body {
   background-color: #0d9488;
   border: 1px solid #0d9488;
   color: var(--text-white);
-  padding: 8px 18px;
-  border-radius: 8px;
-  font-size: 12.5px;
+  padding: 10px 20px;
+  min-height: 42px;
+  border-radius: 10px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   box-shadow: var(--shadow-xs);
   transition: all var(--transition-fast);
 }
 
 .btn-action-solid i.bi {
-  font-size: 13px;
+  font-size: 15px;
   color: #ffffff;
 }
 
@@ -1859,22 +1915,24 @@ body.valetec-app-body {
   background-color: transparent;
   border: 1px solid #e2e8f0;
   color: #475569;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 12.5px;
-  font-weight: 500;
+  padding: 10px 20px;
+  min-height: 42px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   transition: all var(--transition-fast);
 }
 
 .btn-action-outline i.bi {
   color: #64748b;
-  font-size: 13px;
+  font-size: 15px;
   transition: color var(--transition-fast);
 }
+
 
 .btn-action-outline:hover {
   background-color: #f8fafc;
@@ -1896,8 +1954,8 @@ body.valetec-app-body {
 ------------------------------------------------------------- */
 .counter-responsive-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 14px;
+  grid-template-columns: minmax(0, 1.45fr) minmax(360px, 420px);
+  gap: 20px;
   align-items: start;
   width: 100%;
   max-width: 100%;
@@ -1909,7 +1967,7 @@ body.valetec-app-body {
   max-width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   box-sizing: border-box;
 }
 
@@ -1918,7 +1976,7 @@ body.valetec-app-body {
   background: #ffffff;
   border: 1px solid var(--border-card);
   border-radius: var(--radius-card);
-  padding: 14px 16px;
+  padding: 16px 18px;
   box-shadow: var(--shadow-card);
 }
 
@@ -1930,16 +1988,16 @@ body.valetec-app-body {
 
 .search-input-box i {
   position: absolute;
-  left: 14px;
-  font-size: 17px;
+  left: 16px;
+  font-size: 20px;
   color: var(--valetec-blue);
 }
 
 .search-input-box input {
   width: 100%;
-  height: 46px;
-  padding: 0 130px 0 46px;
-  font-size: 13.5px;
+  height: 48px;
+  padding: 0 140px 0 52px;
+  font-size: 15px;
   font-family: inherit;
   font-weight: 500;
   border: 1.5px solid #e2e8f0;
@@ -1950,6 +2008,7 @@ body.valetec-app-body {
   transition: all var(--transition-smooth);
   color: var(--text-main);
 }
+
 
 .search-input-box input:focus {
   background-color: #ffffff;
@@ -2023,23 +2082,24 @@ body.valetec-app-body {
   border: 1px solid #e2e8f0;
   color: #64748b;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 500;
-  padding: 6px 14px;
+  padding: 8px 16px;
   border-radius: var(--radius-full);
   cursor: pointer;
   white-space: nowrap;
   transition: all var(--transition-fast);
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
 }
 
 .cat-chip i.bi {
-  font-size: 13px;
+  font-size: 15px;
   color: #94a3b8;
   transition: color var(--transition-fast);
 }
+
 
 .cat-chip:hover {
   background-color: #f8fafc;
@@ -2083,21 +2143,21 @@ body.valetec-app-body {
 
 .products-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 14px;
 }
 
 .product-staff-card {
   background-color: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 13px 15px;
+  border-radius: 14px;
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
-  gap: 8px;
+  gap: 10px;
 }
 
 .product-staff-card:hover {
@@ -2130,9 +2190,9 @@ body.valetec-app-body {
   background-color: #f1f5f9;
   border: 1px solid #e2e8f0;
   color: #475569;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 2px 7px;
+  padding: 3px 8px;
   border-radius: 6px;
   display: inline-flex;
   align-items: center;
@@ -2144,9 +2204,9 @@ body.valetec-app-body {
   background-color: #fefce8;
   border: 1px solid #fef08a;
   color: #854d0e;
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-radius: 9999px;
   cursor: pointer;
   display: inline-flex;
@@ -2164,9 +2224,9 @@ body.valetec-app-body {
 }
 
 .rx-badge {
-  font-size: 10px;
+  font-size: 11.5px;
   font-weight: 600;
-  padding: 2px 7px;
+  padding: 3px 8px;
   border-radius: var(--radius-full);
   display: inline-flex;
   align-items: center;
@@ -2184,11 +2244,11 @@ body.valetec-app-body {
 }
 
 .prod-name {
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 700;
   color: #0f172a;
   line-height: 1.35;
-  min-height: 36px;
+  min-height: 40px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -2196,10 +2256,10 @@ body.valetec-app-body {
 }
 
 .prod-dci {
-  font-size: 11px;
+  font-size: 12.5px;
   color: #64748b;
   font-weight: 500;
-  margin-top: 2px;
+  margin-top: 3px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2213,17 +2273,18 @@ body.valetec-app-body {
   background-color: #f8fafc;
   border: 1px solid #f1f5f9;
   border-radius: 8px;
-  padding: 4px 6px;
+  padding: 6px 10px;
 }
 
 .prod-compact-stock {
-  font-size: 11px;
+  font-size: 12.5px;
   color: #64748b;
   white-space: nowrap;
   display: flex;
   align-items: baseline;
   gap: 2px;
 }
+
 
 .prod-compact-stock .stock-num {
   font-weight: 700;
@@ -3098,7 +3159,7 @@ table.table {
   min-width: 700px;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-main);
   text-align: left;
 }
@@ -3108,11 +3169,11 @@ table.table {
 table.table th {
   background-color: #f8fafc;
   color: #475569;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 13px 18px;
+  letter-spacing: 0.6px;
+  padding: 14px 18px;
   border-bottom: 1px solid #e2e8f0;
   border-left: none;
   border-right: none;
@@ -3126,13 +3187,14 @@ table.table th {
 .valetec-table td,
 .valetec-data-table td,
 table.table td {
-  padding: 14px 18px;
+  padding: 15px 18px;
   border-bottom: 1px solid #f1f5f9;
   border-left: none;
   border-right: none;
   vertical-align: middle;
   transition: background-color var(--transition-fast);
 }
+
 
 .valetec-table tbody tr:hover td,
 .valetec-data-table tbody tr:hover td,
@@ -3253,7 +3315,7 @@ table.table code {
   background-color: #ffffff;
   border: 1px solid var(--border-card);
   border-radius: var(--radius-card);
-  padding: 20px;
+  padding: 24px;
   box-shadow: var(--shadow-card);
 }
 
@@ -3261,23 +3323,27 @@ table.table code {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .m-card-val {
-  font-size: 22px;
-  font-weight: 900;
+  font-size: 28px;
+  font-weight: 800;
   color: var(--valetec-navy);
-  margin: 4px 0;
+  margin: 8px 0;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
 .m-card-sub {
-  font-size: 11px;
+  font-size: 13.5px;
   color: var(--text-muted);
 }
+
 
 .procurement-section-box, .audit-stream-box {
   border: 1px solid var(--border-strong);
@@ -3823,76 +3889,103 @@ body.uw-font-xl .userway-floating-btn {
   zoom: 0.9;
 }
 
-/* Modo Oscuro Profundo (Dark Theme Real) */
-body.uw-dark-mode {
-  background-color: #0b1320 !important;
+/* Modo Oscuro Profundo (Salud Digital Dark Theme) */
+body.uw-dark-mode,
+body.dark-mode {
+  background-color: #0b1329 !important;
   color: #f1f5f9 !important;
 }
 
 body.uw-dark-mode .app-content-wrapper,
-body.uw-dark-mode .app-workspace-main {
-  background-color: #0b1320 !important;
+body.dark-mode .app-content-wrapper,
+body.uw-dark-mode .app-workspace-main,
+body.dark-mode .app-workspace-main {
+  background-color: #0b1329 !important;
   color: #f1f5f9 !important;
 }
 
-body.uw-dark-mode .app-top-bar {
-  background-color: #111c2e !important;
+body.uw-dark-mode .app-top-bar,
+body.dark-mode .app-top-bar {
+  background-color: #111d38 !important;
   border-bottom-color: #1e293b !important;
   color: #f1f5f9 !important;
 }
 
 body.uw-dark-mode .valetec-card-box,
+body.dark-mode .valetec-card-box,
 body.uw-dark-mode .counter-catalog-pane,
+body.dark-mode .counter-catalog-pane,
 body.uw-dark-mode .product-staff-card,
+body.dark-mode .product-staff-card,
 body.uw-dark-mode .dci-advisor-card,
+body.dark-mode .dci-advisor-card,
 body.uw-dark-mode .search-bar-card,
+body.dark-mode .search-bar-card,
 body.uw-dark-mode .table-responsive-container,
+body.dark-mode .table-responsive-container,
 body.uw-dark-mode .valetec-table,
+body.dark-mode .valetec-table,
 body.uw-dark-mode .valetec-table tbody tr,
+body.dark-mode .valetec-table tbody tr,
 body.uw-dark-mode .san-card,
+body.dark-mode .san-card,
 body.uw-dark-mode .modal-dialog-valetec,
+body.dark-mode .modal-dialog-valetec,
 body.uw-dark-mode .ticket-summary-card,
+body.dark-mode .ticket-summary-card,
 body.uw-dark-mode .ticket-cart-card,
-body.uw-dark-mode .userway-drawer-panel,
+body.dark-mode .ticket-cart-card,
 body.uw-dark-mode .z-audit-verification-box,
+body.dark-mode .z-audit-verification-box,
 body.uw-dark-mode .kpi-metric-card,
+body.dark-mode .kpi-metric-card,
 body.uw-dark-mode .dashboard-card-wrap,
-body.uw-dark-mode .stat-widget-box {
-  background-color: #111c2e !important;
+body.dark-mode .dashboard-card-wrap,
+body.uw-dark-mode .stat-widget-box,
+body.dark-mode .stat-widget-box {
+  background-color: #111d38 !important;
   color: #f1f5f9 !important;
   border-color: #1e293b !important;
 }
 
-body.uw-dark-mode .valetec-table th {
-  background-color: #1e293b !important;
+body.uw-dark-mode .valetec-table th,
+body.dark-mode .valetec-table th {
+  background-color: #16223b !important;
   color: #94a3b8 !important;
-  border-bottom-color: #334155 !important;
+  border-bottom-color: #243552 !important;
 }
 
-body.uw-dark-mode .valetec-table td {
+body.uw-dark-mode .valetec-table td,
+body.dark-mode .valetec-table td {
   border-bottom-color: #1e293b !important;
   color: #cbd5e1 !important;
 }
 
 body.uw-dark-mode input,
+body.dark-mode input,
 body.uw-dark-mode select,
-body.uw-dark-mode textarea {
-  background-color: #1e293b !important;
+body.dark-mode select,
+body.uw-dark-mode textarea,
+body.dark-mode textarea {
+  background-color: #16223b !important;
   color: #f8fafc !important;
-  border-color: #334155 !important;
+  border-color: #243552 !important;
 }
 
-body.uw-dark-mode .search-input-box input {
-  background-color: #1e293b !important;
+body.uw-dark-mode .search-input-box input,
+body.dark-mode .search-input-box input {
+  background-color: #16223b !important;
   color: #f8fafc !important;
   border-color: #0284c7 !important;
 }
 
-body.uw-dark-mode .search-autocomplete-dropdown {
-  background-color: #111c2e !important;
-  border-color: #334155 !important;
+body.uw-dark-mode .search-autocomplete-dropdown,
+body.dark-mode .search-autocomplete-dropdown {
+  background-color: #111d38 !important;
+  border-color: #243552 !important;
   color: #f8fafc !important;
 }
+
 
 body.uw-dark-mode .cat-chip {
   background-color: #1e293b !important;
@@ -3947,6 +4040,37 @@ body.uw-dark-mode .btn-userway-reset {
   background-color: #1e293b !important;
   color: #94a3b8 !important;
   border-color: #334155 !important;
+}
+
+/* Botones Superiores e Indicadores en Modo Oscuro */
+body.uw-dark-mode .btn-shortcuts-modal,
+body.dark-mode .btn-shortcuts-modal,
+body.uw-dark-mode .live-clock-badge,
+body.dark-mode .live-clock-badge,
+body.uw-dark-mode .terminal-badge,
+body.dark-mode .terminal-badge {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+body.uw-dark-mode .btn-shortcuts-modal:hover,
+body.dark-mode .btn-shortcuts-modal:hover {
+  background-color: #334155 !important;
+  border-color: #475569 !important;
+  color: #38bdf8 !important;
+}
+
+body.uw-dark-mode .btn-shortcuts-modal kbd,
+body.dark-mode .btn-shortcuts-modal kbd {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+#btnThemeToggle.active {
+  border-color: #f59e0b !important;
+  color: #f59e0b !important;
 }
 
 body.uw-dark-mode .view-heading,
@@ -4662,15 +4786,16 @@ body.uw-highlight-links input[type="submit"] {
 .client-tab-btn {
   background: transparent;
   border: none;
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 12px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 14px;
   font-weight: 600;
   color: #64748b;
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
 }
+
 
 .client-tab-btn:hover {
   color: #0f172a;
