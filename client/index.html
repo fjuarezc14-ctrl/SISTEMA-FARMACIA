@@ -313,32 +313,23 @@
                 <input 
                   type="text" 
                   id="fastProductSearch" 
-                  placeholder="Escribe medicina, genérico o pasa el lector de código de barras... [F2]" 
+                  placeholder="Buscar por medicina, principio activo DCI o código de barras... [F2]" 
                   autocomplete="off"
                 >
-                <span class="search-enter-tag"><kbd>Enter</kbd> Agregar</span>
+                <span class="search-enter-tag"><kbd>Enter</kbd> agregar</span>
               </div>
               <div class="search-autocomplete-dropdown" id="searchAutocompleteDropdown"></div>
             </div>
 
-            <!-- Filtro de Categorías Rápidas con Íconos Lineales -->
+            <!-- Filtro de Categorías Rápidas y Limpias -->
             <div class="category-chips-scroll">
-              <button type="button" class="cat-chip active" data-cat="all"><i class="bi bi-grid"></i> Todas</button>
-              <button type="button" class="cat-chip" data-cat="dolor"><i class="bi bi-capsule"></i> Dolor & Fiebre</button>
-              <button type="button" class="cat-chip" data-cat="respiratorio"><i class="bi bi-lungs"></i> Gripe & Tos</button>
-              <button type="button" class="cat-chip" data-cat="antibioticos"><i class="bi bi-shield-check"></i> Antibióticos</button>
-              <button type="button" class="cat-chip" data-cat="digestivos"><i class="bi bi-heart-pulse"></i> Digestivos</button>
-              <button type="button" class="cat-chip" data-cat="controlados"><i class="bi bi-lock"></i> Controlados</button>
-              <button type="button" class="cat-chip" data-cat="vitaminas"><i class="bi bi-flower1"></i> Vitaminas</button>
-            </div>
-
-            <!-- Banner de Asesoría de Genéricos DCI -->
-            <div class="dci-advisor-card">
-              <i class="bi bi-lightbulb"></i>
-              <div>
-                <strong>Ahorro para el Cliente:</strong>
-                <span>Ofrece la alternativa genérica DCI para fidelizar al paciente con precios bajos y cumplir la ley.</span>
-              </div>
+              <button type="button" class="cat-chip active" data-cat="all">Todas</button>
+              <button type="button" class="cat-chip" data-cat="dolor">Dolor & Fiebre</button>
+              <button type="button" class="cat-chip" data-cat="respiratorio">Gripe & Tos</button>
+              <button type="button" class="cat-chip" data-cat="antibioticos">Antibióticos</button>
+              <button type="button" class="cat-chip" data-cat="digestivos">Digestivos</button>
+              <button type="button" class="cat-chip" data-cat="controlados">Controlados (Lista IV)</button>
+              <button type="button" class="cat-chip" data-cat="vitaminas">Vitaminas</button>
             </div>
 
             <!-- Grilla de Tarjetas de Medicamentos -->
@@ -349,14 +340,14 @@
           </div>
 
           <!-- Área Derecha: Carrito de Cobro en Mostrador -->
-          <div class="counter-ticket-pane">
+          <div class="counter-ticket-pane cart-empty">
             
             <div class="ticket-header-card">
               <div class="ticket-title-row">
-                <span class="ticket-title"><i class="bi bi-cart2"></i> Carrito de Venta</span>
+                <span class="ticket-title"><i class="bi bi-cart3"></i> Carrito de Venta</span>
                 <div style="display: flex; gap: 6px; align-items: center;">
-                  <button type="button" class="btn-history-trigger" id="btnOpenClientsDirectory" onclick="clientsApp.openDirectoryModal()" title="Directorio de Clientes [F4]">
-                    <i class="bi bi-people"></i> <span>Clientes</span>
+                  <button type="button" class="btn-history-trigger" id="btnOpenClientsDirectory" onclick="clientsApp.openDirectoryModal()" title="Directorio de Clientes [F4]" style="background: #f0fdf4; color: #166534; border-color: #bbf7d0;">
+                    <i class="bi bi-people-fill"></i> <span>Clientes</span>
                   </button>
                   <button type="button" class="btn-history-trigger" id="btnOpenSalesHistory" title="Ver historial de comprobantes del turno [F7]">
                     <i class="bi bi-clock-history"></i> <span>Historial [F7]</span>
@@ -370,15 +361,15 @@
                   <i class="bi bi-person-vcard"></i>
                   <input type="text" id="patientDocInput" placeholder="DNI o RUC del cliente..." maxlength="11" onkeydown="if(event.key==='Enter'){event.preventDefault(); counterApp.lookupPatient();}">
                   <button type="button" id="btnQueryPatient" onclick="counterApp.lookupPatient()" title="Buscar cliente en el sistema">
-                    <i class="bi bi-search"></i>
+                    <span><i class="bi bi-search"></i> Buscar</span>
                   </button>
-                  <button type="button" id="btnQuickAddClient" onclick="clientsApp.openQuickModal(document.getElementById('patientDocInput')?.value)" title="Registrar nuevo cliente rápido" class="btn-action-solid" style="padding: 0 10px; height: 36px; border-radius: 6px; font-size: 11px;">
-                    <i class="bi bi-person-plus"></i> <span>Nuevo</span>
+                  <button type="button" id="btnQuickAddClient" onclick="clientsApp.openQuickModal(document.getElementById('patientDocInput')?.value)" title="Registrar nuevo cliente rápido" style="background: #0d9488; color: white; border: none; border-radius: 6px; padding: 0 10px; font-weight: 700; font-size: 11.5px; cursor: pointer; white-space: nowrap;">
+                    <span><i class="bi bi-plus-lg"></i> Nuevo</span>
                   </button>
                 </div>
                 <div class="patient-status-line" id="patientStatusLine">
                   <span class="p-name"><i class="bi bi-person"></i> Cliente General</span>
-                  <span class="p-points"><span class="status-dot free"></span> 0 Puntos</span>
+                  <span class="p-points"><i class="bi bi-star-fill text-warning"></i> 0 Puntos</span>
                 </div>
               </div>
             </div>
@@ -386,9 +377,9 @@
             <!-- Lista de Medicamentos Agregados -->
             <div class="ticket-items-scroll" id="ticketItemsScroll">
               <div class="empty-ticket-view">
-                <i class="bi bi-cart2" style="font-size: 32px; display:block; margin-bottom:8px; color: #94a3b8;"></i>
-                <p><strong>El carrito está vacío.</strong></p>
-                <small>Busca medicamentos o presiona [F2] para agregar.</small>
+                <div class="empty-cart-icon"><i class="bi bi-cart3"></i></div>
+                <p class="empty-cart-title">Carrito libre</p>
+                <small class="empty-cart-hint">Selecciona una medicina o presiona <kbd>F2</kbd></small>
               </div>
             </div>
 

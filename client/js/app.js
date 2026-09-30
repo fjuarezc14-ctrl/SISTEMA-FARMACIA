@@ -1001,6 +1001,7 @@ class CounterModule {
     this.autocomplete = document.getElementById('searchAutocompleteDropdown');
     this.grid = document.getElementById('counterProductsContainer');
     this.itemsScroll = document.getElementById('ticketItemsScroll');
+    this.ticketPane = document.querySelector('.counter-ticket-pane');
 
     this.patientInput = document.getElementById('patientDocInput');
     this.btnQuery = document.getElementById('btnQueryPatient');
@@ -1283,53 +1284,57 @@ class CounterModule {
 
     this.grid.innerHTML = filtered.map(p => {
       const isOut = (p.stockUnits <= 0);
-      let rxPill = `<span class="rx-status-subtle free"><span class="status-dot free"></span> Venta Libre</span>`;
-      if (p.prescriptionType === 'required') rxPill = `<span class="rx-status-subtle required"><span class="status-dot required"></span> Receta CMP</span>`;
-      if (p.prescriptionType === 'retained') rxPill = `<span class="rx-status-subtle retained"><span class="status-dot retained"></span> Controlado</span>`;
+      let rxPill = `<span class="rx-badge free">Libre</span>`;
+      if (p.prescriptionType === 'required') rxPill = `<span class="rx-badge required">Receta CMP</span>`;
+      if (p.prescriptionType === 'retained') rxPill = `<span class="rx-badge retained">Controlado</span>`;
 
       return `
         <article class="product-staff-card ${isOut ? 'out-stock' : ''}" data-id="${p.id}">
-          <div>
-            <div class="card-top-badges">
-              <span class="shelf-tag"><i class="bi bi-geo-alt"></i> ${escHtml(p.location)}</span>
+          <div class="card-header-compact">
+            <span class="shelf-tag"><i class="bi bi-geo-alt-fill"></i> ${escHtml(p.location)}</span>
+            <div class="card-pills-wrap">
+              ${p.genericAlt ? `
+                <button type="button" class="chip-generic-pill" onclick="counterApp.suggestAlt(${p.id})" title="Alternativa Genérica: ${escHtml(p.genericAlt.name)} (-${p.genericAlt.savingPercent}%)">
+                  <i class="bi bi-lightbulb-fill"></i> Genérico -${p.genericAlt.savingPercent}%
+                </button>
+              ` : ''}
               ${rxPill}
-            </div>
-
-            <div class="prod-name">${escHtml(p.name)}</div>
-            <div class="prod-dci">DCI: ${escHtml(p.genericDci)}</div>
-
-            <div class="prod-stock-strip">
-              <span>Stock: <strong>${p.stockBoxes} Cajas</strong> (${p.stockBlisters} blíst.)</span>
-              <span style="color: var(--text-muted);">${p.stockUnits} past.</span>
-            </div>
-
-            <div class="fraction-pick-row">
-              <button type="button" class="btn-frac-pick active" data-frac="box" data-id="${p.id}"><i class="bi bi-box-seam"></i> Caja</button>
-              <button type="button" class="btn-frac-pick" data-frac="blister" data-id="${p.id}"><i class="bi bi-grid-3x2"></i> Blíster</button>
-              <button type="button" class="btn-frac-pick" data-frac="unit" data-id="${p.id}"><i class="bi bi-capsule"></i> Pastilla</button>
             </div>
           </div>
 
-          <div>
-            <div class="price-dispense-footer">
-              <span class="price-tag" id="prodPriceDisplay_${p.id}">S/ ${p.boxPrice.toFixed(2)}</span>
-              <button 
-                type="button" 
-                class="btn-dispense" 
-                onclick="counterApp.dispenseCard(${p.id})"
-                ${isOut ? 'disabled' : ''}
-              >
-                <i class="bi ${isOut ? 'bi-dash-circle' : 'bi-plus-lg'}"></i>
-                <span>${isOut ? 'Sin Stock' : 'Agregar'}</span>
-              </button>
-            </div>
+          <div class="card-body-compact">
+            <div class="prod-name" title="${escHtml(p.name)}">${escHtml(p.name)}</div>
+            <div class="prod-dci" title="DCI: ${escHtml(p.genericDci)}">DCI: ${escHtml(p.genericDci)}</div>
+          </div>
 
-            ${p.genericAlt ? `
-              <button type="button" class="btn-alt-generic" onclick="counterApp.suggestAlt(${p.id})">
-                <i class="bi bi-arrow-repeat"></i>
-                <span>Alternativa DCI: ${escHtml(p.genericAlt.name)} (-${p.genericAlt.savingPercent}% ahorro)</span>
-              </button>
-            ` : ''}
+          <div class="stock-fraction-unified-row">
+            <div class="prod-compact-stock" title="${p.stockBoxes} Cajas (${p.stockBlisters} blíst. / ${p.stockUnits} past.)">
+              <span class="stock-num">${p.stockBoxes}</span><span class="stock-unit"> cj</span>
+              <span class="stock-sep">•</span>
+              <span class="stock-sub">${p.stockBlisters}bl / ${p.stockUnits}u</span>
+            </div>
+            <div class="fraction-segmented-control">
+              <button type="button" class="btn-frac-pick active" data-frac="box" data-id="${p.id}">Caja</button>
+              <button type="button" class="btn-frac-pick" data-frac="blister" data-id="${p.id}">Blíst</button>
+              <button type="button" class="btn-frac-pick" data-frac="unit" data-id="${p.id}">Past</button>
+            </div>
+          </div>
+
+          <div class="card-action-footer">
+            <span class="price-tag" id="prodPriceDisplay_${p.id}">S/ ${p.boxPrice.toFixed(2)}</span>
+            <button 
+              type="button" 
+              class="btn-dispense" 
+              onclick="counterApp.dispenseCard(${p.id})"
+              ${isOut ? 'disabled' : ''}
+              title="${isOut ? 'Sin existencias' : 'Agregar al carrito'}"
+            >
+              <i class="bi ${isOut ? 'bi-x-circle' : 'bi-plus-lg'}"></i>
+              <span>${isOut ? 'Sin Stock' : 'Agregar'}</span>
+            </button>
+          </div>
+        </article>
+      `;
           </div>
         </article>
       `;
@@ -1546,12 +1551,20 @@ class CounterModule {
     this.saveCartToStorage();
     if (!this.itemsScroll) return;
 
+    if (this.ticketPane) {
+      if (this.order.length === 0) {
+        this.ticketPane.classList.add('cart-empty');
+      } else {
+        this.ticketPane.classList.remove('cart-empty');
+      }
+    }
+
     if (this.order.length === 0) {
       this.itemsScroll.innerHTML = `
         <div class="empty-ticket-view">
-          <i class="bi bi-cart2" style="font-size: 32px; display:block; margin-bottom:8px; color: var(--text-muted);"></i>
-          <p><strong>El carrito está vacío.</strong></p>
-          <small>Presiona [F2] o toca "Agregar" en una medicina.</small>
+          <div class="empty-cart-icon"><i class="bi bi-cart3"></i></div>
+          <p class="empty-cart-title">Carrito libre</p>
+          <small class="empty-cart-hint">Selecciona una medicina o presiona <kbd>F2</kbd></small>
         </div>
       `;
       if (this.changeEl) this.changeEl.innerText = "S/ 0.00";
