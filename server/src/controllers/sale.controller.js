@@ -104,16 +104,14 @@ async function createSale(req, res, next) {
           }
         }
 
-        // Determinar precio: utilizar unitPrice provisto o recurrir al precio oficial de catálogo
-        let price = parseFloat(item.unitPrice);
-        if (isNaN(price) || price <= 0) {
-          if (item.fractionType === 'box') {
-            price = parseFloat(prod.box_price);
-          } else if (item.fractionType === 'blister') {
-            price = parseFloat(prod.blister_price);
-          } else {
-            price = parseFloat(prod.unit_price);
-          }
+        // Determinar precio oficial exclusivamente desde la base de datos (Inmune a Price Tampering)
+        let price = 0;
+        if (item.fractionType === 'box') {
+          price = parseFloat(prod.box_price);
+        } else if (item.fractionType === 'blister') {
+          price = parseFloat(prod.blister_price);
+        } else {
+          price = parseFloat(prod.unit_price);
         }
         price = Math.round(price * 100) / 100;
 
@@ -558,7 +556,6 @@ async function cancelSale(req, res, next) {
               req.user?.name || 'Administrador'
             ]
           );
-        }
         }
       }
 
