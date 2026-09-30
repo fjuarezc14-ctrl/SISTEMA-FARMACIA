@@ -149,6 +149,7 @@ class CashModel {
     }
 
     if (isAdmin || adminUserId) {
+      const preferredUserId = parseInt(adminUserId || userId || 0, 10) || 0;
       return await getFn(`
         SELECT t.*, u.name as cashier_name, u.email as cashier_email 
         FROM caja_turnos t 
@@ -156,11 +157,7 @@ class CashModel {
         WHERE t.status = 'open' 
         ORDER BY CASE WHEN t.user_id = $1 THEN 0 ELSE 1 END, t.id DESC 
         LIMIT 1;
-<<<<<<< HEAD
-      `, [userId]);
-=======
-      `, [validAdminId]);
->>>>>>> origin/main
+      `, [preferredUserId]);
     }
 
     // Fallback: Cualquier turno abierto en el sistema

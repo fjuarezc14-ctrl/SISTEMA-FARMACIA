@@ -15,10 +15,6 @@ const SunatWorker = require('../services/sunat.worker');
  */
 
 /**
-<<<<<<< HEAD
-/**
-=======
->>>>>>> origin/main
  * Determina el estado FEFO de un lote según su fecha de caducidad
  */
 function calculateFefoStatus(expireDateStr) {
@@ -32,10 +28,7 @@ function calculateFefoStatus(expireDateStr) {
 }
 
 /**
-<<<<<<< HEAD
  * POST /api/sales
-=======
->>>>>>> origin/main
  * Transacción Atómica de Venta:
  * 1. Valida reglas sanitarias y de catálogo mediante ProductModel y SaleModel.
  * 2. Bloquea filas de lotes con FOR UPDATE y filtro sanitario expire_date >= CURRENT_DATE.
@@ -279,10 +272,7 @@ async function createSale(req, res, next) {
           await ProductModel.deductLotStock(lot.id, deductFromThisLot, item.unitsPerBox, item.unitsPerBlister, tx);
 
           // Registrar en Kardex físico (auditoría oficial de trazabilidad)
-<<<<<<< HEAD
           const newUnits = Math.max(0, lotUnits - deductFromThisLot);
-=======
->>>>>>> origin/main
           await tx.run(
             `INSERT INTO kardex (
               product_id, lot_id, movement_type, reference_type, reference_id,
@@ -297,21 +287,13 @@ async function createSale(req, res, next) {
               -deductFromThisLot,
               'unit',
               lotUnits,
-<<<<<<< HEAD
               newUnits,
-=======
-              lotUnits - deductFromThisLot,
->>>>>>> origin/main
               `Venta ${formattedCorrelative} a ${customerName || 'Cliente Varios'}`,
               req.user?.name || 'Personal Farmacia'
             ]
           );
 
-<<<<<<< HEAD
-          // Calcular fracción y precio correspondiente
-=======
           // Calcular la fracción y precio correspondiente a la porción extraída de este lote
->>>>>>> origin/main
           let partQty = deductFromThisLot;
           let partFraction = 'unit';
           let partPrice = item.unitPrice;
@@ -378,11 +360,8 @@ async function createSale(req, res, next) {
 
       // 2.10 Acumular venta en el turno de caja abierto
       await SaleModel.updateShiftSales(turnoId, calculatedTotal, paymentMethod, tx);
-<<<<<<< HEAD
 
       const totalInWords = cpeData ? cpeData.totalInWords : numberToLetters(calculatedTotal);
-=======
->>>>>>> origin/main
 
       return {
         saleId: sale.id,
