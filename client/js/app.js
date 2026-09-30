@@ -1570,9 +1570,6 @@ class CounterModule {
           </div>
         </article>
       `;
-          </div>
-        </article>
-      `;
     }).join('');
 
     this.grid.querySelectorAll('.btn-frac-pick').forEach(btn => {
