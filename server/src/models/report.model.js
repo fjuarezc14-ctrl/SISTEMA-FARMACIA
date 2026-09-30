@@ -52,7 +52,7 @@ class ReportModel {
       inventoryFefo: {
         totalLots: parseInt(lotStats.total_lots || 0, 10),
         healthyLots: parseInt(lotStats.healthy_lots || 0, 10),
-        warningLots: parseInt(lotStats.warning_lots || 10, 10),
+        warningLots: parseInt(lotStats.warning_lots || 0, 10),
         expiredOrEmpty: parseInt(lotStats.expired_or_empty_lots || 0, 10)
       },
       cashShift: activeShift ? {

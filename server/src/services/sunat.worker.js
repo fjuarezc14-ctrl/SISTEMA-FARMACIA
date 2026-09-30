@@ -58,7 +58,7 @@ class SunatWorker {
         try {
           await SaleModel.updateSunatStatus(saleId, {
             status: 'pending_retry',
-            response: `En cola de reintento automático. Error temporal: ${err.message}`
+            response: `[Intento 1/5] En cola de reintento automático. Error temporal: ${err.message}`
           });
         } catch (dbErr) {
           console.error(`[SUNAT ASYNC] Error actualizando estado de venta #${saleId}:`, dbErr.message);
@@ -118,11 +118,20 @@ class SunatWorker {
         }
       } catch (err) {
         summary.errors++;
+        const previousAttemptsMatch = (sale.sunatResponse || '').match(/\[Intento (\d+)\/5\]/);
+        const currentAttempt = previousAttemptsMatch ? parseInt(previousAttemptsMatch[1], 10) + 1 : 1;
+        const maxReached = currentAttempt >= 5;
+
+        const newStatus = maxReached ? 'rejected' : 'pending_retry';
+        const failMessage = maxReached
+          ? `Límite de reintentos alcanzado (5/5). Fallo permanente: ${err.message}`
+          : `[Intento ${currentAttempt}/5] Reintento fallido: ${err.message}`;
+
         await SaleModel.updateSunatStatus(sale.id, {
-          status: 'pending_retry',
-          response: `Reintento fallido: ${err.message}`
+          status: newStatus,
+          response: failMessage
         });
-        summary.details.push({ saleId: sale.id, correlative, status: 'pending_retry', error: err.message });
+        summary.details.push({ saleId: sale.id, correlative, status: newStatus, error: err.message, attempt: currentAttempt });
       }
     }
 

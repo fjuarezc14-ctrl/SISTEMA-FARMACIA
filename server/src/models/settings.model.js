@@ -189,7 +189,9 @@ class SettingsModel {
         ruc: process.env.COMPANY_RUC || '20601234567',
         name: process.env.COMPANY_NAME || 'VALETEC PHARMA S.A.C.',
         tradeName: process.env.COMPANY_TRADE_NAME || 'VALETEC PHARMA',
-        address: process.env.COMPANY_ADDRESS || 'Av. Aviación 2450, San Borja, Lima'
+        address: process.env.COMPANY_ADDRESS || 'Av. Aviación 2450, San Borja, Lima',
+        sanitaryLicense: process.env.SANITARY_LICENSE || 'AUT-DIGEMID-2026-904',
+        technicalDirector: process.env.TECHNICAL_DIRECTOR || 'Q.F. Carlos Mendoza Paredes (C.Q.F.P. 14208)'
       };
     }
 
@@ -198,8 +200,8 @@ class SettingsModel {
       name: config.companyName,
       tradeName: config.commercialName || config.companyName,
       address: config.address || 'Av. Aviación 2450, San Borja, Lima',
-      sanitaryLicense: config.sanitaryLicense,
-      technicalDirector: config.technicalDirector
+      sanitaryLicense: config.sanitaryLicense || process.env.SANITARY_LICENSE || 'AUT-DIGEMID-2026-904',
+      technicalDirector: config.technicalDirector || 'Q.F. Carlos Mendoza Paredes (C.Q.F.P. 14208)'
     };
   }
 }

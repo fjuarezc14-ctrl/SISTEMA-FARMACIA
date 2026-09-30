@@ -117,7 +117,7 @@ class CashModel {
    * @param {Object} [dbClient] - Cliente transaccional opcional.
    * @returns {Promise<Object|null>}
    */
-  static async getOpenShift({ shiftId, userId, isAdmin } = {}, dbClient) {
+  static async getOpenShift({ shiftId, userId, isAdmin, adminUserId } = {}, dbClient) {
     const getFn = (dbClient && dbClient.get) ? dbClient.get.bind(dbClient) : get;
 
     if (shiftId) {
@@ -133,7 +133,7 @@ class CashModel {
       return null;
     }
 
-    if (userId && !isAdmin) {
+    if (userId && !isAdmin && !adminUserId) {
       const validUserId = parseInt(userId, 10);
       if (!isNaN(validUserId) && validUserId > 0) {
         return await getFn(`
@@ -148,7 +148,7 @@ class CashModel {
       return null;
     }
 
-    if (userId && isAdmin) {
+    if (isAdmin || adminUserId) {
       return await getFn(`
         SELECT t.*, u.name as cashier_name, u.email as cashier_email 
         FROM caja_turnos t 
@@ -156,7 +156,11 @@ class CashModel {
         WHERE t.status = 'open' 
         ORDER BY CASE WHEN t.user_id = $1 THEN 0 ELSE 1 END, t.id DESC 
         LIMIT 1;
+<<<<<<< HEAD
       `, [userId]);
+=======
+      `, [validAdminId]);
+>>>>>>> origin/main
     }
 
     // Fallback: Cualquier turno abierto en el sistema

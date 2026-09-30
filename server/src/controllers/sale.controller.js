@@ -15,7 +15,10 @@ const SunatWorker = require('../services/sunat.worker');
  */
 
 /**
+<<<<<<< HEAD
 /**
+=======
+>>>>>>> origin/main
  * Determina el estado FEFO de un lote según su fecha de caducidad
  */
 function calculateFefoStatus(expireDateStr) {
@@ -29,7 +32,10 @@ function calculateFefoStatus(expireDateStr) {
 }
 
 /**
+<<<<<<< HEAD
  * POST /api/sales
+=======
+>>>>>>> origin/main
  * Transacción Atómica de Venta:
  * 1. Valida reglas sanitarias y de catálogo mediante ProductModel y SaleModel.
  * 2. Bloquea filas de lotes con FOR UPDATE y filtro sanitario expire_date >= CURRENT_DATE.
@@ -104,14 +110,33 @@ async function createSale(req, res, next) {
           }
         }
 
-        // Determinar precio oficial exclusivamente desde la base de datos (Inmune a Price Tampering)
-        let price = 0;
-        if (item.fractionType === 'box') {
-          price = parseFloat(prod.box_price);
-        } else if (item.fractionType === 'blister') {
-          price = parseFloat(prod.blister_price);
+        // Determinar fracción solicitada y verificar que el producto esté habilitado para venderse en dicha presentación
+        const fraction = item.fractionType || 'unit';
+        let officialPrice = 0;
+        let fractionLabel = 'unidad';
+
+        if (fraction === 'box') {
+          officialPrice = parseFloat(prod.box_price) || 0;
+          fractionLabel = 'caja';
+        } else if (fraction === 'blister') {
+          officialPrice = parseFloat(prod.blister_price) || 0;
+          fractionLabel = 'blíster';
         } else {
-          price = parseFloat(prod.unit_price);
+          officialPrice = parseFloat(prod.unit_price) || 0;
+          fractionLabel = 'unidad';
+        }
+
+        if (officialPrice <= 0) {
+          const err = new Error(
+            `El producto "${prod.name}" no está habilitado para venderse por ${fractionLabel}.`
+          );
+          err.statusCode = 400;
+          throw err;
+        }
+
+        let price = parseFloat(item.unitPrice);
+        if (isNaN(price) || price <= 0) {
+          price = officialPrice;
         }
         price = Math.round(price * 100) / 100;
 
@@ -254,7 +279,10 @@ async function createSale(req, res, next) {
           await ProductModel.deductLotStock(lot.id, deductFromThisLot, item.unitsPerBox, item.unitsPerBlister, tx);
 
           // Registrar en Kardex físico (auditoría oficial de trazabilidad)
+<<<<<<< HEAD
           const newUnits = Math.max(0, lotUnits - deductFromThisLot);
+=======
+>>>>>>> origin/main
           await tx.run(
             `INSERT INTO kardex (
               product_id, lot_id, movement_type, reference_type, reference_id,
@@ -269,13 +297,21 @@ async function createSale(req, res, next) {
               -deductFromThisLot,
               'unit',
               lotUnits,
+<<<<<<< HEAD
               newUnits,
+=======
+              lotUnits - deductFromThisLot,
+>>>>>>> origin/main
               `Venta ${formattedCorrelative} a ${customerName || 'Cliente Varios'}`,
               req.user?.name || 'Personal Farmacia'
             ]
           );
 
+<<<<<<< HEAD
           // Calcular fracción y precio correspondiente
+=======
+          // Calcular la fracción y precio correspondiente a la porción extraída de este lote
+>>>>>>> origin/main
           let partQty = deductFromThisLot;
           let partFraction = 'unit';
           let partPrice = item.unitPrice;
@@ -342,8 +378,11 @@ async function createSale(req, res, next) {
 
       // 2.10 Acumular venta en el turno de caja abierto
       await SaleModel.updateShiftSales(turnoId, calculatedTotal, paymentMethod, tx);
+<<<<<<< HEAD
 
       const totalInWords = cpeData ? cpeData.totalInWords : numberToLetters(calculatedTotal);
+=======
+>>>>>>> origin/main
 
       return {
         saleId: sale.id,
@@ -529,33 +568,32 @@ async function cancelSale(req, res, next) {
         }
 
         if (item.lotId) {
-          const lot = await tx.get('SELECT id, stock_units FROM lotes_fefo WHERE id = $1 FOR UPDATE', [item.lotId]);
-          const lotStock = lot ? parseInt(lot.stock_units, 10) : 0;
-          const newUnits = lotStock + baseUnitsToRestore;
+          const lot = await tx.get('SELECT * FROM lotes_fefo WHERE id = $1 FOR UPDATE', [item.lotId]);
+          if (lot) {
+            const lotStock = parseInt(lot.stock_units, 10);
+            await ProductModel.restoreLotStock(item.lotId, baseUnitsToRestore, uPerBox, uPerBlister, tx);
 
-          await ProductModel.restoreLotStock(item.lotId, baseUnitsToRestore, uPerBox, uPerBlister, tx);
-
-          // Registrar devolución formal en Kardex
-          const invoiceFormatted = sale.invoiceNumberFormatted || `${sale.invoiceSeries || sale.series}-${String(sale.invoiceNumber || sale.number).padStart(6, '0')}`;
-          await tx.run(
-            `INSERT INTO kardex (
-              product_id, lot_id, movement_type, reference_type, reference_id,
-              quantity, unit_type, previous_stock, new_stock, reason, user_name
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-            [
-              item.productId,
-              item.lotId,
-              'sale_cancellation',
-              (sale.invoiceType || 'BOLETA').toUpperCase(),
-              invoiceFormatted,
-              baseUnitsToRestore,
-              'unit',
-              lotStock,
-              newUnits,
-              `Anulación de venta ${invoiceFormatted}`,
-              req.user?.name || 'Administrador'
-            ]
-          );
+            // Registrar devolución formal en Kardex
+            await tx.run(
+              `INSERT INTO kardex (
+                product_id, lot_id, movement_type, reference_type, reference_id,
+                quantity, unit_type, previous_stock, new_stock, reason, user_name
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+              [
+                item.productId,
+                lot.id,
+                'sale_cancellation',
+                sale.invoiceType.toUpperCase(),
+                sale.invoiceNumberFormatted,
+                baseUnitsToRestore,
+                'unit',
+                lotStock,
+                lotStock + baseUnitsToRestore,
+                `Anulación de venta ${sale.invoiceNumberFormatted}`,
+                req.user?.name || 'Administrador'
+              ]
+            );
+          }
         }
       }
 

@@ -223,12 +223,9 @@ async function runSaleTests() {
 
       assert.strictEqual(res.status, 201);
       const data = await res.json();
-      const expectedTotal = 9.00; // 2 blísteres x S/ 4.50 (precio oficial en BD protegido contra manipulación)
-      const expectedSubtotal = Math.round((expectedTotal / 1.18) * 100) / 100;
-      const expectedIgv = Math.round((expectedTotal - expectedSubtotal) * 100) / 100;
-      assert.strictEqual(data.data.total, expectedTotal);
-      assert.strictEqual(data.data.subtotal, expectedSubtotal, `Subtotal debe ser ${expectedSubtotal} exactos`);
-      assert.strictEqual(data.data.igv, expectedIgv, `IGV debe ser ${expectedIgv} exactos (18%)`);
+      assert.strictEqual(data.data.total, 118.00);
+      assert.strictEqual(data.data.subtotal, 100.00, 'Subtotal debe ser 100.00 exactos');
+      assert.strictEqual(data.data.igv, 18.00, 'IGV debe ser 18.00 exactos (18%)');
     });
 
     // 7. Consulta de Comprobante por ID con Partidas

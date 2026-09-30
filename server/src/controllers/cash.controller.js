@@ -155,11 +155,13 @@ async function closeZ(req, res, next) {
     CashModel.validateCloseZ({ countedBalance });
 
     const report = await transaction(async (tx) => {
-      // 1. Localizar turno abierto
+      // 1. Localizar turno abierto (permite a Administrador supervisar/cerrar el turno activo)
+      const isAdmin = (req.user && req.user.roleKey === 'admin');
       const shift = await CashModel.getOpenShift({
         shiftId: shiftId ? parseInt(shiftId, 10) : null,
-        userId: activeUserId,
-        isAdmin: req.user && req.user.roleKey === 'admin'
+        userId: isAdmin ? null : activeUserId,
+        isAdmin,
+        adminUserId: isAdmin ? activeUserId : null
       }, tx);
 
       if (!shift) {

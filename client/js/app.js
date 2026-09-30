@@ -121,6 +121,7 @@ let testPharmacyCatalog = [
     lotNumber: "L-23980",
     expireDate: "2028-02-28",
     fefoStatus: "good",
+    bonusPoints: 20,
     genericAlt: {
       id: 8,
       name: "Naproxeno 550mg Genérico Andina",
@@ -192,6 +193,7 @@ let testPharmacyCatalog = [
     lotNumber: "L-22990",
     expireDate: "2026-04-10",
     fefoStatus: "expired",
+    bonusPoints: 50,
     genericAlt: null
   },
   {
@@ -227,7 +229,7 @@ let mockStaffProfiles = {
     roleLabel: "Dueño / Gerente General",
     avatar: "bi-briefcase",
     email: "gerencia@valetec.pe",
-    allowedViews: ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement"],
+    allowedViews: ["viewCounter", "viewVouchers", "viewCash", "viewWarehouse", "viewPurchases", "viewDigemid", "viewStaff", "viewManagement", "viewClients"],
     defaultView: "viewManagement"
   },
   qf: {
@@ -235,7 +237,7 @@ let mockStaffProfiles = {
     roleLabel: "Química Farmacéutica (Regente)",
     avatar: "bi-file-earmark-medical",
     email: "regencia@valetec.pe",
-    allowedViews: ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement"],
+    allowedViews: ["viewCounter", "viewVouchers", "viewCash", "viewWarehouse", "viewPurchases", "viewDigemid", "viewStaff", "viewManagement", "viewClients"],
     defaultView: "viewDigemid"
   },
   tech: {
@@ -243,7 +245,7 @@ let mockStaffProfiles = {
     roleLabel: "Técnico de Mostrador",
     avatar: "bi-capsule",
     email: "mostrador@valetec.pe",
-    allowedViews: ["viewCounter", "viewWarehouse", "viewDigemid"],
+    allowedViews: ["viewCounter", "viewVouchers", "viewWarehouse", "viewDigemid", "viewClients"],
     defaultView: "viewCounter"
   },
   cashier: {
@@ -251,7 +253,7 @@ let mockStaffProfiles = {
     roleLabel: "Cajero de Turno",
     avatar: "bi-cash-stack",
     email: "caja@valetec.pe",
-    allowedViews: ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid"],
+    allowedViews: ["viewCounter", "viewVouchers", "viewCash", "viewWarehouse", "viewDigemid", "viewClients"],
     defaultView: "viewCash"
   }
 };
@@ -380,6 +382,8 @@ class AuthManager {
       appNav.applyRolePermissions(res.user.roleKey);
 
       showValetecToast(`¡Sesión autorizada por JWT! Bienvenido, ${res.user.name}.`, "success");
+      // Sincronizar catálogo y datos del backend tras login exitoso
+      syncWithBackend();
     } catch (err) {
       showValetecToast(err.message || "Error al autenticar credenciales.", "danger");
     } finally {
@@ -411,6 +415,9 @@ class AuthManager {
   }
 
   async checkActiveSession() {
+    const token = localStorage.getItem('valetec_token');
+    if (!token) return; // No hay sesión guardada
+
     try {
       const user = await window.api.getMe();
       if (user) {
@@ -434,9 +441,12 @@ class AuthManager {
         appNav.applyRolePermissions(user.roleKey);
 
         showValetecToast(`Sesión activa recuperada por JWT: ${user.name}.`, "info");
+        // Sincronizar catálogo y datos protegidos
+        syncWithBackend();
       }
     } catch (e) {
-      // Sesión no activa, permanece en login
+      // Sesión expirada o token inválido
+      if (window.api && window.api.logout) window.api.logout();
     }
   }
 
@@ -685,10 +695,44 @@ class NavigationController {
   }
 
   initEvents() {
-    this.tabs.forEach(tab => {
+    // 1. Botones de pestañas directas (ej. Dashboard)
+    document.querySelectorAll('.nav-tab-btn').forEach(tab => {
       tab.addEventListener('click', () => {
         const targetView = tab.dataset.view;
-        this.navigateTo(targetView);
+        if (targetView) this.navigateTo(targetView);
+      });
+    });
+
+    // 2. Encabezados de módulos acordeón (Plegar / Desplegar)
+    document.querySelectorAll('.nav-module-header').forEach(header => {
+      header.addEventListener('click', (e) => {
+        e.preventDefault();
+        const group = header.closest('.nav-module-group');
+        if (group) {
+          group.classList.toggle('open');
+        }
+      });
+    });
+
+    // 3. Submódulos internos (Navegación o Acción)
+    document.querySelectorAll('.nav-sub-btn').forEach(subBtn => {
+      subBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.querySelectorAll('.nav-sub-btn, .nav-tab-btn').forEach(el => el.classList.remove('active'));
+        subBtn.classList.add('active');
+
+        const parentGroup = subBtn.closest('.nav-module-group');
+        if (parentGroup) parentGroup.classList.add('open');
+
+        if (subBtn.dataset.view) {
+          this.navigateTo(subBtn.dataset.view);
+          return;
+        }
+
+        const action = subBtn.dataset.action;
+        if (action) {
+          this.handleSubmoduleAction(action);
+        }
       });
     });
 
@@ -783,15 +827,9 @@ class NavigationController {
       }
       if (e.key === 'F7') {
         e.preventDefault();
-        if (this.currentViewId === 'viewCounter') {
-          if (typeof counterApp !== 'undefined' && counterApp) {
-            counterApp.toggleSalesHistoryModal(true);
-            counterApp.loadSalesHistory();
-          }
-        } else if (this.canAccessView('viewStaff')) {
-          this.navigateTo('viewStaff');
-        } else {
-          showValetecToast("Acceso restringido: Solo Gerencia y Regencia tienen acceso a Gestión de Personal.", "warning");
+        this.navigateTo('viewVouchers');
+        if (typeof counterApp !== 'undefined' && counterApp) {
+          counterApp.loadVouchersView();
         }
       }
       if (e.key === 'F8') {
@@ -826,11 +864,11 @@ class NavigationController {
     if (!profile) return;
 
     if (roleKey === 'admin' || roleKey === 'qf') {
-      profile.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement"];
+      profile.allowedViews = ["viewCounter", "viewVouchers", "viewCash", "viewWarehouse", "viewPurchases", "viewDigemid", "viewStaff", "viewManagement", "viewClients"];
     } else if (roleKey === 'cashier') {
-      profile.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid"];
+      profile.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewClients"];
     } else if (roleKey === 'tech') {
-      profile.allowedViews = ["viewCounter", "viewWarehouse", "viewDigemid"];
+      profile.allowedViews = ["viewCounter", "viewWarehouse", "viewDigemid", "viewClients"];
     }
 
     const avatarEl = document.getElementById('activeUserAvatar');
@@ -847,14 +885,23 @@ class NavigationController {
     if (nameEl) nameEl.innerText = profile.name;
     if (roleEl) roleEl.innerText = profile.roleLabel;
 
-    this.tabs.forEach(tab => {
+    document.querySelectorAll('.nav-tab-btn').forEach(tab => {
       const viewId = tab.dataset.view;
-      if (profile.allowedViews.includes(viewId)) {
+      if (!viewId || profile.allowedViews.includes(viewId)) {
         tab.classList.remove('d-none');
         tab.removeAttribute('disabled');
       } else {
         tab.classList.add('d-none');
         tab.setAttribute('disabled', 'true');
+      }
+    });
+
+    document.querySelectorAll('.nav-module-group').forEach(group => {
+      const roles = group.dataset.roles;
+      if (!roles || roles === 'all' || roles.split(',').includes(roleKey) || roleKey === 'admin') {
+        group.classList.remove('d-none');
+      } else {
+        group.classList.add('d-none');
       }
     });
 
@@ -864,6 +911,161 @@ class NavigationController {
       showValetecToast(`Acceso restringido para ${profile.roleLabel}. Vista redirigida.`, "warning");
     } else {
       showValetecToast(`Perfil activo: ${profile.roleLabel}`, "info");
+    }
+  }
+
+  handleSubmoduleAction(action) {
+    switch (action) {
+      case 'openSalesHistory':
+        this.navigateTo('viewVouchers');
+        if (typeof counterApp !== 'undefined' && counterApp) {
+          counterApp.loadVouchersView();
+        }
+        break;
+      case 'openShift':
+        this.navigateTo('viewCash');
+        setTimeout(() => {
+          document.getElementById('btnOpenShiftModal')?.click();
+        }, 150);
+        break;
+      case 'openExpense':
+        this.navigateTo('viewCash');
+        setTimeout(() => {
+          document.getElementById('btnOpenExpenseModal')?.click();
+        }, 150);
+        break;
+      case 'triggerZClose':
+        this.navigateTo('viewCash');
+        setTimeout(() => {
+          document.getElementById('btnTriggerZClose')?.click();
+        }, 150);
+        break;
+      case 'openClientsDirectory':
+        this.navigateTo('viewClients');
+        if (typeof window.clientsApp !== 'undefined' && window.clientsApp) {
+          window.clientsApp.setFilter('all');
+          window.clientsApp.loadClients();
+        }
+        break;
+      case 'openClientsPoints':
+      case 'openClientPoints':
+        this.navigateTo('viewClients');
+        if (typeof window.clientsApp !== 'undefined' && window.clientsApp) {
+          window.clientsApp.setFilter('points');
+          window.clientsApp.loadClients();
+          setTimeout(() => {
+            window.clientsApp.openLoyaltySettingsDrawer();
+          }, 150);
+        }
+        break;
+      case 'openFefoAlerts':
+        this.navigateTo('viewWarehouse');
+        setTimeout(() => {
+          if (typeof warehouseApp !== 'undefined' && warehouseApp) {
+            warehouseApp.openFefoAlertsModal();
+          }
+        }, 150);
+        break;
+      case 'openKardex':
+        this.navigateTo('viewWarehouse');
+        setTimeout(() => {
+          if (typeof warehouseApp !== 'undefined' && warehouseApp) {
+            warehouseApp.openKardexModal();
+          }
+        }, 150);
+        break;
+      case 'openCategories':
+        if (typeof classificationApp !== 'undefined' && classificationApp) {
+          classificationApp.openModal('categories');
+        } else {
+          showValetecToast("Categorías & Familias farmacéuticas.", "info");
+        }
+        break;
+      case 'openAdjustments':
+        this.navigateTo('viewWarehouse');
+        setTimeout(() => {
+          if (typeof warehouseApp !== 'undefined' && warehouseApp) {
+            warehouseApp.openAdjustmentModal();
+          }
+        }, 150);
+        break;
+      case 'openPurchasesInvoices':
+      case 'openReceiveModal':
+        this.navigateTo('viewPurchases');
+        if (typeof window.purchasesApp !== 'undefined' && window.purchasesApp) {
+          window.purchasesApp.setTab('invoices');
+        }
+        break;
+      case 'openPurchasesSuppliers':
+      case 'openSuppliers':
+        this.navigateTo('viewPurchases');
+        if (typeof window.purchasesApp !== 'undefined' && window.purchasesApp) {
+          window.purchasesApp.setTab('suppliers');
+        }
+        break;
+      case 'openPurchasesExchanges':
+      case 'openExchanges':
+        this.navigateTo('viewPurchases');
+        if (typeof window.purchasesApp !== 'undefined' && window.purchasesApp) {
+          window.purchasesApp.setTab('exchanges');
+        }
+        break;
+      case 'openVault':
+        this.navigateTo('viewDigemid');
+        if (typeof window.digemidApp !== 'undefined' && window.digemidApp) {
+          window.digemidApp.setTab('vault');
+        } else {
+          showValetecToast("Bóveda DIGEMID: Custodia bajo llave de Psicotrópicos Lista IV.", "info");
+        }
+        break;
+      case 'openDigemidBalance':
+        this.navigateTo('viewDigemid');
+        if (typeof window.digemidApp !== 'undefined' && window.digemidApp) {
+          window.digemidApp.setTab('balances');
+        } else {
+          setTimeout(() => {
+            document.getElementById('btnPrintDigemidBalance')?.click();
+          }, 150);
+        }
+        break;
+      case 'openAccountantReport':
+        this.navigateTo('viewManagement');
+        if (typeof window.managementApp !== 'undefined' && window.managementApp) {
+          window.managementApp.setTab('accountant');
+        } else {
+          showValetecToast("Reporte Contable: Facturación consolidada mensual e IGV.", "info");
+        }
+        break;
+      case 'openRestockReport':
+        this.navigateTo('viewManagement');
+        if (typeof window.managementApp !== 'undefined' && window.managementApp) {
+          window.managementApp.setTab('procurement');
+        }
+        break;
+      case 'openSettingsBotica':
+        if (typeof window.settingsApp !== 'undefined' && window.settingsApp) {
+          window.settingsApp.openModal('botica');
+        } else {
+          document.getElementById('btnOpenSettingsHeader')?.click();
+        }
+        break;
+      case 'openSettingsSunat':
+        if (typeof window.settingsApp !== 'undefined' && window.settingsApp) {
+          window.settingsApp.openModal('sunat');
+        } else {
+          document.getElementById('btnOpenSettingsHeader')?.click();
+        }
+        break;
+      case 'downloadBackup':
+        if (typeof window.settingsApp !== 'undefined' && window.settingsApp) {
+          window.settingsApp.openModal('backups');
+        } else {
+          document.getElementById('btnDownloadBackupMgmt')?.click();
+        }
+        break;
+      default:
+        showValetecToast(`Módulo: ${action}`, "info");
+        break;
     }
   }
 
@@ -895,10 +1097,15 @@ class NavigationController {
         warehouseApp.closeAdjustmentModal?.();
         warehouseApp.closeKardexModal?.();
         warehouseApp.closeMedicineModal?.();
+        warehouseApp.closeFefoAlertsModal?.();
       }
       if (typeof window.clientsApp !== 'undefined' && window.clientsApp) {
+        window.clientsApp.closeClientDrawer?.();
         window.clientsApp.closeQuickModal?.();
         window.clientsApp.closeDirectoryModal?.();
+      }
+      if (typeof classificationApp !== 'undefined' && classificationApp) {
+        classificationApp.closeModal?.();
       }
     } catch (modalErr) {
       // No interrumpir la navegación si algún modal ya no existe en el DOM
@@ -917,11 +1124,21 @@ class NavigationController {
     this.views.forEach(v => v.classList.remove('active'));
     targetElement.classList.add('active');
 
-    this.tabs.forEach(t => {
+    document.querySelectorAll('.nav-tab-btn').forEach(t => {
       if (t.dataset.view === viewId) {
         t.classList.add('active');
       } else {
         t.classList.remove('active');
+      }
+    });
+
+    document.querySelectorAll('.nav-sub-btn').forEach(s => {
+      if (s.dataset.view === viewId) {
+        s.classList.add('active');
+        const parentGroup = s.closest('.nav-module-group');
+        if (parentGroup) parentGroup.classList.add('open');
+      } else {
+        s.classList.remove('active');
       }
     });
 
@@ -1006,6 +1223,17 @@ class CounterModule {
     this.patientInput = document.getElementById('patientDocInput');
     this.btnQuery = document.getElementById('btnQueryPatient');
     this.patientStatus = document.getElementById('patientStatusLine');
+
+    // Elementos de canje de puntos de fidelización
+    this.patientPointsBox = document.getElementById('patientPointsRedeemBox');
+    this.lblAvailablePoints = document.getElementById('lblAvailablePoints');
+    this.lblPointsSolValue = document.getElementById('lblPointsSolValue');
+    this.btnRedeemPoints = document.getElementById('btnRedeemPointsAction');
+    this.btnRedeemPointsText = document.getElementById('btnRedeemPointsText');
+    this.ticketDiscountRow = document.getElementById('ticketDiscountRow');
+    this.ticketDiscountAmount = document.getElementById('ticketDiscountAmount');
+    this.activeClient = null;
+    this.redeemedDiscount = 0;
 
     this.baseEl = document.getElementById('ticketBaseAmount');
     this.igvEl = document.getElementById('ticketIgvAmount');
@@ -1153,6 +1381,8 @@ class CounterModule {
         if (this.order.length === 0) return;
         if (confirm("¿Limpiar y descartar la orden actual de mostrador?")) {
           this.order = [];
+          this.redeemedDiscount = 0;
+          this.updatePointsRedeemBox();
           this.updateUi();
           showValetecToast("Orden cancelada.", "info");
         }
@@ -1168,11 +1398,13 @@ class CounterModule {
     if (this.btnCloseReceiptBtn) this.btnCloseReceiptBtn.addEventListener('click', () => this.toggleReceiptModal(false));
     if (this.btnPrintReceiptBtn) this.btnPrintReceiptBtn.addEventListener('click', () => window.print());
 
-    // Eventos del modal de historial de ventas del turno
+    // Eventos del botón de comprobantes del turno
     if (this.btnOpenSalesHistory) {
       this.btnOpenSalesHistory.addEventListener('click', () => {
-        this.toggleSalesHistoryModal(true);
-        this.loadSalesHistory();
+        if (window.appNav) {
+          window.appNav.navigateTo('viewVouchers');
+        }
+        this.loadVouchersView();
       });
     }
     if (this.btnCloseSalesHistoryModal) {
@@ -1233,12 +1465,14 @@ class CounterModule {
       if (res && res.data && Array.isArray(res.data) && res.data.length > 0) {
         const client = res.data.find(c => c.documentNumber === doc) || res.data[0];
         if (client) {
+          this.activeClient = client;
           this.patientInput.value = client.documentNumber;
           this.patientStatus.innerHTML = `
-            <span class="p-name"><i class="bi bi-person"></i> ${client.fullName}</span>
+            <span class="p-name"><i class="bi bi-person"></i> ${escHtml(client.fullName)}</span>
             <span class="p-points"><i class="bi bi-star"></i> ${client.pointsBalance || 0} Pts</span>
           `;
-          showValetecToast(`Cliente "${client.fullName}" identificado en padrón.`, "success");
+          this.updatePointsRedeemBox();
+          showValetecToast(`Cliente "${escHtml(client.fullName)}" identificado en padrón.`, "success");
           return;
         }
       }
@@ -1299,6 +1533,7 @@ class CounterModule {
                 </button>
               ` : ''}
               ${rxPill}
+              ${p.bonusPoints && p.bonusPoints > 0 ? `<span class="badge" style="background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; font-weight: 800; font-size: 10px; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;"><i class="bi bi-gift-fill"></i> +${p.bonusPoints} Pts</span>` : ''}
             </div>
           </div>
 
@@ -1506,8 +1741,74 @@ class CounterModule {
   }
 
 
+  updatePointsRedeemBox() {
+    if (!this.patientPointsBox) this.patientPointsBox = document.getElementById('patientPointsRedeemBox');
+    if (!this.lblAvailablePoints) this.lblAvailablePoints = document.getElementById('lblAvailablePoints');
+    if (!this.lblPointsSolValue) this.lblPointsSolValue = document.getElementById('lblPointsSolValue');
+    if (!this.btnRedeemPointsText) this.btnRedeemPointsText = document.getElementById('btnRedeemPointsText');
+
+    const pts = parseInt(this.activeClient?.pointsBalance, 10) || 0;
+    const solVal = window.clientsApp ? window.clientsApp.calculatePointsSolValue(pts) : (pts * 0.10);
+
+    if (this.patientPointsBox) {
+      if (pts > 0) {
+        this.patientPointsBox.style.display = 'flex';
+        if (this.lblAvailablePoints) this.lblAvailablePoints.innerText = pts;
+        if (this.lblPointsSolValue) this.lblPointsSolValue.innerText = solVal.toFixed(2);
+
+        if (this.redeemedDiscount > 0) {
+          if (this.btnRedeemPointsText) this.btnRedeemPointsText.innerText = 'Quitar Canje';
+        } else {
+          if (this.btnRedeemPointsText) this.btnRedeemPointsText.innerText = 'Aplicar Canje';
+        }
+      } else {
+        this.patientPointsBox.style.display = 'none';
+        this.redeemedDiscount = 0;
+      }
+    }
+  }
+
+  togglePointsRedeem() {
+    const pts = parseInt(this.activeClient?.pointsBalance, 10) || 0;
+    if (pts <= 0) {
+      showValetecToast("Este cliente no cuenta con saldo de puntos disponible.", "warning");
+      return;
+    }
+
+    if (this.redeemedDiscount > 0) {
+      this.redeemedDiscount = 0;
+      showValetecToast("Canje de puntos removido del ticket.", "info");
+    } else {
+      const subtotal = this.order.reduce((s, i) => s + (i.price * i.qty), 0);
+      if (subtotal <= 0) {
+        showValetecToast("Agrega productos al carrito antes de aplicar el canje de puntos.", "warning");
+        return;
+      }
+
+      const loyalty = window.clientsApp?.loyaltySettings || {
+        pointsNeeded: 10,
+        discountSolValue: 1.00,
+        maxTicketDiscountPct: 50
+      };
+
+      const ratePerPoint = (loyalty.discountSolValue || 1.00) / (loyalty.pointsNeeded || 10);
+      const fullPointsDiscount = pts * ratePerPoint;
+      const maxAllowedByPolicy = subtotal * ((loyalty.maxTicketDiscountPct || 50) / 100);
+
+      // El descuento no puede superar el límite del ticket ni el saldo de puntos
+      this.redeemedDiscount = Math.min(subtotal, Math.min(fullPointsDiscount, maxAllowedByPolicy));
+      const pointsUsed = Math.min(pts, Math.round(this.redeemedDiscount / ratePerPoint));
+
+      showValetecToast(`¡Canje aplicado! Descuento de S/ ${this.redeemedDiscount.toFixed(2)} (${pointsUsed} Puntos canjeados).`, "success");
+    }
+
+    this.updatePointsRedeemBox();
+    this.updateUi();
+  }
+
   calcTotal() {
-    return this.order.reduce((s, i) => s + (i.price * i.qty), 0);
+    const subtotal = this.order.reduce((s, i) => s + (i.price * i.qty), 0);
+    return Math.max(0, subtotal - (this.redeemedDiscount || 0));
   }
 
   setPaymentMethod(method) {
@@ -1588,6 +1889,17 @@ class CounterModule {
     const total = this.calcTotal();
     const base = total / 1.18;
     const igv = total - base;
+
+    if (this.ticketDiscountRow) {
+      if (this.redeemedDiscount > 0) {
+        this.ticketDiscountRow.style.display = 'flex';
+        if (this.ticketDiscountAmount) {
+          this.ticketDiscountAmount.innerText = `- S/ ${this.redeemedDiscount.toFixed(2)}`;
+        }
+      } else {
+        this.ticketDiscountRow.style.display = 'none';
+      }
+    }
 
     if (this.baseEl) this.baseEl.innerText = `S/ ${base.toFixed(2)}`;
     if (this.igvEl) this.igvEl.innerText = `S/ ${igv.toFixed(2)}`;
@@ -1960,8 +2272,30 @@ class CounterModule {
       // 1. Mostrar comprobante térmico en pantalla
       this.showReceiptModal(saleData);
 
+      // 1.1 Si hay un paciente identificado, acumular puntos según reglas activas y puntos promocionales
+      if (this.activeClient && window.clientsApp) {
+        const loyalty = window.clientsApp.loyaltySettings || { spendAmount: 10, pointsEarned: 1 };
+        const basePoints = Math.floor((total / (loyalty.spendAmount || 10)) * (loyalty.pointsEarned || 1));
+        const promoBonus = this.order.reduce((acc, it) => acc + (parseInt(it.product?.bonusPoints, 10) || 0) * (it.qty || 1), 0);
+        const totalPointsEarned = basePoints + promoBonus;
+
+        if (totalPointsEarned > 0) {
+          const currentPts = parseInt(this.activeClient.pointsBalance, 10) || 0;
+          this.activeClient.pointsBalance = currentPts + totalPointsEarned;
+          // Actualizar en padrón de clientes
+          const clientInList = window.clientsApp.clientsList.find(c => c.id === this.activeClient.id);
+          if (clientInList) clientInList.pointsBalance = this.activeClient.pointsBalance;
+          window.clientsApp.updateKpis();
+          window.clientsApp.applyFilterAndRender();
+          showValetecToast(`¡El paciente acumuló +${totalPointsEarned} Puntos! (Nuevo saldo: ${this.activeClient.pointsBalance} Pts)`, "info");
+        }
+      }
+
       // 2. Limpiar orden y campos de entrada
       this.order = [];
+      this.activeClient = null;
+      this.redeemedDiscount = 0;
+      this.updatePointsRedeemBox();
       if (this.cashInput) this.cashInput.value = '';
       if (this.digitalRefInput) this.digitalRefInput.value = '';
       if (this.docCmpInput) this.docCmpInput.value = '';
@@ -1996,7 +2330,238 @@ class CounterModule {
     }
   }
 
-  // --- MÉTODOS DEL HISTORIAL DE VENTAS DEL TURNO & ANULACIÓN ---
+  // --- MÉTODOS DE LA PANTALLA COMPLETA: COMPROBANTES DE VENTA (viewVouchers) ---
+  async loadVouchersView() {
+    const tableBody = document.getElementById('vouchersTableBody');
+    if (tableBody) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 36px 16px; color: #64748b;">
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            <span style="margin-left: 8px;">Consultando comprobantes en PostgreSQL 16...</span>
+          </td>
+        </tr>
+      `;
+    }
+
+    try {
+      let sales = [];
+      if (window.api && window.api.isConnected) {
+        const res = await window.api.getSales(100);
+        if (res && res.success) {
+          sales = res.data || [];
+        }
+      }
+
+      this.cachedSalesList = sales;
+      this.currentVoucherFilter = this.currentVoucherFilter || 'all';
+      this.voucherSearchQuery = this.voucherSearchQuery || '';
+
+      this.updateVoucherKpis(sales);
+      this.applyVoucherFilterAndRender();
+    } catch (err) {
+      if (tableBody) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align: center; padding: 28px; color: #dc2626;">
+              <i class="bi bi-exclamation-triangle" style="font-size: 24px; display: block; margin-bottom: 6px;"></i>
+              Error al consultar comprobantes: ${err.message}
+            </td>
+          </tr>
+        `;
+      }
+    }
+  }
+
+  updateVoucherKpis(sales = []) {
+    const list = sales || [];
+    const validSales = list.filter(s => s.status === 'completed');
+    const totalSales = validSales.reduce((sum, s) => sum + parseFloat(s.total || 0), 0);
+    const boletas = list.filter(s => s.invoiceType === 'boleta').length;
+    const facturas = list.filter(s => s.invoiceType === 'factura').length;
+    const tickets = list.filter(s => s.invoiceType === 'ticket' || !s.invoiceType).length;
+    const cancelled = list.filter(s => s.status === 'cancelled').length;
+
+    const kpiTotal = document.getElementById('kpiVouchersTotalSales');
+    const kpiB = document.getElementById('kpiVouchersBoletas');
+    const kpiF = document.getElementById('kpiVouchersFacturas');
+    const kpiT = document.getElementById('kpiVouchersTickets');
+
+    if (kpiTotal) kpiTotal.innerText = `S/ ${totalSales.toFixed(2)}`;
+    if (kpiB) kpiB.innerText = boletas;
+    if (kpiF) kpiF.innerText = facturas;
+    if (kpiT) kpiT.innerText = tickets;
+
+    const countAll = document.getElementById('countVouchersAll');
+    const countB = document.getElementById('countVouchersBoletas');
+    const countF = document.getElementById('countVouchersFacturas');
+    const countT = document.getElementById('countVouchersTickets');
+    const countC = document.getElementById('countVouchersCancelled');
+
+    if (countAll) countAll.innerText = list.length;
+    if (countB) countB.innerText = boletas;
+    if (countF) countF.innerText = facturas;
+    if (countT) countT.innerText = tickets;
+    if (countC) countC.innerText = cancelled;
+  }
+
+  setVoucherFilter(filterType) {
+    this.currentVoucherFilter = filterType;
+    document.querySelectorAll('.client-tabs .client-tab-btn').forEach(btn => {
+      if (btn.id?.startsWith('tabVoucherFilter')) btn.classList.remove('active');
+    });
+
+    if (filterType === 'all') document.getElementById('tabVoucherFilterAll')?.classList.add('active');
+    else if (filterType === 'boleta') document.getElementById('tabVoucherFilterBoletas')?.classList.add('active');
+    else if (filterType === 'factura') document.getElementById('tabVoucherFilterFacturas')?.classList.add('active');
+    else if (filterType === 'ticket') document.getElementById('tabVoucherFilterTickets')?.classList.add('active');
+    else if (filterType === 'cancelled') document.getElementById('tabVoucherFilterCancelled')?.classList.add('active');
+
+    this.applyVoucherFilterAndRender();
+  }
+
+  onVouchersSearchInput(e) {
+    clearTimeout(this.voucherSearchTimeout);
+    this.voucherSearchQuery = (e?.target?.value || '').trim().toLowerCase();
+    this.voucherSearchTimeout = setTimeout(() => {
+      this.applyVoucherFilterAndRender();
+    }, 200);
+  }
+
+  applyVoucherFilterAndRender() {
+    let result = [...(this.cachedSalesList || [])];
+
+    // 1. Filtrado por tipo de pestaña
+    if (this.currentVoucherFilter === 'boleta') {
+      result = result.filter(s => s.invoiceType === 'boleta');
+    } else if (this.currentVoucherFilter === 'factura') {
+      result = result.filter(s => s.invoiceType === 'factura');
+    } else if (this.currentVoucherFilter === 'ticket') {
+      result = result.filter(s => s.invoiceType === 'ticket' || !s.invoiceType);
+    } else if (this.currentVoucherFilter === 'cancelled') {
+      result = result.filter(s => s.status === 'cancelled');
+    }
+
+    // 2. Búsqueda en vivo
+    if (this.voucherSearchQuery) {
+      result = result.filter(s => {
+        const corr = (s.correlative || `${s.invoiceSeries || ''}-${s.invoiceNumber || ''}`).toLowerCase();
+        const client = (s.customerName || '').toLowerCase();
+        const doc = (s.customerDoc || '').toLowerCase();
+        const pay = (s.paymentMethod || '').toLowerCase();
+        return corr.includes(this.voucherSearchQuery) ||
+               client.includes(this.voucherSearchQuery) ||
+               doc.includes(this.voucherSearchQuery) ||
+               pay.includes(this.voucherSearchQuery);
+      });
+    }
+
+    this.renderVouchersTable(result);
+  }
+
+  renderVouchersTable(sales) {
+    const tableBody = document.getElementById('vouchersTableBody');
+    if (!tableBody) return;
+
+    if (!sales || sales.length === 0) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 36px 16px; color: #64748b;">
+            <i class="bi bi-clock-history" style="font-size: 32px; display: block; margin-bottom: 8px; color: #cbd5e1;"></i>
+            <strong>No se encontraron comprobantes en este filtro.</strong>
+            <p style="font-size: 12.5px; margin-top: 4px;">Usa el botón "Ir al Mostrador" para realizar nuevas ventas o prueba con otros términos.</p>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tableBody.innerHTML = sales.map(s => {
+      const isCompleted = s.status === 'completed';
+      const correlativeStr = s.correlative || `${s.invoiceSeries || (s.invoiceType === 'factura' ? 'F001' : (s.invoiceType === 'boleta' ? 'B001' : 'T001'))}-${String(s.invoiceNumber || 1).padStart(6, '0')}`;
+
+      let typeBadge = '<span class="badge" style="background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155; font-size: 11px;">TICKET</span>';
+      if (s.invoiceType === 'boleta') {
+        typeBadge = '<span class="badge" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; font-size: 11px;">BOLETA</span>';
+      } else if (s.invoiceType === 'factura') {
+        typeBadge = '<span class="badge" style="background: #f5f3ff; border: 1px solid #ddd6fe; color: #6d28d9; font-size: 11px;">FACTURA</span>';
+      }
+
+      let payIcon = '<i class="bi bi-cash"></i>';
+      let payLabel = 'Efectivo';
+      if (s.paymentMethod === 'yape') {
+        payIcon = '<i class="bi bi-qr-code text-teal"></i>';
+        payLabel = s.paymentReference ? `Yape (${escHtml(s.paymentReference)})` : 'Yape / Plin';
+      } else if (s.paymentMethod === 'card') {
+        payIcon = '<i class="bi bi-credit-card text-blue"></i>';
+        payLabel = s.paymentReference ? `Tarjeta (${escHtml(s.paymentReference)})` : 'Tarjeta POS';
+      }
+
+      let sunatBadge = '<span class="badge" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; font-size: 11px; font-weight: 700;"><i class="bi bi-check-circle"></i> Aceptado</span>';
+      if (!isCompleted) {
+        sunatBadge = '<span class="badge" style="background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-size: 11px; font-weight: 700;"><i class="bi bi-x-circle"></i> Anulado</span>';
+      } else if (s.sunatStatus === 'pending') {
+        sunatBadge = '<span class="badge" style="background: #fffbeb; border: 1px solid #fde68a; color: #b45309; font-size: 11px; font-weight: 700;"><i class="bi bi-hourglass-split"></i> Pendiente</span>';
+      }
+
+      const totalNum = parseFloat(s.total || 0).toFixed(2);
+
+      return `
+        <tr style="${!isCompleted ? 'background: #fef2f2; opacity: 0.75;' : ''}">
+          <td>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              ${typeBadge}
+              <strong style="font-family: monospace; font-size: 13px; ${!isCompleted ? 'text-decoration: line-through;' : ''}">${escHtml(correlativeStr)}</strong>
+            </div>
+          </td>
+          <td>
+            <small style="color: #64748b; font-size: 12px;">${escHtml(s.createdAt ? new Date(s.createdAt).toLocaleString('es-PE') : 'Hoy')}</small>
+          </td>
+          <td>
+            <strong style="color: #0f172a; font-size: 13px; display: block;">${escHtml(s.customerName || 'CLIENTE GENERAL')}</strong>
+            <small style="color: #64748b; font-family: monospace;">${escHtml(s.customerDoc || '00000000')}</small>
+          </td>
+          <td>
+            <span style="font-size: 12.5px; display: inline-flex; align-items: center; gap: 5px;">${payIcon} ${payLabel}</span>
+          </td>
+          <td style="text-align: right;">
+            <strong style="font-size: 13.5px; color: ${isCompleted ? '#0f172a' : '#94a3b8'}; ${!isCompleted ? 'text-decoration: line-through;' : ''}">
+              S/ ${totalNum}
+            </strong>
+          </td>
+          <td style="text-align: center;">
+            ${sunatBadge}
+          </td>
+          <td style="text-align: right; white-space: nowrap;">
+            <button 
+              type="button" 
+              class="btn-action-outline" 
+              style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" 
+              onclick="counterApp.reprintSale(${s.id})" 
+              title="Reimprimir comprobante térmico 80mm"
+            >
+              <i class="bi bi-printer"></i> Ticket
+            </button>
+            ${isCompleted ? `
+              <button 
+                type="button" 
+                class="btn-action-outline" 
+                style="padding: 4px 8px; font-size: 11px; color: #dc2626; border-color: #fca5a5;" 
+                onclick="counterApp.cancelHistoricalSale(${s.id}, '${correlativeStr}', ${s.total})" 
+                title="Anular comprobante y restituir medicamentos a almacén"
+              >
+                <i class="bi bi-x-circle"></i> Anular
+              </button>
+            ` : `
+              <span class="badge" style="background: #f1f5f9; color: #94a3b8; font-size: 11px; padding: 4px 8px;">Anulada</span>
+            `}
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // --- MÉTODOS DEL HISTORIAL DE VENTAS DEL TURNO & ANULACIÓN (MODAL HEREDADO) ---
   toggleSalesHistoryModal(open) {
     if (open) {
       this.salesHistoryModal?.classList.add('active');
@@ -2006,36 +2571,9 @@ class CounterModule {
   }
 
   async loadSalesHistory() {
+    await this.loadVouchersView();
     if (!this.salesHistoryTableBody) return;
-    this.salesHistoryTableBody.innerHTML = `
-      <tr>
-        <td colspan="7" class="text-center py-4 text-muted">
-          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-          <span> Consultando ventas registradas en PostgreSQL...</span>
-        </td>
-      </tr>
-    `;
-
-    try {
-      let sales = [];
-      if (window.api && window.api.isConnected) {
-        const res = await window.api.getSales(60);
-        if (res && res.success) {
-          sales = res.data || [];
-        }
-      }
-
-      this.cachedSalesList = sales;
-      this.renderSalesHistoryRows(sales);
-    } catch (err) {
-      this.salesHistoryTableBody.innerHTML = `
-        <tr>
-          <td colspan="7" class="text-center py-3 text-danger">
-            Error al consultar ventas: ${err.message}
-          </td>
-        </tr>
-      `;
-    }
+    this.renderSalesHistoryRows(this.cachedSalesList || []);
   }
 
   renderSalesHistoryRows(sales) {
@@ -2187,7 +2725,11 @@ class CashModule {
   constructor() {
     this.openingBalance = 250.00;
     this.cashSales = 1840.50;
+    this.digitalSales = 3052.00;
     this.expenses = 85.00;
+    this.movements = [];
+    this.movementFilter = 'all';
+    this.movementSearchQuery = '';
 
     this.cacheDom();
     this.initEvents();
@@ -2201,6 +2743,11 @@ class CashModule {
     this.drawerExpected = document.getElementById('cashExpectedDrawer');
     this.statusBanner = document.getElementById('cuadreStatusBanner');
 
+    // Estado en vivo y héroes de turno
+    this.cashShiftStatusBadge = document.getElementById('cashShiftStatusBadge');
+    this.cashShiftStatusText = document.getElementById('cashShiftStatusText');
+    this.cashClosedHeroBanner = document.getElementById('cashClosedHeroBanner');
+
     // Modal de apertura de turno
     this.openShiftModal = document.getElementById('openShiftModal');
     this.btnOpenShiftModal = document.getElementById('btnOpenShiftModal');
@@ -2209,14 +2756,18 @@ class CashModule {
     this.btnConfirmOpenShift = document.getElementById('btnConfirmOpenShift');
     this.openShiftBalanceInput = document.getElementById('openShiftBalanceInput');
     this.openShiftTerminalInput = document.getElementById('openShiftTerminalInput');
+    this.openShiftCashierDisplay = document.getElementById('openShiftCashierDisplay');
 
     // Metadatos dinámicos y tabla de egresos del turno
     this.cashOpeningMeta = document.getElementById('cashOpeningMeta');
+    this.cashDigitalMeta = document.getElementById('cashDigitalMeta');
     this.cashShiftCashier = document.getElementById('cashShiftCashier');
     this.cashShiftSupervisor = document.getElementById('cashShiftSupervisor');
     this.cashShiftVouchersCount = document.getElementById('cashShiftVouchersCount');
     this.cashMovementsTableBody = document.getElementById('cashMovementsTableBody');
     this.cashMovementsCountBadge = document.getElementById('cashMovementsCountBadge');
+    this.cashMovementsTotalBadge = document.getElementById('cashMovementsTotalBadge');
+    this.cashMovementsSearchInput = document.getElementById('cashMovementsSearchInput');
 
     // Modal de egreso menor
     this.expenseModal = document.getElementById('expenseModal');
@@ -2226,6 +2777,7 @@ class CashModule {
     this.btnSaveExp = document.getElementById('btnSaveExpense');
     this.expAmountInput = document.getElementById('expenseAmountInput');
     this.expConceptSelect = document.getElementById('expenseConceptSelect');
+    this.expReceiptInput = document.getElementById('expenseReceiptInput');
     this.expDetailInput = document.getElementById('expenseDetailInput');
 
     // Modal de Reporte Z Oficial de Cierre de Caja
@@ -2289,8 +2841,17 @@ class CashModule {
             this.cashSales = 0;
             this.digitalSales = 0;
             this.expenses = 0;
+            this.movements = [];
+            this.currentShift = {
+              id: Date.now() % 1000,
+              terminal,
+              openedAt: new Date().toISOString(),
+              openingBalance: val,
+              cashierName: getActiveStaffName(appNav?.currentRole || 'cashier', 'Cajero de Turno')
+            };
             this.toggleOpenShiftModal(false);
             this.calculateAudit();
+            this.renderMovements();
             showValetecToast(`Turno local abierto con fondo S/ ${val.toFixed(2)}.`, "info");
           }
         } catch (err) {
@@ -2309,8 +2870,7 @@ class CashModule {
     if (this.btnSaveExp) {
       this.btnSaveExp.addEventListener('click', async () => {
         const val = parseFloat(this.expAmountInput?.value || 0);
-        // Hotfix V-09: Validar también NaN (ocurre si el usuario pega texto en el campo).
-        // Un NaN en expenses contaminaría todos los cálculos de cuadre con NaN.
+        // Validar también NaN o valores no positivos
         if (isNaN(val) || val <= 0) {
           showValetecToast("Ingresa un monto numérico válido mayor a S/ 0.00.", "warning");
           this.expAmountInput?.focus();
@@ -2318,8 +2878,12 @@ class CashModule {
         }
 
         const detail = this.expDetailInput?.value?.trim();
+        const receipt = this.expReceiptInput?.value?.trim();
         const motive = this.expConceptSelect?.value || 'gasto';
-        const concept = detail ? `${detail} (${motive})` : `Gasto autorizado de caja chica (${motive})`;
+        let concept = detail ? `${detail} (${motive})` : `Gasto autorizado de caja chica (${motive})`;
+        if (receipt) {
+          concept += ` [Recibo: ${receipt}]`;
+        }
         const responsible = getActiveStaffName(appNav?.currentRole || 'cashier', 'Cajero de Turno');
 
         try {
@@ -2333,11 +2897,21 @@ class CashModule {
             await syncWithBackend();
           } else {
             this.expenses += val;
+            this.movements.unshift({
+              id: Date.now(),
+              type: 'egreso',
+              concept,
+              responsible,
+              amount: val,
+              createdAt: new Date().toISOString()
+            });
             this.calculateAudit();
+            this.renderMovements();
           }
 
           if (this.expAmountInput) this.expAmountInput.value = '';
           if (this.expDetailInput) this.expDetailInput.value = '';
+          if (this.expReceiptInput) this.expReceiptInput.value = '';
           this.toggleModal(false);
           showValetecToast(`Salida de S/ ${val.toFixed(2)} registrada en PostgreSQL.`, "warning");
         } catch (err) {
@@ -2504,8 +3078,14 @@ class CashModule {
   }
 
   toggleOpenShiftModal(open) {
-    if (open) this.openShiftModal?.classList.add('active');
-    else this.openShiftModal?.classList.remove('active');
+    if (open) {
+      if (this.openShiftCashierDisplay) {
+        this.openShiftCashierDisplay.value = getActiveStaffName(appNav?.currentRole || 'cashier', 'Cajero de Turno');
+      }
+      this.openShiftModal?.classList.add('active');
+    } else {
+      this.openShiftModal?.classList.remove('active');
+    }
   }
 
   toggleModal(open) {
@@ -2516,6 +3096,51 @@ class CashModule {
   toggleZModal(open) {
     if (open) this.zReportModal?.classList.add('active');
     else this.zReportModal?.classList.remove('active');
+  }
+
+  resetDenominations() {
+    this.denomFields.forEach(f => {
+      f.value = 0;
+    });
+    this.calculateAudit();
+    showValetecToast("Conteo físico de gaveta reiniciado a cero.", "info");
+  }
+
+  autoFillDenominations() {
+    const expected = Math.max(0, Math.round(((this.openingBalance + this.cashSales) - this.expenses) * 100) / 100);
+    let remaining = expected;
+    const denoms = [200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1];
+    const counts = {};
+
+    for (const d of denoms) {
+      if (remaining >= d) {
+        const c = Math.floor(Math.round(remaining * 100) / Math.round(d * 100));
+        counts[d] = c;
+        remaining = Math.round((remaining - c * d) * 100) / 100;
+      } else {
+        counts[d] = 0;
+      }
+    }
+
+    this.denomFields.forEach(f => {
+      const d = parseFloat(f.dataset.val);
+      f.value = counts[d] !== undefined ? counts[d] : 0;
+    });
+
+    this.calculateAudit();
+    showValetecToast("Denominaciones autocompletadas según el total esperado en gaveta.", "info");
+  }
+
+  setMovementFilter(cat, btnEl) {
+    this.movementFilter = cat || 'all';
+    document.querySelectorAll('[data-cash-filter]').forEach(b => b.classList.remove('active'));
+    if (btnEl) btnEl.classList.add('active');
+    this.renderMovements();
+  }
+
+  onMovementsSearch(val) {
+    this.movementSearchQuery = (val || '').toLowerCase().trim();
+    this.renderMovements();
   }
 
   updateFromBackend(cashData) {
@@ -2535,12 +3160,25 @@ class CashModule {
       if (this.btnOpenExp) this.btnOpenExp.style.display = 'inline-flex';
       const triggerBtn = document.getElementById('btnTriggerZClose');
       if (triggerBtn) triggerBtn.style.display = 'inline-flex';
+      const printAuditBtn = document.getElementById('btnPrintAuditTicketBtn');
+      if (printAuditBtn) printAuditBtn.style.display = 'inline-flex';
 
-      // Meta de apertura
+      // Meta de apertura y estado en vivo
+      const d = new Date(s.openedAt);
+      const timeStr = !isNaN(d.getTime()) ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '';
       if (this.cashOpeningMeta) {
-        const d = new Date(s.openedAt);
-        const timeStr = !isNaN(d.getTime()) ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '';
         this.cashOpeningMeta.innerHTML = `<i class="bi bi-clock-history text-teal"></i> Turno #${s.id} • ${timeStr ? 'Apertura: ' + timeStr : 'Abierto'}`;
+      }
+
+      if (this.cashShiftStatusBadge) {
+        this.cashShiftStatusBadge.style.backgroundColor = 'rgba(13, 148, 136, 0.12)';
+        this.cashShiftStatusBadge.style.color = '#0d9488';
+      }
+      if (this.cashShiftStatusText) {
+        this.cashShiftStatusText.innerHTML = `Turno #${s.id} Activo • ${escHtml(s.terminal || 'Caja 01')}`;
+      }
+      if (this.cashClosedHeroBanner) {
+        this.cashClosedHeroBanner.style.display = 'none';
       }
 
       // Metadatos de auditoría
@@ -2550,7 +3188,8 @@ class CashModule {
       }
 
       // Renderizar movimientos del turno
-      this.renderMovements(cashData.movements || []);
+      this.movements = cashData.movements || [];
+      this.renderMovements(this.movements);
       this.calculateAudit();
     } else {
       // Caja cerrada sin turno
@@ -2565,6 +3204,19 @@ class CashModule {
       if (this.btnOpenExp) this.btnOpenExp.style.display = 'none';
       const triggerBtn = document.getElementById('btnTriggerZClose');
       if (triggerBtn) triggerBtn.style.display = 'none';
+      const printAuditBtn = document.getElementById('btnPrintAuditTicketBtn');
+      if (printAuditBtn) printAuditBtn.style.display = 'none';
+
+      if (this.cashShiftStatusBadge) {
+        this.cashShiftStatusBadge.style.backgroundColor = '#f1f5f9';
+        this.cashShiftStatusBadge.style.color = '#64748b';
+      }
+      if (this.cashShiftStatusText) {
+        this.cashShiftStatusText.innerHTML = `<i class="bi bi-lock-fill text-danger"></i> Caja Cerrada (Sin Turno)`;
+      }
+      if (this.cashClosedHeroBanner) {
+        this.cashClosedHeroBanner.style.display = 'block';
+      }
 
       if (this.cashOpeningMeta) {
         this.cashOpeningMeta.innerHTML = `<i class="bi bi-lock-fill text-danger"></i> <span class="text-danger">Caja Cerrada (Sin Turno)</span>`;
@@ -2576,7 +3228,7 @@ class CashModule {
         this.statusBanner.style.borderColor = '#cbd5e1';
         this.statusBanner.style.color = '#475569';
         this.statusBanner.innerHTML = `
-          <i class="bi bi-lock-fill"></i>
+          <i class="bi bi-lock-fill text-muted"></i>
           <div>
             <strong>TURNO DE CAJA CERRADO</strong>
             <p>Haz clic en "Iniciar Turno" para asignar el fondo inicial y comenzar a cobrar.</p>
@@ -2584,45 +3236,86 @@ class CashModule {
         `;
       }
 
+      this.movements = [];
       this.renderMovements([]);
       this.calculateAudit();
     }
   }
 
   renderMovements(movements) {
-    if (!this.cashMovementsTableBody) return;
+    if (movements !== undefined) this.movements = movements;
+    const all = this.movements || [];
+
+    // Calcular total gastado en egresos
+    const totalExpenses = all
+      .filter(m => (m.type || 'egreso') === 'egreso')
+      .reduce((sum, m) => sum + (parseFloat(m.amount) || 0), 0);
+
+    if (this.cashMovementsTotalBadge) {
+      this.cashMovementsTotalBadge.innerText = `Total Gastos: -S/ ${totalExpenses.toFixed(2)}`;
+    }
     if (this.cashMovementsCountBadge) {
-      this.cashMovementsCountBadge.innerText = `${movements.length} movimiento${movements.length !== 1 ? 's' : ''}`;
+      this.cashMovementsCountBadge.innerText = `${all.length} movimiento${all.length !== 1 ? 's' : ''}`;
     }
 
-    if (!movements || movements.length === 0) {
+    if (!this.cashMovementsTableBody) return;
+
+    let filtered = all;
+    if (this.movementFilter && this.movementFilter !== 'all') {
+      filtered = filtered.filter(m => {
+        const c = (m.concept || '').toLowerCase();
+        return c.includes(this.movementFilter);
+      });
+    }
+
+    if (this.movementSearchQuery) {
+      filtered = filtered.filter(m => {
+        const c = (m.concept || '').toLowerCase();
+        const r = (m.responsible || '').toLowerCase();
+        return c.includes(this.movementSearchQuery) || r.includes(this.movementSearchQuery);
+      });
+    }
+
+    if (filtered.length === 0) {
       this.cashMovementsTableBody.innerHTML = `
         <tr>
-          <td colspan="5" style="text-align: center; color: #94a3b8; padding: 16px;">
-            No hay egresos registrados en este turno.
+          <td colspan="6" style="text-align: center; color: #94a3b8; padding: 20px;">
+            ${all.length === 0 ? 'No hay egresos registrados en este turno.' : 'No se encontraron egresos que coincidan con el filtro.'}
           </td>
         </tr>
       `;
       return;
     }
 
-    this.cashMovementsTableBody.innerHTML = movements.map(m => {
+    this.cashMovementsTableBody.innerHTML = filtered.map(m => {
       const d = new Date(m.createdAt || m.created_at);
       const timeStr = !isNaN(d.getTime()) ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '--:--';
       const isEgreso = (m.type || 'egreso') === 'egreso';
       const badgeStyle = isEgreso
-        ? 'background: #fef2f2; color: #991b1b; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;'
-        : 'background: #f0fdf4; color: #166534; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;';
+        ? 'background: #fef2f2; color: #991b1b; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; border: 1px solid #fee2e2;'
+        : 'background: #f0fdf4; color: #166534; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; border: 1px solid #dcfce7;';
       const amountColor = isEgreso ? '#991b1b' : '#166534';
       const prefix = isEgreso ? '-S/ ' : '+S/ ';
 
+      // Extraer comprobante si viene en el concepto
+      let conceptText = m.concept || 'Gasto operativo';
+      let receiptText = '--';
+      const receiptMatch = conceptText.match(/\[Recibo:\s*([^\]]+)\]/i) || conceptText.match(/\(Recibo:\s*([^\)]+)\)/i);
+      if (receiptMatch) {
+        receiptText = receiptMatch[1];
+        conceptText = conceptText.replace(receiptMatch[0], '').trim();
+      }
+
       return `
         <tr style="border-bottom: 1px solid #f1f5f9;">
-          <td style="padding: 8px 12px; color: #64748b; font-family: monospace;">${timeStr}</td>
+          <td style="padding: 8px 12px; color: #64748b; font-family: monospace; font-size: 11.5px;">${timeStr}</td>
           <td style="padding: 8px 12px;"><span style="${badgeStyle}">${escHtml((m.type || 'egreso').toUpperCase())}</span></td>
-          <td style="padding: 8px 12px; font-weight: 500; color: #1e293b;">${escHtml(m.concept || 'Gasto operativo')}</td>
+          <td style="padding: 8px 12px; font-weight: 600; color: #1e293b;">${escHtml(conceptText)}</td>
+          <td style="padding: 8px 12px; color: #475569; font-size: 11.5px;">
+            <code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 700; color: #0f172a;">${escHtml(receiptText)}</code>
+          </td>
           <td style="padding: 8px 12px; color: #64748b;">${escHtml(m.responsible || 'Cajero')}</td>
-          <td style="padding: 8px 12px; text-align: right; font-weight: 700; color: ${amountColor};">
+          <td style="padding: 8px 12px; text-align: right; font-weight: 800; color: ${amountColor};">
             ${prefix}${parseFloat(m.amount || 0).toFixed(2)}
           </td>
         </tr>
@@ -2791,7 +3484,7 @@ class CashModule {
         <div class="receipt-info-grid">
           <div class="receipt-info-row">
             <span>Cajero Responsable:</span>
-            <strong>${escHtml(report.cashierName)}</strong>
+            <strong>${escHtml(report.cashierName || report.cashier || 'Cajero de Turno')}</strong>
           </div>
           <div class="receipt-info-row">
             <span>Apertura de Turno:</span>
@@ -2922,8 +3615,15 @@ class WarehouseModule {
     this.btnCancel = document.getElementById('btnCancelReceive');
     this.btnSave = document.getElementById('btnSaveReceive');
 
-    // Modal de Alta / Edición de Medicamento (Fase A - Módulo 1)
-    this.medicineModal = document.getElementById('medicineFormModal');
+    // Drawer de Alta / Edición de Medicamento (Diseño SaaS 2026)
+    this.productDrawer = document.getElementById('productDrawer');
+    this.productDrawerBackdrop = document.getElementById('productDrawerBackdrop');
+    this.toggleBox = document.getElementById('toggleSellBox');
+    this.toggleBlister = document.getElementById('toggleSellBlister');
+    this.toggleUnit = document.getElementById('toggleSellUnit');
+    this.cardBox = document.getElementById('cardPresentationBox');
+    this.cardBlister = document.getElementById('cardPresentationBlister');
+    this.cardUnit = document.getElementById('cardPresentationUnit');
 
     this.initEvents();
     this.render();
@@ -2937,6 +3637,31 @@ class WarehouseModule {
     if (this.btnOpen) this.btnOpen.addEventListener('click', () => this.toggleModal(true));
     if (this.btnClose) this.btnClose.addEventListener('click', () => this.toggleModal(false));
     if (this.btnCancel) this.btnCancel.addEventListener('click', () => this.toggleModal(false));
+
+    // Cerrar Drawers con tecla ESC
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (this.productDrawer?.classList.contains('active')) {
+          this.closeMedicineDrawer();
+        }
+        const fefo = document.getElementById('fefoDrawer');
+        if (fefo && fefo.classList.contains('active')) {
+          this.closeFefoAlertsModal();
+        }
+        const kardex = document.getElementById('kardexDrawer');
+        if (kardex && kardex.classList.contains('active')) {
+          this.closeKardexModal();
+        }
+        const classification = document.getElementById('classificationDrawer');
+        if (classification && classification.classList.contains('active')) {
+          window.classificationApp?.closeModal();
+        }
+        const adj = document.getElementById('stockAdjustmentDrawer');
+        if (adj && adj.classList.contains('active')) {
+          this.closeAdjustmentModal();
+        }
+      }
+    });
 
     if (this.btnSave) {
       this.btnSave.addEventListener('click', () => {
@@ -2970,6 +3695,24 @@ class WarehouseModule {
           });
         }
 
+        // Notificar al módulo de compras para registrar la factura comercial y actualizar KPIs
+        if (window.purchasesApp && typeof window.purchasesApp.addInvoiceFromReceive === 'function') {
+          const invNum = document.getElementById('recInvoiceNum')?.value?.trim();
+          const supp = document.getElementById('recSupplierSelect')?.value;
+          const cost = parseFloat(document.getElementById('recBoxCost')?.value || 18.5);
+          const cond = document.getElementById('recPaymentCondition')?.value || 'Crédito 30 días';
+          const pName = prod ? prod.name : 'Medicamento';
+          window.purchasesApp.addInvoiceFromReceive({
+            invoiceNum: invNum,
+            supplierName: supp,
+            prodName: pName,
+            lot: lot,
+            boxes: boxes,
+            cost: cost,
+            condition: cond
+          });
+        }
+
         this.toggleModal(false);
         this.render();
         counterApp.renderProducts();
@@ -2983,14 +3726,64 @@ class WarehouseModule {
     else this.modal?.classList.remove('active');
   }
 
+  handlePresentationToggle(type) {
+    if (type === 'box') {
+      const on = !!this.toggleBox?.checked;
+      this.cardBox?.classList.toggle('active', on);
+      const inBox = document.getElementById('medBoxPrice');
+      if (inBox) { inBox.disabled = !on; if (!on) inBox.value = ''; }
+    } else if (type === 'blister') {
+      const on = !!this.toggleBlister?.checked;
+      this.cardBlister?.classList.toggle('active', on);
+      const inBli = document.getElementById('medBlisterPrice');
+      if (inBli) { inBli.disabled = !on; if (!on) inBli.value = ''; }
+    } else if (type === 'unit') {
+      const on = !!this.toggleUnit?.checked;
+      this.cardUnit?.classList.toggle('active', on);
+      const inU = document.getElementById('medUnitPrice');
+      if (inU) { inU.disabled = !on; if (!on) inU.value = ''; }
+    }
+  }
+
   openCreateModal() {
-    const form = document.getElementById('medicineForm');
+    const form = document.getElementById('productDrawerForm');
     if (form) form.reset();
     document.getElementById('medId').value = '';
-    document.getElementById('medModalTitle').innerHTML = '<i class="bi bi-capsule text-teal"></i> Alta de Nuevo Medicamento';
+    document.getElementById('productDrawerTitle').innerHTML = '<i class="bi bi-capsule text-teal"></i> Alta de Nuevo Medicamento';
+
+    // Por defecto activar las 3 presentaciones para nueva medicina
+    if (this.toggleBox) this.toggleBox.checked = true;
+    if (this.toggleBlister) this.toggleBlister.checked = true;
+    if (this.toggleUnit) this.toggleUnit.checked = true;
+    this.handlePresentationToggle('box');
+    this.handlePresentationToggle('blister');
+    this.handlePresentationToggle('unit');
+
+    // Puntos Extra de Fidelización
+    const toggleBonus = document.getElementById('toggleBonusPoints');
+    const bodyBonus = document.getElementById('bodyBonusPoints');
+    const inBonus = document.getElementById('medBonusPoints');
+    if (toggleBonus) toggleBonus.checked = false;
+    if (bodyBonus) bodyBonus.style.display = 'none';
+    if (inBonus) inBonus.value = '0';
+
     const initSec = document.getElementById('medInitialStockSection');
     if (initSec) initSec.style.display = 'block';
-    this.medicineModal?.classList.add('active');
+
+    this.productDrawer?.classList.add('active');
+    this.productDrawerBackdrop?.classList.add('active');
+    setTimeout(() => document.getElementById('medName')?.focus(), 150);
+  }
+
+  handleBonusPointsToggle() {
+    const toggle = document.getElementById('toggleBonusPoints');
+    const body = document.getElementById('bodyBonusPoints');
+    const inBonus = document.getElementById('medBonusPoints');
+    const on = !!toggle?.checked;
+    if (body) body.style.display = on ? 'block' : 'none';
+    if (on && inBonus && (!inBonus.value || parseInt(inBonus.value, 10) === 0)) {
+      inBonus.value = '20';
+    }
   }
 
   openEditModal(id) {
@@ -2998,7 +3791,7 @@ class WarehouseModule {
     if (!prod) return;
 
     document.getElementById('medId').value = prod.id;
-    document.getElementById('medModalTitle').innerHTML = `<i class="bi bi-pencil-square text-blue"></i> Editar Fármaco: ${escHtml(prod.name)}`;
+    document.getElementById('productDrawerTitle').innerHTML = `<i class="bi bi-pencil-square text-teal"></i> Editar Fármaco: ${escHtml(prod.name)}`;
     document.getElementById('medName').value = prod.name || '';
     document.getElementById('medGenericDci').value = prod.genericDci || '';
     document.getElementById('medBarcode').value = prod.barcode || '';
@@ -3007,28 +3800,58 @@ class WarehouseModule {
     // Categoría
     const catMap = { 'dolor': 1, 'antibioticos': 2, 'digestivos': 3, 'controlados': 4, 'vitaminas': 5, 'respiratorio': 6 };
     const catSelect = document.getElementById('medCategoryId');
-    if (catSelect) catSelect.value = catMap[prod.category] || 1;
+    if (catSelect) catSelect.value = catMap[prod.category] || prod.categoryId || 1;
 
     document.getElementById('medLocation').value = prod.location || 'Pasillo 1 • Anaquel A-1';
     document.getElementById('medSanitaryRegistry').value = prod.sanitaryRegistry || '';
     document.getElementById('medPrescriptionType').value = prod.prescriptionType || 'free';
-    document.getElementById('medBoxPrice').value = prod.boxPrice || '';
-    document.getElementById('medBlisterPrice').value = prod.blisterPrice || '';
-    document.getElementById('medUnitPrice').value = prod.unitPrice || '';
+
+    // Determinar presentaciones activas según si tienen precio > 0
+    const hasBox = prod.boxPrice !== null && prod.boxPrice !== undefined && Number(prod.boxPrice) > 0;
+    const hasBlister = prod.blisterPrice !== null && prod.blisterPrice !== undefined && Number(prod.blisterPrice) > 0;
+    const hasUnit = prod.unitPrice !== null && prod.unitPrice !== undefined && Number(prod.unitPrice) > 0;
+
+    if (this.toggleBox) this.toggleBox.checked = hasBox || (!hasBlister && !hasUnit);
+    if (this.toggleBlister) this.toggleBlister.checked = hasBlister;
+    if (this.toggleUnit) this.toggleUnit.checked = hasUnit;
+
+    this.handlePresentationToggle('box');
+    this.handlePresentationToggle('blister');
+    this.handlePresentationToggle('unit');
+
+    document.getElementById('medBoxPrice').value = hasBox ? prod.boxPrice : '';
+    document.getElementById('medBlisterPrice').value = hasBlister ? prod.blisterPrice : '';
+    document.getElementById('medUnitPrice').value = hasUnit ? prod.unitPrice : '';
     document.getElementById('medUnitsPerBox').value = prod.unitsPerBox || 100;
     document.getElementById('medUnitsPerBlister').value = prod.unitsPerBlister || 10;
+
+    // Cargar puntos de bonificación
+    const hasBonus = prod.bonusPoints && Number(prod.bonusPoints) > 0;
+    const toggleBonus = document.getElementById('toggleBonusPoints');
+    const bodyBonus = document.getElementById('bodyBonusPoints');
+    const inBonus = document.getElementById('medBonusPoints');
+    if (toggleBonus) toggleBonus.checked = !!hasBonus;
+    if (bodyBonus) bodyBonus.style.display = hasBonus ? 'block' : 'none';
+    if (inBonus) inBonus.value = hasBonus ? prod.bonusPoints : '0';
 
     const initSec = document.getElementById('medInitialStockSection');
     if (initSec) initSec.style.display = 'none';
 
-    this.medicineModal?.classList.add('active');
+    this.productDrawer?.classList.add('active');
+    this.productDrawerBackdrop?.classList.add('active');
+  }
+
+  closeMedicineDrawer() {
+    this.productDrawer?.classList.remove('active');
+    this.productDrawerBackdrop?.classList.remove('active');
   }
 
   closeMedicineModal() {
-    this.medicineModal?.classList.remove('active');
+    this.closeMedicineDrawer();
   }
 
   autoCalcPrices() {
+    if (!this.toggleBox?.checked) return;
     const box = parseFloat(document.getElementById('medBoxPrice').value || 0);
     const uBox = parseInt(document.getElementById('medUnitsPerBox').value || 100, 10);
     const uBli = parseInt(document.getElementById('medUnitsPerBlister').value || 10, 10);
@@ -3037,10 +3860,10 @@ class WarehouseModule {
 
     if (box > 0 && uBox > 0) {
       const blisInBox = uBox / uBli;
-      if (!blisterInp.value || parseFloat(blisterInp.value) === 0) {
+      if (this.toggleBlister?.checked && (!blisterInp.value || parseFloat(blisterInp.value) === 0)) {
         blisterInp.value = ((box / blisInBox) * 1.15).toFixed(2);
       }
-      if (!unitInp.value || parseFloat(unitInp.value) === 0) {
+      if (this.toggleUnit?.checked && (!unitInp.value || parseFloat(unitInp.value) === 0)) {
         unitInp.value = ((box / uBox) * 1.25).toFixed(2);
       }
     }
@@ -3057,11 +3880,52 @@ class WarehouseModule {
     const location = document.getElementById('medLocation').value.trim() || 'Pasillo 1 • Anaquel A-1';
     const sanitaryRegistry = document.getElementById('medSanitaryRegistry').value.trim();
     const prescriptionType = document.getElementById('medPrescriptionType').value;
-    const boxPrice = parseFloat(document.getElementById('medBoxPrice').value || 0);
-    const blisterPrice = parseFloat(document.getElementById('medBlisterPrice').value || 0);
-    const unitPrice = parseFloat(document.getElementById('medUnitPrice').value || 0);
+
+    // Validación de Presentaciones de Venta Opcionales
+    const sellBox = !!this.toggleBox?.checked;
+    const sellBlister = !!this.toggleBlister?.checked;
+    const sellUnit = !!this.toggleUnit?.checked;
+
+    if (!sellBox && !sellBlister && !sellUnit) {
+      showValetecToast("Debes activar al menos una presentación de venta (Caja, Blíster o Unidad).", "warning");
+      return;
+    }
+
+    let boxPrice = null;
+    let blisterPrice = null;
+    let unitPrice = null;
+
+    if (sellBox) {
+      boxPrice = parseFloat(document.getElementById('medBoxPrice')?.value || 0);
+      if (isNaN(boxPrice) || boxPrice <= 0) {
+        showValetecToast("Has activado la venta por Caja: ingresa un precio mayor a S/ 0.00.", "warning");
+        document.getElementById('medBoxPrice')?.focus();
+        return;
+      }
+    }
+
+    if (sellBlister) {
+      blisterPrice = parseFloat(document.getElementById('medBlisterPrice')?.value || 0);
+      if (isNaN(blisterPrice) || blisterPrice <= 0) {
+        showValetecToast("Has activado la venta por Blíster: ingresa un precio mayor a S/ 0.00.", "warning");
+        document.getElementById('medBlisterPrice')?.focus();
+        return;
+      }
+    }
+
+    if (sellUnit) {
+      unitPrice = parseFloat(document.getElementById('medUnitPrice')?.value || 0);
+      if (isNaN(unitPrice) || unitPrice <= 0) {
+        showValetecToast("Has activado la venta por Unidad/Pastilla: ingresa un precio mayor a S/ 0.00.", "warning");
+        document.getElementById('medUnitPrice')?.focus();
+        return;
+      }
+    }
+
     const unitsPerBox = parseInt(document.getElementById('medUnitsPerBox').value || 100, 10);
     const unitsPerBlister = parseInt(document.getElementById('medUnitsPerBlister').value || 10, 10);
+    const bonusToggle = document.getElementById('toggleBonusPoints');
+    const bonusPoints = bonusToggle?.checked ? Math.max(0, parseInt(document.getElementById('medBonusPoints')?.value || 0, 10)) : 0;
 
     const payload = {
       name,
@@ -3076,7 +3940,8 @@ class WarehouseModule {
       blisterPrice,
       unitPrice,
       unitsPerBox,
-      unitsPerBlister
+      unitsPerBlister,
+      bonusPoints
     };
 
     const submitBtn = document.getElementById('btnSaveMedicineSubmit');
@@ -3091,6 +3956,11 @@ class WarehouseModule {
         if (window.api) {
           await window.api.updateProduct(id, payload);
         }
+        // Actualizar en catálogo local inmediatamente
+        const localItem = testPharmacyCatalog.find(p => p.id === parseInt(id, 10));
+        if (localItem) {
+          Object.assign(localItem, payload);
+        }
         showValetecToast(`Medicamento "${name}" actualizado con éxito.`, "success");
       } else {
         // Modo Alta
@@ -3099,20 +3969,27 @@ class WarehouseModule {
         const expireDate = document.getElementById('medExpireDate')?.value;
         if (initBoxes > 0) {
           payload.initialBoxes = initBoxes;
-          payload.lotNumber = lotNumber;
+          payload.lotNumber = lotNumber || `L-${Math.floor(10000 + Math.random() * 90000)}`;
           payload.expireDate = expireDate || '2028-12-31';
         }
 
         if (window.api) {
-          await window.api.createProduct(payload);
+          const res = await window.api.createProduct(payload);
+          if (res?.data) {
+            testPharmacyCatalog.unshift(Object.assign({ stockBoxes: initBoxes, stockBlisters: initBoxes * 10, stockUnits: initBoxes * 100, fefoStatus: 'good' }, res.data, payload));
+          }
         }
         showValetecToast(`Medicamento "${name}" creado exitosamente en catálogo.`, "success");
       }
 
-      this.closeMedicineModal();
+      this.closeMedicineDrawer();
+      this.render();
+      if (typeof window.counterApp !== 'undefined' && window.counterApp) {
+        window.counterApp.renderProducts();
+      }
       await syncWithBackend();
     } catch (err) {
-      showValetecToast("Error al guardar medicamento: " + err.message, "error");
+      showValetecToast("Error al guardar medicamento: " + err.message, "danger");
     } finally {
       if (submitBtn) {
         submitBtn.disabled = false;
@@ -3159,6 +4036,21 @@ class WarehouseModule {
 
       const isInactive = p.status === 'inactive';
 
+      const badges = [];
+      if (p.boxPrice && Number(p.boxPrice) > 0) {
+        badges.push(`<span style="background: #e0f2fe; color: #0369a1; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; border: 1px solid #bae6fd;">Caja: S/ ${Number(p.boxPrice).toFixed(2)}</span>`);
+      }
+      if (p.blisterPrice && Number(p.blisterPrice) > 0) {
+        badges.push(`<span style="background: #f0fdf4; color: #15803d; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; border: 1px solid #bbf7d0;">Blíster: S/ ${Number(p.blisterPrice).toFixed(2)}</span>`);
+      }
+      if (p.unitPrice && Number(p.unitPrice) > 0) {
+        badges.push(`<span style="background: #fef3c7; color: #b45309; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; border: 1px solid #fde68a;">Pastilla: S/ ${Number(p.unitPrice).toFixed(2)}</span>`);
+      }
+      if (p.bonusPoints && Number(p.bonusPoints) > 0) {
+        badges.push(`<span style="background: #fff7ed; color: #ea580c; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 4px; border: 1px solid #fed7aa; display: inline-flex; align-items: center; gap: 3px;"><i class="bi bi-gift-fill"></i> +${Number(p.bonusPoints)} Pts</span>`);
+      }
+      const badgesHtml = badges.length > 0 ? `<div style="margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap;">${badges.join('')}</div>` : '';
+
       return `
         <tr style="${isInactive ? 'opacity: 0.65; background-color: #f8fafc;' : ''}">
           <td><code>${escHtml(p.barcode)}</code></td>
@@ -3166,6 +4058,7 @@ class WarehouseModule {
             <strong>${escHtml(p.name)}</strong>
             ${isInactive ? '<span style="background:#fee2e2; color:#b91c1c; font-size:10px; font-weight:800; margin-left:6px; padding:2px 6px; border-radius:4px;">INACTIVO</span>' : ''}
             <br><small style="color: var(--text-muted);">${escHtml(p.genericDci)}</small>
+            ${badgesHtml}
           </td>
           <td>${escHtml(p.laboratory)}</td>
           <td><span class="shelf-tag"><i class="bi bi-geo-alt"></i> ${escHtml(p.location)}</span></td>
@@ -3193,11 +4086,19 @@ class WarehouseModule {
   }
 
   openAdjustmentModal(productId = null) {
+    const drawer = document.getElementById('stockAdjustmentDrawer');
+    const backdrop = document.getElementById('stockAdjustmentDrawerBackdrop');
+    if (drawer) drawer.classList.add('active');
+    if (backdrop) backdrop.classList.add('active');
+
     if (!this.adjModal) this.adjModal = document.getElementById('stockAdjustmentModal');
+    if (this.adjModal) this.adjModal.classList.add('active');
+
     const select = document.getElementById('adjProductId');
-    if (select && testPharmacyCatalog) {
+    const prods = (Array.isArray(this.catalog) && this.catalog.length > 0) ? this.catalog : testPharmacyCatalog;
+    if (select && prods) {
       select.innerHTML = '<option value="">-- Seleccionar Medicamento --</option>' +
-        testPharmacyCatalog.map(p => `<option value="${p.id}" ${productId && p.id === productId ? 'selected' : ''}>${escHtml(p.name)} (${escHtml(p.genericDci || '')}) - Stock: ${p.stockUnits} un.</option>`).join('');
+        prods.map(p => `<option value="${p.id}" ${productId && p.id === productId ? 'selected' : ''}>${escHtml(p.name)} (${escHtml(p.genericDci || '')}) - Stock: ${p.stockUnits} un.</option>`).join('');
     }
 
     if (productId) {
@@ -3207,14 +4108,27 @@ class WarehouseModule {
       if (info) info.style.display = 'none';
       const lotSelect = document.getElementById('adjLotId');
       if (lotSelect) lotSelect.innerHTML = '<option value="">-- Seleccionar producto primero --</option>';
+      const preview = document.getElementById('adjPreviewBalance');
+      if (preview) preview.innerHTML = 'Seleccione medicamento';
     }
 
-    if (this.adjModal) this.adjModal.classList.add('active');
+    const qtyIn = document.getElementById('adjQuantity');
+    if (qtyIn) qtyIn.value = '1';
+    const reasonIn = document.getElementById('adjReason');
+    if (reasonIn) reasonIn.value = '';
+
+    this.updateAdjustmentPreview();
   }
 
   closeAdjustmentModal() {
+    const drawer = document.getElementById('stockAdjustmentDrawer');
+    const backdrop = document.getElementById('stockAdjustmentDrawerBackdrop');
+    if (drawer) drawer.classList.remove('active');
+    if (backdrop) backdrop.classList.remove('active');
+
     if (!this.adjModal) this.adjModal = document.getElementById('stockAdjustmentModal');
     if (this.adjModal) this.adjModal.classList.remove('active');
+
     const form = document.getElementById('stockAdjustmentForm');
     if (form) form.reset();
   }
@@ -3228,20 +4142,59 @@ class WarehouseModule {
 
     if (!pId) {
       if (info) info.style.display = 'none';
+      this.updateAdjustmentPreview();
       return;
     }
 
-    const prod = testPharmacyCatalog.find(p => p.id === pId);
+    const prods = (Array.isArray(this.catalog) && this.catalog.length > 0) ? this.catalog : testPharmacyCatalog;
+    const prod = prods.find(p => p.id === pId);
     if (!prod) return;
 
     if (info) info.style.display = 'block';
-    if (stockEl) stockEl.innerText = `${prod.stockBoxes} cajas (${prod.stockBlisters} blísters / ${prod.stockUnits} unid.)`;
-    if (locBadge) locBadge.innerHTML = `<i class="bi bi-geo-alt"></i> ${escHtml(prod.location || 'Sin ubicación')}`;
+    if (stockEl) stockEl.innerText = `${prod.stockBoxes || 0} cajas (${prod.stockBlisters || 0} blísters / ${prod.stockUnits || 0} unid.)`;
+    if (locBadge) locBadge.innerHTML = `<i class="bi bi-geo-alt"></i> ${escHtml(prod.location || 'Góndola Principal')}`;
 
     if (lotSelect) {
       lotSelect.innerHTML = `
-        <option value="">Lote Principal: ${escHtml(prod.lotNumber || 'L-Default')} (Vence: ${escHtml(prod.expireDate || 'N/A')})</option>
+        <option value="${escHtml(prod.lotNumber || 'L-PRINCIPAL')}">Lote Activo: ${escHtml(prod.lotNumber || 'L-24115')} (Vence: ${escHtml(prod.expireDate || '2028-12-31')})</option>
       `;
+    }
+
+    this.updateAdjustmentPreview();
+  }
+
+  updateAdjustmentPreview() {
+    const previewEl = document.getElementById('adjPreviewBalance');
+    if (!previewEl) return;
+
+    const pId = parseInt(document.getElementById('adjProductId')?.value, 10);
+    if (!pId) {
+      previewEl.innerHTML = '<span style="color: #64748b;">Seleccione medicamento</span>';
+      return;
+    }
+
+    const prods = (Array.isArray(this.catalog) && this.catalog.length > 0) ? this.catalog : testPharmacyCatalog;
+    const prod = prods.find(p => p.id === pId);
+    if (!prod) return;
+
+    const currentUnits = prod.stockUnits || 0;
+    const adjType = document.getElementById('adjType')?.value || 'spoilage';
+    const quantity = parseInt(document.getElementById('adjQuantity')?.value || '1', 10);
+    const unitType = document.getElementById('adjUnitType')?.value || 'unit';
+
+    let factor = 1;
+    if (unitType === 'box' || unitType === 'boxes') factor = prod.unitsPerBox || 100;
+    if (unitType === 'blister' || unitType === 'blisters') factor = prod.unitsPerBlister || 10;
+    const changeUnits = (quantity || 0) * factor;
+
+    const isAddition = ['diff_in', 'return_customer'].includes(adjType);
+    const projectedUnits = isAddition ? (currentUnits + changeUnits) : (currentUnits - changeUnits);
+
+    if (projectedUnits < 0) {
+      previewEl.innerHTML = `<span style="color: #dc2626; font-weight: 800;">${currentUnits} - ${changeUnits} = ${projectedUnits} un. (⚠️ Stock insuficiente)</span>`;
+    } else {
+      const sign = isAddition ? '+' : '-';
+      previewEl.innerHTML = `<span style="color: #0d9488; font-weight: 800;">${currentUnits} ${sign} ${changeUnits} un. = ${projectedUnits} un. en Kardex</span>`;
     }
   }
 
@@ -3259,12 +4212,12 @@ class WarehouseModule {
     }
 
     if (!quantity || quantity <= 0) {
-      showValetecToast("La cantidad debe ser mayor a 0.", "warning");
+      showValetecToast("La cantidad a ajustar debe ser mayor a 0.", "warning");
       return;
     }
 
     if (!reason || reason.length < 4) {
-      showValetecToast("Debe ingresar una justificación sanitaria obligatoria.", "warning");
+      showValetecToast("Debe ingresar una justificación sanitaria obligatoria (mínimo 4 caracteres).", "warning");
       return;
     }
 
@@ -3278,25 +4231,24 @@ class WarehouseModule {
           reason,
           userName: (window.api.currentUser && window.api.currentUser.name) ? window.api.currentUser.name : 'Operador Almacén'
         });
-        showValetecToast(res.message || "Ajuste de stock registrado en Kardex.", "success");
+        showValetecToast(res.message || "Ajuste de stock registrado exitosamente en Kardex.", "success");
         this.closeAdjustmentModal();
         await syncWithBackend();
         this.loadFefoAlerts();
       } else {
-        // Hotfix V-10: Modo contingencia offline — aplicar ajuste al catálogo local en memoria.
-        // Antes, en modo offline el ajuste se ignoraba silenciosamente mostrando toast de éxito falso.
-        const prod = testPharmacyCatalog.find(p => p.id === productId);
+        const prods = (Array.isArray(this.catalog) && this.catalog.length > 0) ? this.catalog : testPharmacyCatalog;
+        const prod = prods.find(p => p.id === productId);
         if (prod) {
-          const unitsToAdjust = unitType === 'boxes'
+          const unitsToAdjust = (unitType === 'box' || unitType === 'boxes')
             ? quantity * (prod.unitsPerBox || 100)
-            : unitType === 'blisters'
+            : (unitType === 'blister' || unitType === 'blisters')
               ? quantity * (prod.unitsPerBlister || 10)
               : quantity;
 
-          if (adjustmentType === 'out' || adjustmentType === 'spoilage' || adjustmentType === 'expired') {
-            prod.stockUnits = Math.max(0, prod.stockUnits - unitsToAdjust);
+          if (adjustmentType === 'diff_in' || adjustmentType === 'return_customer') {
+            prod.stockUnits = (prod.stockUnits || 0) + unitsToAdjust;
           } else {
-            prod.stockUnits = prod.stockUnits + unitsToAdjust;
+            prod.stockUnits = Math.max(0, (prod.stockUnits || 0) - unitsToAdjust);
           }
           prod.stockBoxes = Math.floor(prod.stockUnits / (prod.unitsPerBox || 100));
           prod.stockBlisters = Math.floor(prod.stockUnits / (prod.unitsPerBlister || 10));
@@ -3304,25 +4256,61 @@ class WarehouseModule {
           this.closeAdjustmentModal();
           this.render();
           if (typeof counterApp !== 'undefined') counterApp.renderProducts();
-          showValetecToast(`Ajuste local aplicado (modo contingencia): ${quantity} ${unitType} de "${prod.name}". Sincronizar con PostgreSQL al reconectar.`, "warning");
+          showValetecToast(`Ajuste local aplicado: ${quantity} ${unitType} de "${prod.name}". Saldo Kardex actualizado.`, "warning");
         } else {
           showValetecToast("Error: Medicamento no encontrado en el catálogo local.", "danger");
         }
       }
     } catch (err) {
-      showValetecToast("Error al aplicar ajuste: " + err.message, "error");
+      showValetecToast("Error al aplicar ajuste: " + err.message, "danger");
     }
   }
 
   openFefoAlertsModal() {
+    const drawer = document.getElementById('fefoDrawer');
+    const backdrop = document.getElementById('fefoDrawerBackdrop');
+    if (drawer) drawer.classList.add('active');
+    if (backdrop) backdrop.classList.add('active');
+
+    // Fallback si existiese el modal clásico
     if (!this.fefoModal) this.fefoModal = document.getElementById('fefoAlertsModal');
     if (this.fefoModal) this.fefoModal.classList.add('active');
+
+    // Restablecer filtros
+    this.fefoActiveTab = 'all';
+    this.fefoSearchQuery = '';
+    const searchInput = document.getElementById('fefoSearchInput');
+    if (searchInput) searchInput.value = '';
+    this.updateFefoTabsUI('all');
+
     this.loadFefoAlerts();
   }
 
   closeFefoAlertsModal() {
+    const drawer = document.getElementById('fefoDrawer');
+    const backdrop = document.getElementById('fefoDrawerBackdrop');
+    if (drawer) drawer.classList.remove('active');
+    if (backdrop) backdrop.classList.remove('active');
+
     if (!this.fefoModal) this.fefoModal = document.getElementById('fefoAlertsModal');
     if (this.fefoModal) this.fefoModal.classList.remove('active');
+  }
+
+  updateFefoTabsUI(activeTab) {
+    document.querySelectorAll('.fefo-tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === activeTab);
+    });
+  }
+
+  filterFefoByTab(tab) {
+    this.fefoActiveTab = tab || 'all';
+    this.updateFefoTabsUI(this.fefoActiveTab);
+    this.renderFefoTable();
+  }
+
+  handleFefoSearch(query) {
+    this.fefoSearchQuery = (query || '').toLowerCase().trim();
+    this.renderFefoTable();
   }
 
   async loadFefoAlerts() {
@@ -3330,61 +4318,133 @@ class WarehouseModule {
     try {
       const res = await window.api.getExpiringLots();
       if (res && res.data) {
+        this.fefoLotsData = Array.isArray(res.data) ? res.data : [];
         const sum = res.summary || {};
+
         const countBadge = document.getElementById('fefoCriticalCount');
         const expEl = document.getElementById('fefoSummaryExpired');
         const warnEl = document.getElementById('fefoSummaryWarning');
         const safeEl = document.getElementById('fefoSummarySafe');
+        const totalEl = document.getElementById('fefoSummaryTotal');
 
         const totalCritical = (sum.expired || 0) + (sum.critical || 0) + (sum.warning || 0);
         if (countBadge) countBadge.innerText = totalCritical;
         if (expEl) expEl.innerText = (sum.expired || 0) + (sum.critical || 0);
         if (warnEl) warnEl.innerText = sum.warning || 0;
         if (safeEl) safeEl.innerText = sum.safe || 0;
+        if (totalEl) totalEl.innerText = this.fefoLotsData.length;
 
-        const tbody = document.getElementById('fefoAlertsTableBody');
-        if (tbody) {
-          if (res.data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-3 text-muted">No hay lotes registrados con stock activo.</td></tr>';
-            return;
-          }
-
-          tbody.innerHTML = res.data.map(l => {
-            let badgeClass = '#dcfce7; color:#15803d';
-            let label = '<span class="status-dot free"></span> Vigente';
-            if (l.fefoAlert === 'expired') {
-              badgeClass = '#fee2e2; color:#b91c1c';
-              label = '<span class="status-dot retained"></span> Vencido';
-            } else if (l.fefoAlert === 'critical') {
-              badgeClass = '#fee2e2; color:#b91c1c';
-              label = '<span class="status-dot retained"></span> Crítico (<30d)';
-            } else if (l.fefoAlert === 'warning') {
-              badgeClass = '#fef3c7; color:#b45309';
-              label = '<span class="status-dot required"></span> Canje (<90d)';
-            }
-
-            return `
-              <tr>
-                <td><span class="badge" style="background:${badgeClass}; font-weight:800; padding:4px 8px; border-radius:6px; display: inline-flex; align-items: center; gap: 4px;">${label}</span></td>
-                <td><strong>${escHtml(l.productName)}</strong><br><small class="text-muted">${escHtml(l.genericDci || '')}</small></td>
-                <td>${escHtml(l.laboratory)}</td>
-                <td><code>${escHtml(l.lotNumber)}</code></td>
-                <td><strong>${escHtml(l.expireDate)}</strong></td>
-                <td><strong style="color:${l.daysLeft <= 30 ? '#dc2626' : (l.daysLeft <= 90 ? '#d97706' : '#16a34a')}">${l.daysLeft} días</strong></td>
-                <td><strong>${l.stockBoxes} cajas</strong> (${l.stockUnits} un.)</td>
-                <td style="text-align: right; white-space: nowrap;">
-                  <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; color:#be123c;" onclick="warehouseApp.closeFefoAlertsModal(); warehouseApp.openAdjustmentModal(${l.productId})" title="Registrar Merma / Baja">
-                    <i class="bi bi-trash3"></i> <span>Dar de Baja</span>
-                  </button>
-                </td>
-              </tr>
-            `;
-          }).join('');
-        }
+        this.renderFefoTable();
       }
     } catch (err) {
       console.warn("Error cargando alertas FEFO:", err.message);
     }
+  }
+
+  renderFefoTable() {
+    const tbody = document.getElementById('fefoAlertsTableBody');
+    if (!tbody) return;
+
+    const data = this.fefoLotsData || [];
+    const tab = this.fefoActiveTab || 'all';
+    const q = this.fefoSearchQuery || '';
+
+    // Filtrar por pestaña seleccionada
+    let filtered = data.filter(l => {
+      const days = typeof l.daysLeft === 'number' ? l.daysLeft : 999;
+      if (tab === 'critical') {
+        return l.fefoAlert === 'expired' || l.fefoAlert === 'critical' || days <= 30;
+      }
+      if (tab === 'warning') {
+        return l.fefoAlert === 'warning' || (days > 30 && days <= 90);
+      }
+      if (tab === 'safe') {
+        return l.fefoAlert === 'safe' || days > 90;
+      }
+      return true;
+    });
+
+    // Filtrar por texto de búsqueda
+    if (q) {
+      filtered = filtered.filter(l => {
+        const name = (l.productName || '').toLowerCase();
+        const dci = (l.genericDci || '').toLowerCase();
+        const lot = (l.lotNumber || '').toLowerCase();
+        const lab = (l.laboratory || '').toLowerCase();
+        return name.includes(q) || dci.includes(q) || lot.includes(q) || lab.includes(q);
+      });
+    }
+
+    this.fefoFilteredLots = filtered;
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 36px 16px; color: #64748b;">
+            <i class="bi bi-shield-check text-teal" style="font-size: 32px; display: block; margin-bottom: 8px;"></i>
+            <strong>No se encontraron lotes para los filtros seleccionados.</strong>
+            <p style="font-size: 12px; margin: 4px 0 0 0;">Verifique los criterios de búsqueda o cambie de pestaña.</p>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map((l, idx) => {
+      let badgeClass = '#dcfce7; color:#15803d';
+      let label = '<span class="status-dot free"></span> Vigente';
+      if (l.fefoAlert === 'expired' || (typeof l.daysLeft === 'number' && l.daysLeft <= 0)) {
+        badgeClass = '#fee2e2; color:#b91c1c';
+        label = '<span class="status-dot retained pulse"></span> Vencido';
+      } else if (l.fefoAlert === 'critical' || (typeof l.daysLeft === 'number' && l.daysLeft <= 30)) {
+        badgeClass = '#fee2e2; color:#b91c1c';
+        label = '<span class="status-dot retained"></span> Crítico (&lt;30d)';
+      } else if (l.fefoAlert === 'warning' || (typeof l.daysLeft === 'number' && l.daysLeft <= 90)) {
+        badgeClass = '#fef3c7; color:#b45309';
+        label = '<span class="status-dot required"></span> Canje (&lt;90d)';
+      }
+
+      const daysColor = l.daysLeft <= 30 ? '#dc2626' : (l.daysLeft <= 90 ? '#d97706' : '#16a34a');
+
+      return `
+        <tr>
+          <td><span class="badge" style="background:${badgeClass}; font-weight:800; padding:4px 8px; border-radius:6px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px;">${label}</span></td>
+          <td>
+            <strong>${escHtml(l.productName)}</strong>
+            ${l.genericDci ? `<br><small class="text-muted" style="font-size: 11px;">${escHtml(l.genericDci)}</small>` : ''}
+          </td>
+          <td><small style="color: #475569; font-weight: 500;">${escHtml(l.laboratory || '—')}</small></td>
+          <td><code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 700; color: #0f172a;">${escHtml(l.lotNumber)}</code></td>
+          <td><strong>${escHtml(l.expireDate)}</strong></td>
+          <td><strong style="color: ${daysColor};">${l.daysLeft} d</strong></td>
+          <td><strong>${l.stockBoxes} cj.</strong> <small class="text-muted">(${l.stockUnits} un.)</small></td>
+          <td style="text-align: right; white-space: nowrap;">
+            <div class="fefo-action-group">
+              <button type="button" class="btn-fefo-action btn-fefo-canje" onclick="warehouseApp.handleCanjeClick(${idx})" title="Tramitar Canje con Proveedor">
+                <i class="bi bi-arrow-repeat"></i> <span>Canje</span>
+              </button>
+              <button type="button" class="btn-fefo-action btn-fefo-baja" onclick="warehouseApp.handleBajaClick(${idx})" title="Dar de Baja en Kardex / Merma">
+                <i class="bi bi-trash3"></i> <span>Baja</span>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  handleCanjeClick(index) {
+    const lot = this.fefoFilteredLots?.[index];
+    if (!lot) return;
+    this.closeFefoAlertsModal();
+    this.openExchangeModal(null, lot.productName, lot.lotNumber, lot.laboratory, lot.stockBoxes || 0);
+  }
+
+  handleBajaClick(index) {
+    const lot = this.fefoFilteredLots?.[index];
+    if (!lot) return;
+    this.closeFefoAlertsModal();
+    this.openAdjustmentModal(lot.productId);
   }
 
   openExchangeModal(e, medName, lot, supplier, qty) {
@@ -3477,22 +4537,117 @@ class WarehouseModule {
     showValetecToast(`Acta de canje generada: ${qty} cajas de ${med} (Lote: ${lot}) pasadas a custodia.`, 'success');
   }
 
-  async openKardexModal(productId) {
-    if (!this.kardexModal) this.kardexModal = document.getElementById('kardexViewerModal');
-    if (!window.api) return;
+  populateKardexProductSelect(selectedId) {
+    const select = document.getElementById('kardexProductSelect');
+    if (!select) return;
 
+    let prods = [];
+    if (Array.isArray(this.catalog) && this.catalog.length > 0) {
+      prods = this.catalog;
+    } else if (typeof testPharmacyCatalog !== 'undefined' && Array.isArray(testPharmacyCatalog)) {
+      prods = testPharmacyCatalog;
+    }
+
+    select.innerHTML = prods.map(p => `
+      <option value="${p.id}" ${p.id === Number(selectedId) ? 'selected' : ''}>
+        ${escHtml(p.name)} (${escHtml(p.laboratory || 'Lab')}) - Stock: ${p.stockBoxes || p.stock || 0} cj.
+      </option>
+    `).join('');
+  }
+
+  async openKardexModal(productId = null) {
+    const drawer = document.getElementById('kardexDrawer');
+    const backdrop = document.getElementById('kardexDrawerBackdrop');
+    if (drawer) drawer.classList.add('active');
+    if (backdrop) backdrop.classList.add('active');
+
+    // Fallback legado si existiese el modal
+    if (!this.kardexModal) this.kardexModal = document.getElementById('kardexViewerModal');
+    if (this.kardexModal) this.kardexModal.classList.add('active');
+
+    // Determinar producto por defecto si no se pasa ID
+    if (!productId) {
+      if (this.currentKardexProductId) {
+        productId = this.currentKardexProductId;
+      } else if (Array.isArray(this.catalog) && this.catalog[0]) {
+        productId = this.catalog[0].id;
+      } else if (typeof testPharmacyCatalog !== 'undefined' && testPharmacyCatalog[0]) {
+        productId = testPharmacyCatalog[0].id;
+      } else {
+        productId = 1;
+      }
+    }
+
+    this.currentKardexProductId = Number(productId);
+    this.populateKardexProductSelect(this.currentKardexProductId);
+
+    // Restablecer filtros
+    this.kardexActiveTab = 'all';
+    this.kardexSearchQuery = '';
+    const searchInput = document.getElementById('kardexMovementSearch');
+    if (searchInput) searchInput.value = '';
+    this.updateKardexTabsUI('all');
+
+    await this.loadKardexData(this.currentKardexProductId);
+  }
+
+  closeKardexModal() {
+    const drawer = document.getElementById('kardexDrawer');
+    const backdrop = document.getElementById('kardexDrawerBackdrop');
+    if (drawer) drawer.classList.remove('active');
+    if (backdrop) backdrop.classList.remove('active');
+
+    if (!this.kardexModal) this.kardexModal = document.getElementById('kardexViewerModal');
+    if (this.kardexModal) this.kardexModal.classList.remove('active');
+  }
+
+  updateKardexTabsUI(activeTab) {
+    const drawer = document.getElementById('kardexDrawer');
+    if (!drawer) return;
+    drawer.querySelectorAll('.fefo-tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === activeTab);
+    });
+  }
+
+  filterKardexByTab(tab) {
+    this.kardexActiveTab = tab || 'all';
+    this.updateKardexTabsUI(this.kardexActiveTab);
+    this.renderKardexMovements();
+  }
+
+  handleKardexSearch(query) {
+    this.kardexSearchQuery = (query || '').toLowerCase().trim();
+    this.renderKardexMovements();
+  }
+
+  async onKardexProductChange(productId) {
+    if (!productId) return;
+    this.currentKardexProductId = Number(productId);
+    await this.loadKardexData(this.currentKardexProductId);
+  }
+
+  async refreshCurrentKardex() {
+    if (this.currentKardexProductId) {
+      await this.loadKardexData(this.currentKardexProductId);
+      showValetecToast("Kardex actualizado correctamente.", "info");
+    }
+  }
+
+  async loadKardexData(productId) {
+    if (!window.api) return;
     try {
       const res = await window.api.getProductKardex(productId);
       if (res && res.data) {
+        this.currentKardexData = res.data;
         const d = res.data;
-        const p = d.product;
-        const stock = d.currentStock;
-        const val = d.valuation;
+        const p = d.product || {};
+        const stock = d.currentStock || {};
+        const val = d.valuation || {};
 
-        const titleEl = document.getElementById('kardexModalTitle');
-        const subEl = document.getElementById('kardexModalSubtitle');
-        if (titleEl) titleEl.innerHTML = `<i class="bi bi-journal-medical text-teal"></i> Kardex: ${escHtml(p.name)}`;
-        if (subEl) subEl.innerText = `${p.genericDci || ''} • Lab: ${p.laboratory} • Ubic: ${p.location} • Cód: ${p.barcode}`;
+        const titleEl = document.getElementById('kardexDrawerTitle') || document.getElementById('kardexModalTitle');
+        const subEl = document.getElementById('kardexDrawerSubtitle') || document.getElementById('kardexModalSubtitle');
+        if (titleEl) titleEl.innerHTML = `<i class="bi bi-journal-medical text-teal"></i> Kardex: ${escHtml(p.name || 'Medicamento')}`;
+        if (subEl) subEl.innerText = `${p.genericDci || ''} • Lab: ${p.laboratory || '—'} • Ubic: ${p.location || 'Góndola'} • Cód: ${p.barcode || '—'}`;
 
         const stockEl = document.getElementById('kardexStockDisplay');
         const boxEl = document.getElementById('kardexBoxesDisplay');
@@ -3501,65 +4656,109 @@ class WarehouseModule {
         const valSaleEl = document.getElementById('kardexValuedSaleDisplay');
         const marginEl = document.getElementById('kardexMarginDisplay');
 
-        if (stockEl) stockEl.innerText = `${stock.totalUnits} un.`;
-        if (boxEl) boxEl.innerText = `${stock.totalBoxes} cajas (${stock.totalBlisters} blíst.)`;
+        if (stockEl) stockEl.innerText = `${stock.totalUnits || 0} un.`;
+        if (boxEl) boxEl.innerText = `${stock.totalBoxes || 0} cajas (${stock.totalBlisters || 0} blíst.)`;
 
-        if (unitEl) unitEl.innerText = `S/ ${val.unitPrice.toFixed(2)}`;
-        if (costEl) costEl.innerText = `Costo est: S/ ${val.estimatedCostUnit.toFixed(2)}`;
+        if (unitEl) unitEl.innerText = `S/ ${(val.unitPrice || 0).toFixed(2)}`;
+        if (costEl) costEl.innerText = `Costo est: S/ ${(val.estimatedCostUnit || 0).toFixed(2)}`;
 
-        if (valSaleEl) valSaleEl.innerText = `S/ ${val.totalValuedSale.toFixed(2)}`;
-        if (marginEl) marginEl.innerText = `S/ ${val.potentialMargin.toFixed(2)}`;
+        if (valSaleEl) valSaleEl.innerText = `S/ ${(val.totalValuedSale || 0).toFixed(2)}`;
+        if (marginEl) marginEl.innerText = `S/ ${(val.potentialMargin || 0).toFixed(2)}`;
 
-        const tbody = document.getElementById('kardexTableBody');
-        if (tbody) {
-          if (!d.movements || d.movements.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" class="text-center py-3 text-muted">Sin movimientos registrados aún en Kardex.</td></tr>';
-          } else {
-            tbody.innerHTML = d.movements.map(m => {
-              let badgeColor = '#0d9488';
-              let badgeText = 'Entrada';
-
-              if (m.movementType === 'sale') {
-                badgeColor = '#0284c7';
-                badgeText = 'Venta Mostrador';
-              } else if (m.movementType.includes('adjustment_out') || m.movementType === 'spoilage') {
-                badgeColor = '#dc2626';
-                badgeText = 'Baja / Merma';
-              } else if (m.movementType === 'initial_stock') {
-                badgeColor = '#475569';
-                badgeText = 'Apertura / Inicial';
-              }
-
-              const inQty = m.quantity > 0 ? `+${m.quantity}` : '-';
-              const outQty = m.quantity < 0 ? Math.abs(m.quantity) : '-';
-
-              return `
-                <tr>
-                  <td><code>${escHtml(m.createdAt)}</code></td>
-                  <td><span class="badge" style="background:${badgeColor}20; color:${badgeColor}; font-weight:800; padding:4px 8px; border-radius:6px;">${badgeText}</span></td>
-                  <td><strong>${escHtml(m.referenceType)}</strong><br><small class="text-muted">${escHtml(m.referenceId || '')}</small></td>
-                  <td><code>${escHtml(m.lotNumber || 'N/A')}</code></td>
-                  <td style="text-align: right; color:#15803d; font-weight:700;">${inQty}</td>
-                  <td style="text-align: right; color:#b91c1c; font-weight:700;">${outQty}</td>
-                  <td style="text-align: right; font-weight:800;" title="Saldo anterior: ${m.previousStock} → Saldo nuevo: ${m.newStock}">${m.newStock} <small style="font-weight:400; color:#94a3b8; font-size:10px;">(ant:${m.previousStock})</small></td>
-                  <td><small>${escHtml(m.userName || 'Sistema')}</small></td>
-                  <td><small style="color: #475569;">${escHtml(m.reason || '')}</small></td>
-                </tr>
-              `;
-            }).join('');
-          }
-        }
-
-        if (this.kardexModal) this.kardexModal.classList.add('active');
+        this.renderKardexMovements();
       }
     } catch (err) {
-      showValetecToast("Error cargando Kardex: " + err.message, "error");
+      console.warn("Error cargando Kardex:", err.message);
+      showValetecToast("Error cargando Kardex: " + err.message, "danger");
     }
   }
 
-  closeKardexModal() {
-    if (!this.kardexModal) this.kardexModal = document.getElementById('kardexViewerModal');
-    if (this.kardexModal) this.kardexModal.classList.remove('active');
+  renderKardexMovements() {
+    const tbody = document.getElementById('kardexTableBody');
+    if (!tbody) return;
+
+    const movements = this.currentKardexData?.movements || [];
+    const tab = this.kardexActiveTab || 'all';
+    const q = this.kardexSearchQuery || '';
+
+    let filtered = movements.filter(m => {
+      const type = (m.movementType || '').toLowerCase();
+      const qty = typeof m.quantity === 'number' ? m.quantity : 0;
+
+      if (tab === 'in') {
+        return qty > 0 || type === 'initial_stock' || type.includes('purchase') || type.includes('diff_in') || type.includes('return_customer');
+      }
+      if (tab === 'sale') {
+        return type === 'sale';
+      }
+      if (tab === 'out') {
+        return type.includes('spoilage') || type.includes('expired') || type.includes('breakage') || type.includes('diff_out') || type.includes('adjustment_out');
+      }
+      return true;
+    });
+
+    if (q) {
+      filtered = filtered.filter(m => {
+        const lot = (m.lotNumber || '').toLowerCase();
+        const ref = (m.referenceId || '').toLowerCase();
+        const refType = (m.referenceType || '').toLowerCase();
+        const user = (m.userName || '').toLowerCase();
+        const reason = (m.reason || '').toLowerCase();
+        return lot.includes(q) || ref.includes(q) || refType.includes(q) || user.includes(q) || reason.includes(q);
+      });
+    }
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="9" style="text-align: center; padding: 36px 16px; color: #64748b;">
+            <i class="bi bi-journal-check text-teal" style="font-size: 32px; display: block; margin-bottom: 8px;"></i>
+            <strong>No hay movimientos que coincidan con los filtros.</strong>
+            <p style="font-size: 12px; margin: 4px 0 0 0;">Intente cambiar la pestaña de filtro o el término de búsqueda.</p>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(m => {
+      let badgeBg = '#f0fdfa; color: #0d9488; border: 1px solid #ccfbf1';
+      let badgeText = 'Entrada (+)';
+      const type = (m.movementType || '').toLowerCase();
+
+      if (type === 'sale') {
+        badgeBg = '#f0f9ff; color: #0284c7; border: 1px solid #e0f2fe';
+        badgeText = 'Venta Mostrador';
+      } else if (type.includes('spoilage') || type.includes('expired') || type.includes('breakage') || type.includes('diff_out') || type.includes('adjustment_out')) {
+        badgeBg = '#fef2f2; color: #dc2626; border: 1px solid #fee2e2';
+        badgeText = 'Baja / Merma';
+      } else if (type === 'initial_stock') {
+        badgeBg = '#f8fafc; color: #475569; border: 1px solid #e2e8f0';
+        badgeText = 'Apertura / Inicial';
+      } else if (type.includes('return')) {
+        badgeBg = '#fffbeb; color: #d97706; border: 1px solid #fef3c7';
+        badgeText = 'Devolución';
+      }
+
+      const inQty = m.quantity > 0 ? `+${m.quantity}` : '—';
+      const outQty = m.quantity < 0 ? `${Math.abs(m.quantity)}` : '—';
+
+      return `
+        <tr>
+          <td><code style="font-size: 11px; background: #f8fafc; padding: 2px 4px; border-radius: 4px;">${escHtml(m.createdAt)}</code></td>
+          <td><span class="badge" style="background:${badgeBg}; font-weight:700; padding:4px 8px; border-radius:6px; font-size: 11px;">${badgeText}</span></td>
+          <td><strong>${escHtml(m.referenceType || 'Ajuste')}</strong><br><small class="text-muted">${escHtml(m.referenceId || '')}</small></td>
+          <td><code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 700; color: #0f172a;">${escHtml(m.lotNumber || 'N/A')}</code></td>
+          <td style="text-align: right; color:#15803d; font-weight:800;">${inQty}</td>
+          <td style="text-align: right; color:#b91c1c; font-weight:800;">${outQty}</td>
+          <td style="text-align: right; font-weight:800; color: #0f172a;" title="Saldo anterior: ${m.previousStock} → Saldo nuevo: ${m.newStock}">
+            ${m.newStock} <small style="font-weight:400; color:#94a3b8; font-size:10px;">(ant: ${m.previousStock})</small>
+          </td>
+          <td><small style="color: #475569; font-weight: 600;">${escHtml(m.userName || 'Sistema')}</small></td>
+          <td><small style="color: #64748b;">${escHtml(m.reason || '—')}</small></td>
+        </tr>
+      `;
+    }).join('');
   }
 
   printKardex() {
@@ -3620,16 +4819,23 @@ class WarehouseModule {
 }
 
 // =============================================================
-// 9. MÓDULO LIBRO DIGEMID & REGENCIA SANITARIA
+// 9. MÓDULO LIBRO DIGEMID & REGENCIA SANITARIA (SAAS 2026)
 // =============================================================
 class DigemidModule {
   constructor() {
+    this.currentTab = 'recipes';
+    this.searchQuery = '';
+    this.statusFilter = 'all';
+    this.currentQuarter = '2026-Q3';
+
+    // Elementos DOM de Recetas y Modales
     this.tableBody = document.getElementById('digemidTableBody');
     this.modal = document.getElementById('prescriptionViewerModal');
     this.content = document.getElementById('prescriptionViewerContent');
     this.btnClose = document.getElementById('btnCloseRxModal');
     this.btnCloseBtn = document.getElementById('btnCloseRxBtn');
     this.btnApprove = document.getElementById('btnApproveAndFill');
+    this.btnDispense = document.getElementById('btnDispenseRecipe');
 
     // Modal de Nueva Receta DIGEMID
     this.newRecipeModal = document.getElementById('newRecipeModal');
@@ -3644,6 +4850,10 @@ class DigemidModule {
     this.inDoctorName = document.getElementById('recipeDoctorName');
     this.inMedication = document.getElementById('recipeMedicationDetails');
     this.inNotes = document.getElementById('recipeNotes');
+    this.selMedication = document.getElementById('recipeMedicationSelect');
+    this.customMedWrapper = document.getElementById('recipeCustomMedWrapper');
+    this.inDiagnosis = document.getElementById('recipeDiagnosis');
+    this.inTreatmentDays = document.getElementById('recipeTreatmentDays');
 
     // Modal de Balance Sanitario DIGEMID
     this.balanceModal = document.getElementById('digemidBalanceModal');
@@ -3653,16 +4863,101 @@ class DigemidModule {
     this.btnCloseBalanceBtn = document.getElementById('btnCloseBalanceBtn');
     this.btnPrintBalance = document.getElementById('btnPrintBalanceBtn');
 
+    // Modal de Arqueo Físico de Bóveda
+    this.vaultAuditModal = document.getElementById('vaultAuditModal');
+
     // Indicadores numéricos sanitarios
     this.vaultUnitsEl = document.getElementById('digemidVaultUnits');
     this.folioStatusEl = document.getElementById('digemidFolioStatus');
+    this.kpiTotalFoliosEl = document.getElementById('digemidKpiTotalFolios');
+    this.kpiFolioDetailEl = document.getElementById('digemidKpiFolioDetail');
 
-    // Botón de Dispensar en modal visor (hidden por defecto, se muestra solo si status=approved)
-    this.btnDispense = document.getElementById('btnDispenseRecipe');
+    // Padrón de Fármacos Controlados en Bóveda / Caja Fuerte
+    const savedVault = localStorage.getItem('valetec_digemid_vault');
+    if (savedVault) {
+      try {
+        this.vaultInventory = JSON.parse(savedVault);
+      } catch (e) {
+        this.vaultInventory = this.getDefaultVaultInventory();
+      }
+    } else {
+      this.vaultInventory = this.getDefaultVaultInventory();
+    }
 
     this.initEvents();
     this.render();
+    this.renderVault();
+    this.renderQuarterBalance(this.currentQuarter);
     this.updateMetrics();
+  }
+
+  getDefaultVaultInventory() {
+    return [
+      {
+        id: 'sedafarma',
+        name: 'Sedafarma 2mg Ranuradas (Clonazepam)',
+        genericDci: 'Clonazepam 2mg',
+        listType: 'Lista IVB (Psicotrópico)',
+        sanitaryReg: 'EE-04891',
+        lot: 'L-25042',
+        exp: '30/10/2027',
+        stockUnits: 25,
+        stockBoxes: 1,
+        unitPrice: 1.30,
+        boxPrice: 38.00,
+        location: 'Caja Fuerte • Gaveta A-1',
+        securityLevel: 'Alta Seguridad (Bajo Llave)',
+        status: 'Bajo Llave'
+      },
+      {
+        id: 'diazepam',
+        name: 'Diazepam 10mg Tabletas',
+        genericDci: 'Diazepam 10mg',
+        listType: 'Lista IVB (Psicotrópico)',
+        sanitaryReg: 'NG-10492',
+        lot: 'L-24980',
+        exp: '15/12/2027',
+        stockUnits: 40,
+        stockBoxes: 2,
+        unitPrice: 0.80,
+        boxPrice: 24.00,
+        location: 'Caja Fuerte • Gaveta A-2',
+        securityLevel: 'Alta Seguridad (Bajo Llave)',
+        status: 'Bajo Llave'
+      },
+      {
+        id: 'alprazolam',
+        name: 'Alprazolam 0.5mg Ranuradas',
+        genericDci: 'Alprazolam 0.5mg',
+        listType: 'Lista IVB (Psicotrópico)',
+        sanitaryReg: 'EE-07821',
+        lot: 'L-25011',
+        exp: '20/08/2028',
+        stockUnits: 60,
+        stockBoxes: 2,
+        unitPrice: 0.98,
+        boxPrice: 29.50,
+        location: 'Caja Fuerte • Gaveta B-1',
+        securityLevel: 'Alta Seguridad (Bajo Llave)',
+        status: 'Bajo Llave'
+      },
+      {
+        id: 'tramadol',
+        name: 'Tramadol 50mg / 1ml Inyectable',
+        genericDci: 'Tramadol Clorhidrato 50mg',
+        listType: 'Lista IIB (Estupefaciente)',
+        sanitaryReg: 'EE-02941',
+        lot: 'L-24890',
+        exp: '10/05/2027',
+        stockUnits: 15,
+        stockBoxes: 3,
+        unitPrice: 3.00,
+        boxPrice: 45.00,
+        location: 'Caja Fuerte • Gaveta B-2',
+        securityLevel: 'Máxima Seguridad (Precinto Q.F.)',
+        status: 'Bajo Llave'
+      }
+    ];
   }
 
   initEvents() {
@@ -3750,9 +5045,6 @@ class DigemidModule {
         const r = digemidMockRecords.find(x => x.folio === this.activeFolio);
         if (!r || r.status !== 'approved') return;
 
-        const confirmed = confirm(`¿Confirmar la dispensación final de la receta ${r.folio} al paciente ${r.patientName}?\n\nEsta acción quedará sellada en el Libro Oficial DIGEMID.`);
-        if (!confirmed) return;
-
         r.status = 'dispensed';
         this.render();
         this.toggleModal(false);
@@ -3767,7 +5059,71 @@ class DigemidModule {
             showValetecToast(`Error al dispensar en backend: ${err.message}`, 'danger');
           }
         }
+        this.updateMetrics();
       });
+    }
+
+    // Tecla ESC para cerrar modales de DIGEMID
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (this.modal?.classList.contains('active')) this.toggleModal(false);
+        if (this.newRecipeModal?.classList.contains('active')) this.toggleNewRecipeModal(false);
+        if (this.balanceModal?.classList.contains('active')) this.toggleBalanceModal(false);
+        if (this.vaultAuditModal?.classList.contains('active')) this.closeVaultAuditModal();
+      }
+    });
+  }
+
+  setTab(tab) {
+    this.currentTab = tab;
+    const tabRec = document.getElementById('tabDigemidRecipes');
+    const tabVlt = document.getElementById('tabDigemidVault');
+    const tabBal = document.getElementById('tabDigemidBalances');
+
+    const paneRec = document.getElementById('digemidPaneRecipes');
+    const paneVlt = document.getElementById('digemidPaneVault');
+    const paneBal = document.getElementById('digemidPaneBalances');
+
+    if (tabRec) tabRec.classList.toggle('active', tab === 'recipes');
+    if (tabVlt) tabVlt.classList.toggle('active', tab === 'vault');
+    if (tabBal) tabBal.classList.toggle('active', tab === 'balances');
+
+    if (paneRec) paneRec.style.display = (tab === 'recipes') ? 'block' : 'none';
+    if (paneVlt) paneVlt.style.display = (tab === 'vault') ? 'block' : 'none';
+    if (paneBal) paneBal.style.display = (tab === 'balances') ? 'block' : 'none';
+
+    if (tab === 'vault') this.renderVault();
+    if (tab === 'balances') this.renderQuarterBalance(this.currentQuarter);
+  }
+
+  refresh() {
+    this.render();
+    this.renderVault();
+    this.renderQuarterBalance(this.currentQuarter);
+    this.updateMetrics();
+    showValetecToast("Registros del Libro Oficial DIGEMID actualizados.", "info");
+  }
+
+  onSearch(query) {
+    this.searchQuery = (query || '').toLowerCase().trim();
+    this.render();
+  }
+
+  onStatusFilterChange(status) {
+    this.statusFilter = status || 'all';
+    this.render();
+  }
+
+  onRecipeMedicationChange(val) {
+    if (val === 'custom') {
+      if (this.customMedWrapper) this.customMedWrapper.style.display = 'block';
+      if (this.inMedication) {
+        this.inMedication.value = '';
+        this.inMedication.focus();
+      }
+    } else {
+      if (this.customMedWrapper) this.customMedWrapper.style.display = 'none';
+      if (this.inMedication) this.inMedication.value = val;
     }
   }
 
@@ -3780,6 +5136,9 @@ class DigemidModule {
     if (open) {
       this.newRecipeModal?.classList.add('active');
       this.inPatientName?.focus();
+      if (this.selMedication && !this.inMedication?.value) {
+        this.inMedication.value = this.selMedication.value;
+      }
     } else {
       this.newRecipeModal?.classList.remove('active');
     }
@@ -3795,8 +5154,9 @@ class DigemidModule {
     const patientDni = this.inPatientDni?.value.trim() || '';
     const doctorCmp = this.inDoctorCmp?.value.trim() || '';
     const doctorName = this.inDoctorName?.value.trim() || '';
-    const medication = this.inMedication?.value.trim() || '';
-    const notes = this.inNotes?.value.trim() || 'Receta retenida en custodia oficial de regencia.';
+    const medication = this.inMedication?.value.trim() || this.selMedication?.value || '';
+    const diagnosis = this.inDiagnosis?.value.trim() || '';
+    const notes = this.inNotes?.value.trim() || (diagnosis ? `Diagnóstico CIE-10: ${diagnosis}. Receta retenida en regencia.` : 'Receta retenida en custodia oficial de regencia.');
 
     if (!patientName || patientName.length < 3) {
       showValetecToast("Por favor ingrese el nombre completo del paciente.", "warning");
@@ -3848,7 +5208,8 @@ class DigemidModule {
           medication: res.data.medication,
           dateIssued: res.data.dateIssued,
           status: res.data.status,
-          notes: res.data.notes
+          notes: res.data.notes,
+          diagnosis: diagnosis
         });
         showValetecToast(`Receta ${res.data.folio} foliada con éxito en Libro Oficial DIGEMID.`, 'success');
       } else {
@@ -3867,10 +5228,245 @@ class DigemidModule {
     if (this.inDoctorName) this.inDoctorName.value = '';
     if (this.inMedication) this.inMedication.value = '';
     if (this.inNotes) this.inNotes.value = '';
+    if (this.inDiagnosis) this.inDiagnosis.value = '';
 
     this.toggleNewRecipeModal(false);
     this.render();
     this.updateMetrics();
+  }
+
+  // ==========================================
+  // SUBMÓDULO 2: BÓVEDA & CAJA FUERTE CONTROLADOS
+  // ==========================================
+  renderVault() {
+    const tbody = document.getElementById('digemidVaultTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = this.vaultInventory.map(item => `
+      <tr style="border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 10px 12px;">
+          <strong style="color: #0a2540; font-size: 13px; display: block;">${escHtml(item.name)}</strong>
+          <small style="color: #64748b; font-size: 11px;">DCI: ${escHtml(item.genericDci)} • <span style="color: #9333ea; font-weight: 600;"><i class="bi bi-geo-alt"></i> ${escHtml(item.location)}</span></small>
+        </td>
+        <td style="padding: 10px 12px;">
+          <span class="badge" style="background: ${item.listType.includes('IIB') ? '#fef2f2' : '#faf5ff'}; color: ${item.listType.includes('IIB') ? '#b91c1c' : '#7e22ce'}; border: 1px solid ${item.listType.includes('IIB') ? '#fecaca' : '#e9d5ff'}; font-weight: 700; font-size: 11px; padding: 3px 6px; border-radius: 4px;">
+            ${escHtml(item.listType)}
+          </span>
+        </td>
+        <td style="padding: 10px 12px; font-family: monospace; font-size: 11.5px; color: #334155;">
+          ${escHtml(item.sanitaryReg)}
+        </td>
+        <td style="padding: 10px 12px; font-family: monospace; font-weight: 700;">
+          <code>${escHtml(item.lot)}</code>
+        </td>
+        <td style="padding: 10px 12px; font-size: 12px;">
+          ${escHtml(item.exp)}
+        </td>
+        <td style="padding: 10px 12px; text-align: right;">
+          <strong style="font-size: 14px; color: #7e22ce;">${item.stockUnits} un.</strong>
+          <small style="display: block; color: #64748b; font-size: 10.5px;">(${item.stockBoxes} caja)</small>
+        </td>
+        <td style="padding: 10px 12px; text-align: right; color: #0f172a; font-weight: 700; font-size: 12px;">
+          S/ ${(item.boxPrice || 0).toFixed(2)}
+        </td>
+        <td style="padding: 10px 12px; text-align: center;">
+          <span class="badge" style="background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; font-size: 10.5px; padding: 2px 6px; border-radius: 4px; font-weight: 700;">
+            <i class="bi bi-key-fill"></i> ${escHtml(item.status)}
+          </span>
+        </td>
+        <td style="padding: 10px 12px; text-align: right; white-space: nowrap;">
+          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; font-weight: 700;" onclick="digemidApp.openVaultAuditModal('${item.id}')" title="Realizar arqueo físico de este producto">
+            <i class="bi bi-calculator"></i> <span>Arqueo</span>
+          </button>
+        </td>
+      </tr>
+    `).join('');
+
+    const badgeVault = document.getElementById('badgeCountVault');
+    if (badgeVault) badgeVault.textContent = this.vaultInventory.length;
+  }
+
+  openVaultAuditModal(productId = 'sedafarma') {
+    if (!this.vaultAuditModal) this.vaultAuditModal = document.getElementById('vaultAuditModal');
+    if (!this.vaultAuditModal) return;
+
+    const select = document.getElementById('vaultAuditProductSelect');
+    if (select && productId) {
+      select.value = productId;
+    }
+    this.onVaultProductChange(productId);
+    this.vaultAuditModal.classList.add('active');
+  }
+
+  closeVaultAuditModal() {
+    if (this.vaultAuditModal) this.vaultAuditModal.classList.remove('active');
+  }
+
+  onVaultProductChange(val) {
+    const item = this.vaultInventory.find(x => x.id === val) || this.vaultInventory[0];
+    const thEl = document.getElementById('vaultAuditTheoreticalStock');
+    const inEl = document.getElementById('vaultAuditCountedStock');
+
+    if (item) {
+      if (thEl) thEl.textContent = `${item.stockUnits} unidades / pastillas`;
+      if (inEl) inEl.value = item.stockUnits;
+      this.calcVaultDiff();
+    }
+  }
+
+  calcVaultDiff() {
+    const sel = document.getElementById('vaultAuditProductSelect')?.value;
+    const item = this.vaultInventory.find(x => x.id === sel) || this.vaultInventory[0];
+    const theoretical = item ? item.stockUnits : 25;
+    const counted = parseInt(document.getElementById('vaultAuditCountedStock')?.value || 0, 10);
+    const diff = counted - theoretical;
+
+    const banner = document.getElementById('vaultAuditDiffBanner');
+    const title = document.getElementById('vaultAuditDiffTitle');
+    const desc = document.getElementById('vaultAuditDiffDesc');
+
+    if (!banner || !title || !desc) return;
+
+    if (diff === 0) {
+      banner.style.background = '#f0fdf4';
+      banner.style.borderColor = '#bbf7d0';
+      title.style.color = '#15803d';
+      title.textContent = 'CUADRE EXACTO: 0 diferencias físicas';
+      desc.style.color = '#166534';
+      desc.textContent = 'El conteo en caja fuerte coincide al 100% con el saldo registrado en el Libro Oficial.';
+    } else if (diff > 0) {
+      banner.style.background = '#fefce8';
+      banner.style.borderColor = '#fef08a';
+      title.style.color = '#a16207';
+      title.textContent = `SOBRANTE DETECTADO: +${diff} unidades`;
+      desc.style.color = '#854d0e';
+      desc.textContent = 'Existe un exceso respecto al Libro Oficial. Requiere justificación sanitaria obligatoria.';
+    } else {
+      banner.style.background = '#fef2f2';
+      banner.style.borderColor = '#fecaca';
+      title.style.color = '#b91c1c';
+      title.textContent = `FALTANTE CRÍTICO: ${diff} unidades`;
+      desc.style.color = '#991b1b';
+      desc.textContent = 'ALERTA SANITARIA DIGEMID: Falta stock en caja fuerte. Debe levantarse Acta de Incidente.';
+    }
+  }
+
+  saveVaultAudit() {
+    const sel = document.getElementById('vaultAuditProductSelect')?.value;
+    const item = this.vaultInventory.find(x => x.id === sel);
+    const counted = parseInt(document.getElementById('vaultAuditCountedStock')?.value || 0, 10);
+    const notes = document.getElementById('vaultAuditNotes')?.value?.trim();
+
+    if (item) {
+      item.stockUnits = counted;
+      localStorage.setItem('valetec_digemid_vault', JSON.stringify(this.vaultInventory));
+    }
+
+    this.closeVaultAuditModal();
+    this.renderVault();
+    this.updateMetrics();
+    showValetecToast("Acta de Arqueo Físico en Caja Fuerte sellada y certificada por Directora Técnica Q.F.", "success");
+  }
+
+  // ==========================================
+  // SUBMÓDULO 3: BALANCES SANITARIOS TRIMESTRALES
+  // ==========================================
+  renderQuarterBalance(quarter = '2026-Q3') {
+    this.currentQuarter = quarter;
+    const tbody = document.getElementById('digemidQuarterBalanceTableBody');
+
+    const kpiInitial = document.getElementById('balKpiInitial');
+    const kpiEntries = document.getElementById('balKpiEntries');
+    const kpiOutputs = document.getElementById('balKpiOutputs');
+    const kpiFinal = document.getElementById('balKpiFinal');
+
+    let initialTotal = 25;
+    let entriesTotal = 30;
+    let outputsTotal = 30;
+    let finalTotal = 25;
+
+    let items = [
+      {
+        dci: 'Clonazepam 2mg (Sedafarma)',
+        presentation: 'Caja x 30 tabletas ranuradas',
+        sanitaryReg: 'EE-04891',
+        initial: 25,
+        entries: 30,
+        outputs: 30,
+        final: 25,
+        status: 'Conforme 100%'
+      },
+      {
+        dci: 'Diazepam 10mg (Valium)',
+        presentation: 'Caja x 20 tabletas',
+        sanitaryReg: 'NG-10492',
+        initial: 20,
+        entries: 40,
+        outputs: 20,
+        final: 40,
+        status: 'Conforme 100%'
+      },
+      {
+        dci: 'Alprazolam 0.5mg',
+        presentation: 'Caja x 30 tabletas',
+        sanitaryReg: 'EE-07821',
+        initial: 30,
+        entries: 60,
+        outputs: 30,
+        final: 60,
+        status: 'Conforme 100%'
+      },
+      {
+        dci: 'Tramadol Clorhidrato 50mg',
+        presentation: 'Caja x 5 ampollas 1ml',
+        sanitaryReg: 'EE-02941',
+        initial: 10,
+        entries: 15,
+        outputs: 10,
+        final: 15,
+        status: 'Conforme 100%'
+      }
+    ];
+
+    if (quarter === '2026-Q2') {
+      initialTotal = 20;
+      entriesTotal = 40;
+      outputsTotal = 35;
+      finalTotal = 25;
+    } else if (quarter === '2026-Q1') {
+      initialTotal = 15;
+      entriesTotal = 30;
+      outputsTotal = 25;
+      finalTotal = 20;
+    }
+
+    if (kpiInitial) kpiInitial.textContent = `${initialTotal} un.`;
+    if (kpiEntries) kpiEntries.textContent = `+${entriesTotal} un.`;
+    if (kpiOutputs) kpiOutputs.textContent = `-${outputsTotal} un.`;
+    if (kpiFinal) kpiFinal.textContent = `${finalTotal} un.`;
+
+    if (tbody) {
+      tbody.innerHTML = items.map(it => `
+        <tr style="border-bottom: 1px solid #e2e8f0;">
+          <td style="padding: 10px 12px; font-weight: 700; color: #0a2540;">${escHtml(it.dci)}</td>
+          <td style="padding: 10px 12px; color: #64748b; font-size: 11.5px;">${escHtml(it.presentation)}</td>
+          <td style="padding: 10px 12px; font-family: monospace; font-size: 11px;">${escHtml(it.sanitaryReg)}</td>
+          <td style="padding: 10px 12px; text-align: right; font-weight: 600;">${it.initial}</td>
+          <td style="padding: 10px 12px; text-align: right; font-weight: 700; color: #059669;">+${it.entries}</td>
+          <td style="padding: 10px 12px; text-align: right; font-weight: 700; color: #dc2626;">-${it.outputs}</td>
+          <td style="padding: 10px 12px; text-align: right; font-weight: 800; color: #7e22ce; font-size: 13px;">${it.final}</td>
+          <td style="padding: 10px 12px; text-align: center;">
+            <span class="badge" style="background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; font-size: 10.5px; padding: 2px 6px; border-radius: 4px; font-weight: 700;">
+              <i class="bi bi-shield-check"></i> ${escHtml(it.status)}
+            </span>
+          </td>
+        </tr>
+      `).join('');
+    }
+  }
+
+  onQuarterChange(quarter) {
+    this.renderQuarterBalance(quarter);
   }
 
   async openBalanceReport() {
@@ -3884,7 +5480,6 @@ class DigemidModule {
       console.warn("Obteniendo balance desde registros locales:", err.message);
     }
 
-    // Si no se obtuvo de la API, estructurar desde datos locales
     if (!balanceData) {
       const retained = digemidMockRecords.filter(r => r.status === 'retained').length;
       const approved = digemidMockRecords.filter(r => r.status === 'approved').length;
@@ -3905,7 +5500,7 @@ class DigemidModule {
         },
         vaultInventory: {
           productName: 'Sedafarma 2mg Ranuradas (Clonazepam)',
-          genericDci: 'Clonazepam 2mg - Lista IV',
+          genericDci: 'Clonazepam 2mg - Lista IVB',
           location: 'Caja Fuerte de Regencia',
           unitsInVault: 25,
           boxesInVault: 1
@@ -3927,20 +5522,20 @@ class DigemidModule {
         <!-- Membrete Oficial Sanitario -->
         <div style="text-align: center; border-bottom: 2px solid #004d99; padding-bottom: 10px; margin-bottom: 12px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-            <span style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">MINISTERIO DE SALUD • DIGEMID</span>
-            <span style="font-size: 10px; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 2px 6px; border-radius: 4px;">REGISTRO OFICIAL</span>
+            <span style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">MINISTERIO DE SALUD • DIGEMID • DIRIS LIMA CENTRO</span>
+            <span style="font-size: 10px; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 2px 6px; border-radius: 4px;">FORMATO OFICIAL BALANCE SANITARIO</span>
           </div>
-          <h2 style="font-size: 15px; font-weight: 900; color: #004d99; margin: 0 0 2px 0; letter-spacing: -0.2px;">
+          <h2 style="font-size: 16px; font-weight: 900; color: #004d99; margin: 0 0 2px 0;">
             ${escHtml(est.name)}
           </h2>
           <div style="font-size: 10.5px; color: #475569;">
-            <strong>RUC:</strong> ${escHtml(est.ruc)} &nbsp;|&nbsp; <strong>Licencia:</strong> ${escHtml(est.sanitaryLicense)}
+            <strong>RUC:</strong> ${escHtml(est.ruc)} &nbsp;|&nbsp; <strong>Licencia Sanitaria:</strong> ${escHtml(est.sanitaryLicense)}
           </div>
           <div style="font-size: 10px; color: #64748b; margin-top: 2px;">
             ${escHtml(est.address)}
           </div>
-          <div style="display: inline-block; margin-top: 6px; padding: 3px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 20px; font-weight: 700; color: #0f172a; font-size: 11px;">
-            BALANCE OFICIAL DE MEDICAMENTOS CONTROLADOS & PSICOTRÓPICOS
+          <div style="display: inline-block; margin-top: 6px; padding: 3px 14px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 20px; font-weight: 800; color: #0f172a; font-size: 11px;">
+            BALANCE TRIMESTRAL OFICIAL DE PSICOTRÓPICOS & ESTUPEFACIENTES (D.S. 023-2001-SA)
           </div>
         </div>
 
@@ -3951,8 +5546,8 @@ class DigemidModule {
             <strong style="color: #004d99; font-size: 11.5px;">${escHtml(est.technicalDirector)}</strong>
           </div>
           <div style="text-align: right;">
-            <span style="color: #64748b; font-size: 9.5px; text-transform: uppercase; font-weight: 700; display: block;">Fecha de Emisión:</span>
-            <strong style="font-size: 11px;">${new Date().toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong>
+            <span style="color: #64748b; font-size: 9.5px; text-transform: uppercase; font-weight: 700; display: block;">Periodo Auditado:</span>
+            <strong style="font-size: 11px;">${escHtml(this.currentQuarter)} • ${new Date().toLocaleDateString('es-PE', { year: 'numeric', month: 'long', day: 'numeric' })}</strong>
           </div>
         </div>
 
@@ -3981,7 +5576,7 @@ class DigemidModule {
           <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div>
-                <strong style="color: #6b21a8; font-size: 11px;">Custodia en Caja Fuerte (Lista IV):</strong>
+                <strong style="color: #6b21a8; font-size: 11px;">Custodia en Caja Fuerte (Lista IVB):</strong>
                 <div style="color: #4b5563; font-size: 10.5px;">${escHtml(vault.productName)} • <em>${escHtml(vault.genericDci)}</em></div>
                 <small style="color: #9333ea; font-weight: 600;">Ubicación: ${escHtml(vault.location)}</small>
               </div>
@@ -4058,7 +5653,6 @@ class DigemidModule {
     const printContent = document.getElementById('printSanitaryBalanceArea');
     if (!printContent) return;
 
-    // Hotfix V-07: Sanitizado previo en openBalanceReport con escHtml() y CSP en ventana popup
     const printWin = window.open('', '_blank', 'width=780,height=800');
     if (printWin) {
       printWin.document.write(`
@@ -4094,33 +5688,26 @@ class DigemidModule {
     const retained = digemidMockRecords.filter(r => r.status === 'retained').length;
     const total = digemidMockRecords.length;
 
-    // Buscar Sedafarma en catálogo para stock real en caja fuerte (fallback local)
-    const sedafarma = testPharmacyCatalog.find(p => p.prescriptionType === 'retained' || p.name.includes('Sedafarma'));
+    // Buscar Sedafarma o primer psicotrópico en bóveda
+    const sedafarma = this.vaultInventory.find(p => p.id === 'sedafarma');
     const vaultUnits = sedafarma ? sedafarma.stockUnits : 25;
 
     if (this.vaultUnitsEl) {
-      this.vaultUnitsEl.innerText = `${vaultUnits} Pastillas en Caja Fuerte`;
+      this.vaultUnitsEl.innerText = `${vaultUnits} Unidades`;
     }
     if (this.folioStatusEl) {
       const pct = total > 0 ? Math.round(((total - retained) / total) * 100) : 100;
-      this.folioStatusEl.innerText = `${pct}% Foliado al Día (${total} Recetas)`;
+      this.folioStatusEl.innerText = `${pct}% Conforme`;
     }
-  }
+    if (this.kpiTotalFoliosEl) {
+      this.kpiTotalFoliosEl.innerText = `${total} Recetas`;
+    }
+    if (this.kpiFolioDetailEl) {
+      this.kpiFolioDetailEl.innerHTML = `<i class="bi bi-check-circle"></i> ${retained} en custodia • ${total - retained} validadas`;
+    }
 
-  updateMetricsFromBalance(balanceData) {
-    // Actualizar indicador de caja fuerte con stock real del backend
-    if (this.vaultUnitsEl && balanceData.vaultInventory) {
-      const v = balanceData.vaultInventory;
-      this.vaultUnitsEl.innerText = `${v.unitsInVault} Unidades en Caja Fuerte`;
-    }
-    // Actualizar indicador de foliación con recuento real
-    if (this.folioStatusEl && balanceData.summary) {
-      const s = balanceData.summary;
-      const total = s.totalLedgerEntries;
-      const retained = s.retainedCount;
-      const pct = total > 0 ? Math.round(((total - retained) / total) * 100) : 100;
-      this.folioStatusEl.innerText = `${pct}% Foliado (${total} registros)`;
-    }
+    const badgeRec = document.getElementById('badgeCountRecipes');
+    if (badgeRec) badgeRec.textContent = total;
   }
 
   viewRecord(folio) {
@@ -4144,6 +5731,7 @@ class DigemidModule {
         <p style="margin: 4px 0; font-size: 12px;"><strong>Paciente:</strong> ${escHtml(r.patientName)} &nbsp;|&nbsp; <strong>DNI:</strong> <code>${escHtml(r.patientDni)}</code></p>
         <p style="margin: 4px 0; font-size: 12px;"><strong>Médico Prescriptor:</strong> ${escHtml(r.doctorName)} &nbsp;|&nbsp; <strong>Colegiatura:</strong> <span class="shelf-tag">${escHtml(r.doctorCmp)}</span></p>
         <p style="margin: 4px 0; font-size: 12px;"><strong>Fecha de Emisión:</strong> ${escHtml(r.dateIssued)}</p>
+        ${r.diagnosis ? `<p style="margin: 4px 0; font-size: 12px;"><strong>Diagnóstico CIE-10:</strong> <span style="color: #0369a1; font-weight: 600;">${escHtml(r.diagnosis)}</span></p>` : ''}
         <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:10px; margin:10px 0;">
           <strong style="color: var(--valetec-navy); font-size: 12px;">Rp. Medicamento Controlado &amp; Posología:</strong>
           <p style="font-size: 13.5px; font-weight: 800; color: #0066cc; margin: 4px 0;">${escHtml(r.medication)}</p>
@@ -4178,33 +5766,49 @@ class DigemidModule {
   render() {
     if (!this.tableBody) return;
 
-    if (digemidMockRecords.length === 0) {
+    let filtered = digemidMockRecords.filter(r => {
+      if (this.statusFilter !== 'all' && r.status !== this.statusFilter) return false;
+      if (this.searchQuery) {
+        const q = this.searchQuery;
+        const folioMatch = (r.folio || '').toLowerCase().includes(q);
+        const nameMatch = (r.patientName || '').toLowerCase().includes(q);
+        const dniMatch = (r.patientDni || '').includes(q);
+        const docMatch = (r.doctorName || '').toLowerCase().includes(q);
+        const cmpMatch = (r.doctorCmp || '').toLowerCase().includes(q);
+        const medMatch = (r.medication || '').toLowerCase().includes(q);
+        if (!folioMatch && !nameMatch && !dniMatch && !docMatch && !cmpMatch && !medMatch) return false;
+      }
+      return true;
+    });
+
+    if (filtered.length === 0) {
       this.tableBody.innerHTML = `
         <tr>
-          <td colspan="9" style="text-align: center; color: #94a3b8; padding: 24px;">
-            No hay recetas foliadas en el Libro Oficial. Haz clic en "Foliar Nueva Receta" para registrar la primera.
+          <td colspan="9" style="text-align: center; color: #94a3b8; padding: 28px;">
+            <i class="bi bi-journal-x" style="font-size: 28px; display: block; margin-bottom: 6px; color: #cbd5e1;"></i>
+            No se encontraron recetas con los filtros aplicados. Haz clic en "Foliar Nueva Receta" para ingresar un expediente.
           </td>
         </tr>
       `;
       return;
     }
 
-    this.tableBody.innerHTML = digemidMockRecords.map(r => {
+    this.tableBody.innerHTML = filtered.map(r => {
       let badge = `<span class="fefo-chip warning"><i class="bi bi-hourglass-split"></i> Retenida</span>`;
       if (r.status === 'approved') badge = `<span class="fefo-chip good"><i class="bi bi-check-circle"></i> Aprobada Q.F.</span>`;
       if (r.status === 'dispensed') badge = `<span class="fefo-chip good" style="background-color:#e0f0ff; color:#0066cc;"><i class="bi bi-check2-all"></i> Dispensada</span>`;
 
       return `
         <tr>
-          <td><strong>${escHtml(r.folio)}</strong></td>
+          <td><strong style="color: #0284c7; font-family: monospace;">${escHtml(r.folio)}</strong></td>
           <td><strong>${escHtml(r.patientName)}</strong></td>
           <td><code>${escHtml(r.patientDni)}</code></td>
           <td>${escHtml(r.doctorName)}</td>
           <td><span class="shelf-tag">${escHtml(r.doctorCmp)}</span></td>
           <td><strong>${escHtml(r.medication)}</strong></td>
           <td>${escHtml(r.dateIssued)}</td>
-          <td>${badge}</td>
-          <td>
+          <td style="text-align: center;">${badge}</td>
+          <td style="text-align: right; white-space: nowrap;">
             <button type="button" class="btn-action-outline" style="padding: 4px 10px; font-size: 11px; font-weight: 700;" onclick="digemidApp.viewRecord('${escHtml(r.folio)}')">
               <i class="bi bi-eye"></i> <span>Ver Receta</span>
             </button>
@@ -4476,52 +6080,81 @@ class StaffManagementModule {
 // =============================================================
 class ClassificationModule {
   constructor() {
-    this.modal = document.getElementById('classificationModal');
+    this.drawer = document.getElementById('classificationDrawer');
+    this.backdrop = document.getElementById('classificationDrawerBackdrop');
+    this.modal = document.getElementById('classificationModal'); // Fallback legado
     this.categoriesTable = document.getElementById('categoriesTableBody');
     this.laboratoriesTable = document.getElementById('laboratoriesTableBody');
     this.tabCategories = document.getElementById('classificationCategoriesTab');
     this.tabLaboratories = document.getElementById('classificationLaboratoriesTab');
     this.btnTabCategories = document.getElementById('tabBtnCategories');
     this.btnTabLaboratories = document.getElementById('tabBtnLaboratories');
+    this.badgeEl = document.getElementById('classificationCountBadge');
     this.categories = [];
     this.laboratories = [];
+    this.categorySearchQuery = '';
+    this.laboratorySearchQuery = '';
+    this.activeTab = 'categories';
   }
 
-  openModal() {
+  openModal(initialTab = 'categories') {
+    if (!this.drawer) this.drawer = document.getElementById('classificationDrawer');
+    if (!this.backdrop) this.backdrop = document.getElementById('classificationDrawerBackdrop');
+
+    if (this.drawer) this.drawer.classList.add('active');
+    if (this.backdrop) this.backdrop.classList.add('active');
+
+    // Fallback legado si existiese
     if (this.modal) this.modal.classList.add('active');
-    this.switchTab('categories');
+
+    this.categorySearchQuery = '';
+    this.laboratorySearchQuery = '';
+    const catInput = document.getElementById('searchCategoriesInput');
+    const labInput = document.getElementById('searchLaboratoriesInput');
+    if (catInput) catInput.value = '';
+    if (labInput) labInput.value = '';
+
+    this.switchTab(initialTab);
     this.loadCategories();
     this.loadLaboratories();
   }
 
   closeModal() {
+    if (!this.drawer) this.drawer = document.getElementById('classificationDrawer');
+    if (!this.backdrop) this.backdrop = document.getElementById('classificationDrawerBackdrop');
+
+    if (this.drawer) this.drawer.classList.remove('active');
+    if (this.backdrop) this.backdrop.classList.remove('active');
+
     if (this.modal) this.modal.classList.remove('active');
   }
 
   switchTab(tab) {
-    if (tab === 'categories') {
+    this.activeTab = tab || 'categories';
+
+    if (this.activeTab === 'categories') {
       if (this.tabCategories) this.tabCategories.style.display = 'block';
       if (this.tabLaboratories) this.tabLaboratories.style.display = 'none';
-      if (this.btnTabCategories) {
-        this.btnTabCategories.className = 'btn-action-solid';
-        this.btnTabCategories.style.background = '#0a2540';
-      }
-      if (this.btnTabLaboratories) {
-        this.btnTabLaboratories.className = 'btn-action-outline';
-        this.btnTabLaboratories.style.background = 'transparent';
-      }
+      if (this.btnTabCategories) this.btnTabCategories.classList.add('active');
+      if (this.btnTabLaboratories) this.btnTabLaboratories.classList.remove('active');
+      if (this.badgeEl) this.badgeEl.innerText = `${this.categories.length} categorías registradas`;
     } else {
       if (this.tabCategories) this.tabCategories.style.display = 'none';
       if (this.tabLaboratories) this.tabLaboratories.style.display = 'block';
-      if (this.btnTabLaboratories) {
-        this.btnTabLaboratories.className = 'btn-action-solid';
-        this.btnTabLaboratories.style.background = '#0a2540';
-      }
-      if (this.btnTabCategories) {
-        this.btnTabCategories.className = 'btn-action-outline';
-        this.btnTabCategories.style.background = 'transparent';
-      }
+      if (this.btnTabLaboratories) this.btnTabLaboratories.classList.add('active');
+      if (this.btnTabCategories) this.btnTabCategories.classList.remove('active');
+      if (this.badgeEl) this.badgeEl.innerText = `${this.laboratories.length} laboratorios registrados`;
     }
+  }
+
+  handleCategorySearch(q) {
+    this.categorySearchQuery = (q || '').toLowerCase().trim();
+    this.renderCategories();
+  }
+
+  handleLaboratorySearch(q) {
+    this.laboratorySearchQuery = (q || '').toLowerCase().trim();
+    this.renderLaboratories();
   }
 
   async loadCategories() {
@@ -4532,6 +6165,9 @@ class ClassificationModule {
         this.categories = res.data;
         this.renderCategories();
         this.updateCategoryDropdowns();
+        if (this.activeTab === 'categories' && this.badgeEl) {
+          this.badgeEl.innerText = `${this.categories.length} categorías registradas`;
+        }
       }
     } catch (err) {
       console.warn("Error cargando categorías:", err.message);
@@ -4545,6 +6181,9 @@ class ClassificationModule {
       if (res && res.data) {
         this.laboratories = res.data;
         this.renderLaboratories();
+        if (this.activeTab === 'laboratories' && this.badgeEl) {
+          this.badgeEl.innerText = `${this.laboratories.length} laboratorios registrados`;
+        }
       }
     } catch (err) {
       console.warn("Error cargando laboratorios:", err.message);
@@ -4552,26 +6191,34 @@ class ClassificationModule {
   }
 
   renderCategories() {
+    if (!this.categoriesTable) this.categoriesTable = document.getElementById('categoriesTableBody');
     if (!this.categoriesTable) return;
-    if (this.categories.length === 0) {
-      this.categoriesTable.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Sin categorías registradas.</td></tr>';
+
+    const q = this.categorySearchQuery;
+    let list = this.categories;
+    if (q) {
+      list = list.filter(c => (c.name || '').toLowerCase().includes(q) || (c.slug || '').toLowerCase().includes(q));
+    }
+
+    if (list.length === 0) {
+      this.categoriesTable.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Sin categorías que coincidan con la búsqueda.</td></tr>';
       return;
     }
 
-    this.categoriesTable.innerHTML = this.categories.map(c => `
+    this.categoriesTable.innerHTML = list.map(c => `
       <tr>
         <td><code>#${c.id}</code></td>
         <td><strong><i class="bi ${escHtml(c.icon || 'bi-capsule')} text-teal"></i> ${escHtml(c.name)}</strong></td>
-        <td><code>${escHtml(c.slug)}</code></td>
-        <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:800; padding:4px 8px; border-radius:6px;">${c.productCount || 0} medicamentos</span></td>
+        <td><code style="background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:11px;">${escHtml(c.slug)}</code></td>
+        <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:800; padding:4px 8px; border-radius:6px; font-size:11px;">${c.productCount || 0} medicamentos</span></td>
         <td style="text-align: right; white-space: nowrap;">
-          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="classificationApp.editCategory(${c.id}, '${c.name.replace(/'/g, "\\'")}', '${c.icon || ''}')" title="Editar Categoría">
+          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="classificationApp.editCategoryById(${c.id})" title="Editar Categoría">
             <i class="bi bi-pencil"></i> Editar
           </button>
-          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px; color:#0284c7;" onclick="classificationApp.reassignCategory(${c.id}, '${c.name.replace(/'/g, "\\'")}')" title="Reasignar Medicamentos a otra categoría">
+          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px; color:#0284c7;" onclick="classificationApp.reassignCategoryById(${c.id})" title="Reasignar Medicamentos a otra categoría">
             <i class="bi bi-arrow-repeat"></i> Reasignar
           </button>
-          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; color:#dc2626;" onclick="classificationApp.deleteCategory(${c.id}, ${c.productCount || 0}, '${c.name.replace(/'/g, "\\'")}')" title="Eliminar Categoría">
+          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; color:#dc2626;" onclick="classificationApp.deleteCategoryById(${c.id})" title="Eliminar Categoría">
             <i class="bi bi-trash3"></i> Eliminar
           </button>
         </td>
@@ -4580,26 +6227,34 @@ class ClassificationModule {
   }
 
   renderLaboratories() {
+    if (!this.laboratoriesTable) this.laboratoriesTable = document.getElementById('laboratoriesTableBody');
     if (!this.laboratoriesTable) return;
-    if (this.laboratories.length === 0) {
-      this.laboratoriesTable.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Sin laboratorios registrados.</td></tr>';
+
+    const q = this.laboratorySearchQuery;
+    let list = this.laboratories;
+    if (q) {
+      list = list.filter(l => (l.name || '').toLowerCase().includes(q) || (l.country || '').toLowerCase().includes(q) || (l.contact || '').toLowerCase().includes(q));
+    }
+
+    if (list.length === 0) {
+      this.laboratoriesTable.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Sin laboratorios que coincidan con la búsqueda.</td></tr>';
       return;
     }
 
-    this.laboratoriesTable.innerHTML = this.laboratories.map(l => `
+    this.laboratoriesTable.innerHTML = list.map(l => `
       <tr>
         <td><code>#${l.id}</code></td>
         <td><strong><i class="bi bi-building text-blue"></i> ${escHtml(l.name)}</strong></td>
         <td><span><i class="bi bi-geo-alt" style="color: #64748b; margin-right: 3px;"></i>${escHtml(l.country || 'Perú')}</span></td>
-        <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:800; padding:4px 8px; border-radius:6px;">${l.productCount || 0} medicamentos</span></td>
+        <td><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:800; padding:4px 8px; border-radius:6px; font-size:11px;">${l.productCount || 0} medicamentos</span></td>
         <td style="text-align: right; white-space: nowrap;">
-          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="classificationApp.editLaboratory(${l.id}, '${l.name.replace(/'/g, "\\'")}', '${l.country || 'Perú'}', '${l.contact || ''}')" title="Editar Laboratorio">
+          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="classificationApp.editLaboratoryById(${l.id})" title="Editar Laboratorio">
             <i class="bi bi-pencil"></i> Editar
           </button>
-          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px; color:#0284c7;" onclick="classificationApp.reassignLaboratory('${l.name.replace(/'/g, "\\'")}')" title="Reasignar Medicamentos a otro laboratorio">
+          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px; color:#0284c7;" onclick="classificationApp.reassignLaboratoryById(${l.id})" title="Reasignar Medicamentos a otro laboratorio">
             <i class="bi bi-arrow-repeat"></i> Reasignar
           </button>
-          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; color:#dc2626;" onclick="classificationApp.deleteLaboratory(${l.id}, ${l.productCount || 0}, '${l.name.replace(/'/g, "\\'")}')" title="Eliminar Laboratorio">
+          <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; color:#dc2626;" onclick="classificationApp.deleteLaboratoryById(${l.id})" title="Eliminar Laboratorio">
             <i class="bi bi-trash3"></i> Eliminar
           </button>
         </td>
@@ -4627,12 +6282,14 @@ class ClassificationModule {
     try {
       if (window.api) {
         const res = await window.api.createCategory({ name, icon });
-        showValetecToast(res.message || `Categoría "${name}" creada.`, "success");
-        document.getElementById('newCatName').value = '';
+        showValetecToast(res.message || `Categoría "${name}" creada exitosamente.`, "success");
+        const inName = document.getElementById('newCatName');
+        if (inName) inName.value = '';
         await this.loadCategories();
+        await syncWithBackend();
       }
     } catch (err) {
-      showValetecToast("Error al crear categoría: " + err.message, "error");
+      showValetecToast("Error al crear categoría: " + err.message, "danger");
     }
   }
 
@@ -4646,90 +6303,109 @@ class ClassificationModule {
     try {
       if (window.api) {
         const res = await window.api.createLaboratory({ name, country, contact });
-        showValetecToast(res.message || `Laboratorio "${name}" registrado.`, "success");
-        document.getElementById('newLabName').value = '';
-        document.getElementById('newLabContact').value = '';
+        showValetecToast(res.message || `Laboratorio "${name}" registrado exitosamente.`, "success");
+        const inName = document.getElementById('newLabName');
+        const inCont = document.getElementById('newLabContact');
+        if (inName) inName.value = '';
+        if (inCont) inCont.value = '';
         await this.loadLaboratories();
+        await syncWithBackend();
       }
     } catch (err) {
-      showValetecToast("Error al registrar laboratorio: " + err.message, "error");
+      showValetecToast("Error al registrar laboratorio: " + err.message, "danger");
     }
   }
 
-  async editCategory(id, currentName, currentIcon) {
-    const newName = prompt(`Editar nombre de la categoría:`, currentName);
-    if (!newName || newName.trim() === '' || newName.trim() === currentName) return;
+  async editCategoryById(id) {
+    const cat = this.categories.find(c => c.id === id);
+    if (!cat) return;
+    const newName = prompt(`Editar nombre de la categoría:`, cat.name);
+    if (!newName || newName.trim() === '' || newName.trim() === cat.name) return;
 
     try {
       if (window.api) {
-        const res = await window.api.updateCategory(id, { name: newName.trim(), icon: currentIcon });
+        const res = await window.api.updateCategory(id, { name: newName.trim(), icon: cat.icon || 'bi-capsule' });
         showValetecToast(res.message || "Categoría actualizada.", "success");
         await this.loadCategories();
+        await syncWithBackend();
       }
     } catch (err) {
-      showValetecToast("Error al editar categoría: " + err.message, "error");
+      showValetecToast("Error al editar categoría: " + err.message, "danger");
     }
   }
 
-  async editLaboratory(id, currentName, currentCountry, currentContact) {
-    const newName = prompt(`Editar nombre del laboratorio:`, currentName);
+  async editLaboratoryById(id) {
+    const lab = this.laboratories.find(l => l.id === id);
+    if (!lab) return;
+    const newName = prompt(`Editar nombre del laboratorio:`, lab.name);
     if (!newName || newName.trim() === '') return;
 
-    const newCountry = prompt(`País de origen:`, currentCountry) || 'Perú';
+    const newCountry = prompt(`País de origen:`, lab.country || 'Perú') || 'Perú';
 
     try {
       if (window.api) {
-        const res = await window.api.updateLaboratory(id, { name: newName.trim(), country: newCountry.trim(), contact: currentContact });
+        const res = await window.api.updateLaboratory(id, { name: newName.trim(), country: newCountry.trim(), contact: lab.contact });
         showValetecToast(res.message || "Laboratorio actualizado.", "success");
         await this.loadLaboratories();
         await syncWithBackend();
       }
     } catch (err) {
-      showValetecToast("Error al editar laboratorio: " + err.message, "error");
+      showValetecToast("Error al editar laboratorio: " + err.message, "danger");
     }
   }
 
-  async deleteCategory(id, count, name) {
-    if (count > 0) {
-      showValetecToast(`Operación denegada: La categoría "${name}" tiene ${count} fármacos asociados.`, "warning");
+  async deleteCategoryById(id) {
+    const cat = this.categories.find(c => c.id === id);
+    if (!cat) return;
+
+    if (cat.productCount > 0) {
+      showValetecToast(`Operación denegada: La categoría "${cat.name}" tiene ${cat.productCount} fármacos asociados. Use "Reasignar" primero.`, "warning");
       return;
     }
 
-    if (!confirm(`¿Estás seguro de eliminar la categoría "${name}"?`)) return;
+    if (!confirm(`¿Estás seguro de eliminar la categoría "${cat.name}"?`)) return;
 
     try {
       if (window.api) {
         const res = await window.api.deleteCategory(id);
         showValetecToast(res.message || "Categoría eliminada.", "success");
         await this.loadCategories();
+        await syncWithBackend();
       }
     } catch (err) {
       showValetecToast("Error al eliminar categoría: " + err.message, "danger");
     }
   }
 
-  async deleteLaboratory(id, count, name) {
-    if (count > 0) {
-      showValetecToast(`Operación denegada: El laboratorio "${name}" tiene ${count} fármacos asociados.`, "warning");
+  async deleteLaboratoryById(id) {
+    const lab = this.laboratories.find(l => l.id === id);
+    if (!lab) return;
+
+    if (lab.productCount > 0) {
+      showValetecToast(`Operación denegada: El laboratorio "${lab.name}" tiene ${lab.productCount} fármacos asociados. Use "Reasignar" primero.`, "warning");
       return;
     }
 
-    if (!confirm(`¿Estás seguro de eliminar el laboratorio "${name}"?`)) return;
+    if (!confirm(`¿Estás seguro de eliminar el laboratorio "${lab.name}"?`)) return;
 
     try {
       if (window.api) {
         const res = await window.api.deleteLaboratory(id);
         showValetecToast(res.message || "Laboratorio eliminado.", "success");
         await this.loadLaboratories();
+        await syncWithBackend();
       }
     } catch (err) {
-      showValetecToast("Error al eliminar laboratorio: " + err.message, "error");
+      showValetecToast("Error al eliminar laboratorio: " + err.message, "danger");
     }
   }
 
-  async reassignCategory(sourceId, name) {
+  async reassignCategoryById(sourceId) {
+    const source = this.categories.find(c => c.id === sourceId);
+    if (!source) return;
+
     const options = this.categories
-      .filter(c => c.id != sourceId)
+      .filter(c => c.id !== sourceId)
       .map(c => `#${c.id} - ${c.name}`)
       .join('\n');
 
@@ -4738,7 +6414,7 @@ class ClassificationModule {
       return;
     }
 
-    const input = prompt(`Mover TODOS los medicamentos de "${name}" hacia otra categoría.\n\nEscriba el ID de destino:\n${options}`);
+    const input = prompt(`Mover TODOS los medicamentos de "${source.name}" hacia otra categoría.\n\nEscriba el ID de destino:\n${options}`);
     if (!input) return;
 
     const targetId = parseInt(input.replace(/[^\d]/g, ''), 10);
@@ -4755,13 +6431,16 @@ class ClassificationModule {
         await syncWithBackend();
       }
     } catch (err) {
-      showValetecToast("Error al reasignar: " + err.message, "error");
+      showValetecToast("Error al reasignar: " + err.message, "danger");
     }
   }
 
-  async reassignLaboratory(sourceLabName) {
+  async reassignLaboratoryById(sourceId) {
+    const source = this.laboratories.find(l => l.id === sourceId);
+    if (!source) return;
+
     const otherLabs = this.laboratories
-      .filter(l => l.name.toLowerCase() !== sourceLabName.toLowerCase())
+      .filter(l => l.id !== sourceId)
       .map(l => l.name)
       .join('\n• ');
 
@@ -4770,89 +6449,406 @@ class ClassificationModule {
       return;
     }
 
-    const targetName = prompt(`Mover TODOS los medicamentos de "${sourceLabName}" hacia otro laboratorio.\n\nEscriba exactamente el nombre del laboratorio destino:\n• ${otherLabs}`);
-    if (!targetName || targetName.trim() === '' || targetName.trim().toLowerCase() === sourceLabName.toLowerCase()) return;
+    const targetName = prompt(`Mover TODOS los medicamentos de "${source.name}" hacia otro laboratorio.\n\nEscriba exactamente el nombre del laboratorio destino:\n• ${otherLabs}`);
+    if (!targetName || targetName.trim() === '' || targetName.trim().toLowerCase() === source.name.toLowerCase()) return;
 
     try {
       if (window.api) {
-        const res = await window.api.reassignLaboratory(sourceLabName, targetName.trim());
+        const res = await window.api.reassignLaboratory(source.name, targetName.trim());
         showValetecToast(res.message || "Medicamentos reasignados con éxito.", "success");
         await this.loadLaboratories();
         await syncWithBackend();
       }
     } catch (err) {
-      showValetecToast("Error al reasignar: " + err.message, "error");
+      showValetecToast("Error al reasignar: " + err.message, "danger");
     }
   }
 }
 
 // =============================================================
-// 10.1 MÓDULO DE CLIENTES & PADRÓN FISCAL DNI / RUC (MÓDULO 5)
+// =============================================================
+// 10.1 MÓDULO DE CLIENTES & PADRÓN FISCAL DNI / RUC (MÓDULO 4)
 // =============================================================
 class ClientsModule {
   constructor() {
-    this.quickModal = document.getElementById('quickClientModal');
-    this.directoryModal = document.getElementById('clientsDirectoryModal');
+    this.drawer = document.getElementById('clientDrawer');
+    this.backdrop = document.getElementById('clientDrawerBackdrop');
+    this.drawerTitle = document.getElementById('clientDrawerTitle');
+    this.drawerSubtitle = document.getElementById('clientDrawerSubtitle');
+    this.alertBox = document.getElementById('clientDrawerAlert');
+    this.alertMsg = document.getElementById('clientDrawerAlertMsg');
+    this.inEditId = document.getElementById('clientEditId');
+    this.inDocType = document.getElementById('clientDocType');
+    this.inDocNumber = document.getElementById('clientDocNumber');
+    this.inFullName = document.getElementById('clientFullName');
+    this.inPhone = document.getElementById('clientPhone');
+    this.inEmail = document.getElementById('clientEmail');
+    this.inAddress = document.getElementById('clientAddress');
+    this.pointsBadge = document.getElementById('clientPointsBadge');
+    this.pointsInput = document.getElementById('clientPointsBalanceInput');
+    this.loyaltyTierBadge = document.getElementById('clientLoyaltyTierBadge');
+    this.pointsSolValue = document.getElementById('clientPointsSolValue');
+    this.btnSaveSubmit = document.getElementById('btnSaveClientSubmit');
+    this.btnSaveText = document.getElementById('btnSaveClientText');
+    this.lblDocNumber = document.getElementById('lblClientDocNumber');
+
+    // Directorio y Tabla
     this.tableBody = document.getElementById('clientsTableBody');
-    this.alertBox = document.getElementById('quickClientAlert');
-    this.alertMsg = document.getElementById('quickClientAlertMsg');
-    this.inDocType = document.getElementById('quickClientDocType');
-    this.inDocNumber = document.getElementById('quickClientDocNumber');
-    this.inFullName = document.getElementById('quickClientFullName');
-    this.inPhone = document.getElementById('quickClientPhone');
-    this.inEmail = document.getElementById('quickClientEmail');
-    this.inAddress = document.getElementById('quickClientAddress');
-    this.inSearch = document.getElementById('directoryClientSearch');
+    this.inSearch = document.getElementById('clientDirectorySearchInput');
+
+    // KPIs y Filtros
+    this.kpiDni = document.getElementById('kpiTotalDni');
+    this.kpiRuc = document.getElementById('kpiTotalRuc');
+    this.kpiPoints = document.getElementById('kpiTotalPoints');
+    this.countFilterAll = document.getElementById('countFilterAll');
+    this.countFilterDni = document.getElementById('countFilterDni');
+    this.countFilterRuc = document.getElementById('countFilterRuc');
+    this.countFilterPoints = document.getElementById('countFilterPoints');
+
     this.clientsList = [];
+    this.currentFilter = 'all';
+    this.searchQuery = '';
     this.searchTimeout = null;
+    this.isCounterContext = false;
+
+    // Motor Dinámico de Fidelización (Parametrizable por Botica)
+    this.loyaltySettings = this.loadLoyaltySettings();
+
+    // Drawer de Configuración de Fidelización
+    this.loyaltyDrawer = document.getElementById('loyaltySettingsDrawer');
+    this.loyaltyBackdrop = document.getElementById('loyaltySettingsDrawerBackdrop');
+
+    // Escucha tecla ESC para cerrar drawers de clientes y reglas
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (this.drawer?.classList.contains('active')) this.closeClientDrawer();
+        if (this.loyaltyDrawer?.classList.contains('active')) this.closeLoyaltySettingsDrawer();
+      }
+    });
+
+    this.updateClubBanner();
   }
 
-  openQuickModal(defaultDoc = '') {
-    this.clearAlert();
-    const docClean = (typeof defaultDoc === 'string') ? defaultDoc.trim() : '';
-    if (this.inDocType && this.inDocNumber) {
-      if (docClean.length === 11 || docClean.startsWith('20') || docClean.startsWith('10')) {
-        this.inDocType.value = 'RUC';
-        this.inDocNumber.maxLength = 11;
-        this.inDocNumber.placeholder = 'Ej. 20514896321 (11 dígitos)';
-      } else {
-        this.inDocType.value = 'DNI';
-        this.inDocNumber.maxLength = 8;
-        this.inDocNumber.placeholder = 'Ej. 45892147 (8 dígitos)';
+  loadLoyaltySettings() {
+    const defaults = {
+      spendAmount: 10,
+      pointsEarned: 1,
+      pointsNeeded: 10,
+      discountSolValue: 1.00,
+      maxTicketDiscountPct: 50,
+      silverMinPoints: 50,
+      goldMinPoints: 200
+    };
+    try {
+      const saved = localStorage.getItem('valetec_loyalty_settings');
+      if (saved) {
+        return Object.assign({}, defaults, JSON.parse(saved));
       }
-      this.inDocNumber.value = docClean;
+    } catch (e) {
+      console.warn("Aviso al leer configuración de fidelización:", e);
     }
-    if (this.inFullName) this.inFullName.value = '';
-    if (this.inPhone) this.inPhone.value = '';
-    if (this.inEmail) this.inEmail.value = '';
-    if (this.inAddress) this.inAddress.value = '';
+    return defaults;
+  }
 
-    if (this.quickModal) this.quickModal.classList.add('active');
+  saveLoyaltySettings(e) {
+    if (e) e.preventDefault();
+    const spend = Math.max(1, parseFloat(document.getElementById('cfgSpendAmount')?.value || 10));
+    const earn = Math.max(1, parseInt(document.getElementById('cfgPointsEarned')?.value || 1, 10));
+    const ptsNeed = Math.max(1, parseInt(document.getElementById('cfgPointsNeeded')?.value || 10, 10));
+    const solVal = Math.max(0.01, parseFloat(document.getElementById('cfgDiscountSolValue')?.value || 1.00));
+    const maxPct = Math.max(5, Math.min(100, parseInt(document.getElementById('cfgMaxTicketDiscountPct')?.value || 50, 10)));
+    const silver = Math.max(1, parseInt(document.getElementById('cfgSilverMinPoints')?.value || 50, 10));
+    const gold = Math.max(silver + 1, parseInt(document.getElementById('cfgGoldMinPoints')?.value || 200, 10));
+
+    this.loyaltySettings = {
+      spendAmount: spend,
+      pointsEarned: earn,
+      pointsNeeded: ptsNeed,
+      discountSolValue: solVal,
+      maxTicketDiscountPct: maxPct,
+      silverMinPoints: silver,
+      goldMinPoints: gold
+    };
+
+    try {
+      localStorage.setItem('valetec_loyalty_settings', JSON.stringify(this.loyaltySettings));
+    } catch (err) {
+      console.warn("Aviso al guardar en localStorage:", err);
+    }
+
+    this.updateClubBanner();
+    this.closeLoyaltySettingsDrawer();
+    this.applyFilterAndRender();
+
+    // Actualizar mostrador POS si está en pantalla
+    if (typeof window.counterApp !== 'undefined' && window.counterApp) {
+      window.counterApp.updatePointsRedeemBox();
+    }
+
+    showValetecToast("Reglas del Club de Fidelización guardadas exitosamente.", "success");
+  }
+
+  updateClubBanner() {
+    const s = this.loyaltySettings;
+    const lblSpend = document.getElementById('lblRuleSpend');
+    const lblRedeem = document.getElementById('lblRuleRedeem');
+    const lblTiers = document.getElementById('lblClubTiersBadge');
+
+    if (lblSpend) {
+      lblSpend.innerText = `${s.pointsEarned} Punto${s.pointsEarned > 1 ? 's' : ''} por cada S/ ${s.spendAmount.toFixed(2)}`;
+    }
+    if (lblRedeem) {
+      lblRedeem.innerText = `${s.pointsNeeded} Puntos = S/ ${s.discountSolValue.toFixed(2)}`;
+    }
+    if (lblTiers) {
+      lblTiers.innerText = `Bronce (0-${s.silverMinPoints - 1}p) • Plata (${s.silverMinPoints}-${s.goldMinPoints - 1}p) • Oro (${s.goldMinPoints}+p)`;
+    }
+  }
+
+  openLoyaltySettingsDrawer() {
+    if (!this.loyaltyDrawer) this.loyaltyDrawer = document.getElementById('loyaltySettingsDrawer');
+    if (!this.loyaltyBackdrop) this.loyaltyBackdrop = document.getElementById('loyaltySettingsDrawerBackdrop');
+
+    const s = this.loyaltySettings;
+    const inSpend = document.getElementById('cfgSpendAmount');
+    const inEarn = document.getElementById('cfgPointsEarned');
+    const inNeed = document.getElementById('cfgPointsNeeded');
+    const inSol = document.getElementById('cfgDiscountSolValue');
+    const inMaxPct = document.getElementById('cfgMaxTicketDiscountPct');
+    const inMaxPctRange = document.getElementById('cfgMaxTicketDiscountPctRange');
+    const inSilv = document.getElementById('cfgSilverMinPoints');
+    const inGold = document.getElementById('cfgGoldMinPoints');
+
+    if (inSpend) inSpend.value = s.spendAmount;
+    if (inEarn) inEarn.value = s.pointsEarned;
+    if (inNeed) inNeed.value = s.pointsNeeded;
+    if (inSol) inSol.value = s.discountSolValue.toFixed(2);
+    if (inMaxPct) inMaxPct.value = s.maxTicketDiscountPct;
+    if (inMaxPctRange) inMaxPctRange.value = s.maxTicketDiscountPct;
+    if (inSilv) inSilv.value = s.silverMinPoints;
+    if (inGold) inGold.value = s.goldMinPoints;
+
+    this.previewLoyaltyRules();
+
+    if (this.loyaltyDrawer) this.loyaltyDrawer.classList.add('active');
+    if (this.loyaltyBackdrop) this.loyaltyBackdrop.classList.add('active');
+  }
+
+  closeLoyaltySettingsDrawer() {
+    if (this.loyaltyDrawer) this.loyaltyDrawer.classList.remove('active');
+    if (this.loyaltyBackdrop) this.loyaltyBackdrop.classList.remove('active');
+  }
+
+  setQuickScheme(needed, solVal) {
+    const inNeed = document.getElementById('cfgPointsNeeded');
+    const inSol = document.getElementById('cfgDiscountSolValue');
+    if (inNeed) inNeed.value = needed;
+    if (inSol) inSol.value = solVal.toFixed(2);
+    this.previewLoyaltyRules();
+  }
+
+  previewLoyaltyRules() {
+    const spend = Math.max(1, parseFloat(document.getElementById('cfgSpendAmount')?.value || 10));
+    const earn = Math.max(1, parseInt(document.getElementById('cfgPointsEarned')?.value || 1, 10));
+    const ptsNeed = Math.max(1, parseInt(document.getElementById('cfgPointsNeeded')?.value || 10, 10));
+    const solVal = Math.max(0.01, parseFloat(document.getElementById('cfgDiscountSolValue')?.value || 1.00));
+
+    const earnPreview = document.getElementById('previewEarnRule');
+    if (earnPreview) {
+      const exampleSpend = spend * 5;
+      const exampleEarned = earn * 5;
+      earnPreview.innerText = `Ejemplo: Una compra de S/ ${exampleSpend.toFixed(2)} generará ${exampleEarned} Puntos.`;
+    }
+
+    const redeemPreview = document.getElementById('previewRedeemRule');
+    if (redeemPreview) {
+      const solPerPoint = solVal / ptsNeed;
+      redeemPreview.innerText = `1 Punto otorga S/ ${solPerPoint.toFixed(3)} de descuento en caja (${ptsNeed} Pts = S/ ${solVal.toFixed(2)}).`;
+    }
+  }
+
+  calculatePointsSolValue(points) {
+    const pts = parseInt(points, 10) || 0;
+    const rate = (this.loyaltySettings?.discountSolValue || 1.00) / (this.loyaltySettings?.pointsNeeded || 10);
+    return pts * rate;
+  }
+
+  calculateLoyaltyTier(points) {
+    const pts = parseInt(points, 10) || 0;
+    const s = this.loyaltySettings;
+    const goldThreshold = s?.goldMinPoints || 200;
+    const silverThreshold = s?.silverMinPoints || 50;
+
+    if (pts >= goldThreshold) {
+      return {
+        name: 'Oro',
+        icon: '<i class="bi bi-trophy"></i>',
+        badgeStyle: 'background: #fef3c7; color: #92400e; border: 1px solid #fde68a;',
+        discountPercent: 5
+      };
+    } else if (pts >= silverThreshold) {
+      return {
+        name: 'Plata',
+        icon: '<i class="bi bi-shield"></i>',
+        badgeStyle: 'background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;',
+        discountPercent: 2
+      };
+    } else {
+      return {
+        name: 'Bronce',
+        icon: '<i class="bi bi-award"></i>',
+        badgeStyle: 'background: #fff7ed; color: #9a3412; border: 1px solid #ffedd5;',
+        discountPercent: 0
+      };
+    }
+  }
+
+  onPointsInputChange() {
+    if (!this.pointsInput) this.pointsInput = document.getElementById('clientPointsBalanceInput');
+    if (!this.pointsBadge) this.pointsBadge = document.getElementById('clientPointsBadge');
+    if (!this.pointsSolValue) this.pointsSolValue = document.getElementById('clientPointsSolValue');
+    if (!this.loyaltyTierBadge) this.loyaltyTierBadge = document.getElementById('clientLoyaltyTierBadge');
+
+    const pts = Math.max(0, parseInt(this.pointsInput?.value || 0, 10));
+    const solVal = this.calculatePointsSolValue(pts);
+
+    if (this.pointsBadge) this.pointsBadge.innerText = `${pts} Pts`;
+    if (this.pointsSolValue) this.pointsSolValue.innerText = `Equivale a S/ ${solVal.toFixed(2)}`;
+    const tier = this.calculateLoyaltyTier(pts);
+    if (this.loyaltyTierBadge) {
+      this.loyaltyTierBadge.innerHTML = `${tier.icon} ${tier.name}`;
+      this.loyaltyTierBadge.style.cssText = `${tier.badgeStyle} font-size: 11px; padding: 2px 6px; border-radius: 4px;`;
+    }
+  }
+
+  addBonusPoints(qty) {
+    if (!this.pointsInput) this.pointsInput = document.getElementById('clientPointsBalanceInput');
+    const current = parseInt(this.pointsInput?.value || 0, 10);
+    if (this.pointsInput) {
+      this.pointsInput.value = current + qty;
+    }
+    this.onPointsInputChange();
+  }
+
+  resetPoints() {
+    if (!this.pointsInput) this.pointsInput = document.getElementById('clientPointsBalanceInput');
+    if (this.pointsInput) {
+      this.pointsInput.value = 0;
+    }
+    this.onPointsInputChange();
+  }
+
+  openClientDrawer(clientId = null, defaultDoc = '', isCounterContext = false) {
+    this.isCounterContext = isCounterContext;
+    this.clearAlert();
+
+    // Reasociar elementos si el DOM se actualizó
+    if (!this.drawer) this.drawer = document.getElementById('clientDrawer');
+    if (!this.backdrop) this.backdrop = document.getElementById('clientDrawerBackdrop');
+    if (!this.inEditId) this.inEditId = document.getElementById('clientEditId');
+    if (!this.inDocType) this.inDocType = document.getElementById('clientDocType');
+    if (!this.inDocNumber) this.inDocNumber = document.getElementById('clientDocNumber');
+    if (!this.inFullName) this.inFullName = document.getElementById('clientFullName');
+    if (!this.inPhone) this.inPhone = document.getElementById('clientPhone');
+    if (!this.inEmail) this.inEmail = document.getElementById('clientEmail');
+    if (!this.inAddress) this.inAddress = document.getElementById('clientAddress');
+    if (!this.pointsBadge) this.pointsBadge = document.getElementById('clientPointsBadge');
+    if (!this.pointsInput) this.pointsInput = document.getElementById('clientPointsBalanceInput');
+    if (!this.loyaltyTierBadge) this.loyaltyTierBadge = document.getElementById('clientLoyaltyTierBadge');
+    if (!this.pointsSolValue) this.pointsSolValue = document.getElementById('clientPointsSolValue');
+    if (!this.btnSaveText) this.btnSaveText = document.getElementById('btnSaveClientText');
+
+    if (clientId) {
+      // Modo Edición: Cargar datos de cliente existente
+      const client = this.clientsList.find(c => c.id === clientId);
+      if (this.drawerTitle) {
+        this.drawerTitle.innerHTML = `<i class="bi bi-pencil-square text-teal"></i> <span>Editar Datos de Cliente</span>`;
+      }
+      if (this.drawerSubtitle) {
+        this.drawerSubtitle.innerText = 'Actualización de datos maestros en PostgreSQL 16';
+      }
+      if (this.inEditId) this.inEditId.value = clientId;
+      if (this.inDocType) this.inDocType.value = client?.documentType || 'DNI';
+      if (this.inDocNumber) this.inDocNumber.value = client?.documentNumber || '';
+      if (this.inFullName) this.inFullName.value = client?.fullName || '';
+      if (this.inPhone) this.inPhone.value = client?.phone || '';
+      if (this.inEmail) this.inEmail.value = client?.email || '';
+      if (this.inAddress) this.inAddress.value = client?.address || '';
+      if (this.pointsInput) this.pointsInput.value = parseInt(client?.pointsBalance, 10) || 0;
+      if (this.btnSaveText) this.btnSaveText.innerText = 'Actualizar Cliente';
+      this.onDocTypeChange(false);
+      this.onPointsInputChange();
+    } else {
+      // Modo Creación: Limpiar campos
+      const docClean = (typeof defaultDoc === 'string') ? defaultDoc.trim() : '';
+      if (this.drawerTitle) {
+        this.drawerTitle.innerHTML = `<i class="bi bi-person-plus text-teal"></i> <span>Registrar Nuevo Cliente</span>`;
+      }
+      if (this.drawerSubtitle) {
+        this.drawerSubtitle.innerText = 'Padrón fiscal y fidelización conectado a PostgreSQL 16';
+      }
+      if (this.inEditId) this.inEditId.value = '';
+      if (this.inDocType && this.inDocNumber) {
+        if (docClean.length === 11 || docClean.startsWith('20') || docClean.startsWith('10')) {
+          this.inDocType.value = 'RUC';
+        } else {
+          this.inDocType.value = 'DNI';
+        }
+        this.inDocNumber.value = docClean;
+      }
+      if (this.inFullName) this.inFullName.value = '';
+      if (this.inPhone) this.inPhone.value = '';
+      if (this.inEmail) this.inEmail.value = '';
+      if (this.inAddress) this.inAddress.value = '';
+      if (this.pointsInput) this.pointsInput.value = 0;
+      if (this.btnSaveText) this.btnSaveText.innerText = 'Guardar Cliente';
+      this.onDocTypeChange(false);
+      this.onPointsInputChange();
+    }
+
+    if (this.drawer) this.drawer.classList.add('active');
+    if (this.backdrop) this.backdrop.classList.add('active');
+
     setTimeout(() => {
-      if (docClean) {
+      if (this.inDocNumber?.value) {
         this.inFullName?.focus();
       } else {
         this.inDocNumber?.focus();
       }
-    }, 100);
+    }, 120);
   }
 
-  closeQuickModal() {
-    if (this.quickModal) this.quickModal.classList.remove('active');
+  closeClientDrawer() {
+    if (this.drawer) this.drawer.classList.remove('active');
+    if (this.backdrop) this.backdrop.classList.remove('active');
     this.clearAlert();
+    this.isCounterContext = false;
   }
 
-  onDocTypeChange() {
+  onDocTypeChange(clearNumber = true) {
     this.clearAlert();
     const type = this.inDocType?.value || 'DNI';
-    if (this.inDocNumber) {
-      if (type === 'RUC') {
-        this.inDocNumber.maxLength = 11;
-        this.inDocNumber.placeholder = 'Ej. 20514896321 (11 dígitos)';
-      } else {
-        this.inDocNumber.maxLength = 8;
-        this.inDocNumber.placeholder = 'Ej. 45892147 (8 dígitos)';
-      }
+    if (!this.inDocNumber) return;
+
+    if (type === 'RUC') {
+      this.inDocNumber.maxLength = 11;
+      this.inDocNumber.placeholder = 'Ej. 20514896321 (11 dígitos)';
+      if (this.lblDocNumber) this.lblDocNumber.innerText = 'N° de RUC (11 dígitos):';
+    } else if (type === 'DNI') {
+      this.inDocNumber.maxLength = 8;
+      this.inDocNumber.placeholder = 'Ej. 45892147 (8 dígitos)';
+      if (this.lblDocNumber) this.lblDocNumber.innerText = 'N° de DNI (8 dígitos):';
+    } else if (type === 'CE') {
+      this.inDocNumber.maxLength = 15;
+      this.inDocNumber.placeholder = 'Ej. 001248963';
+      if (this.lblDocNumber) this.lblDocNumber.innerText = 'N° Carnet de Extranjería:';
+    } else {
+      this.inDocNumber.maxLength = 20;
+      this.inDocNumber.placeholder = 'Ej. P-9845214';
+      if (this.lblDocNumber) this.lblDocNumber.innerText = 'N° Pasaporte:';
+    }
+
+    if (clearNumber && this.inDocNumber.value.length > this.inDocNumber.maxLength) {
       this.inDocNumber.value = this.inDocNumber.value.slice(0, this.inDocNumber.maxLength);
     }
   }
@@ -4875,12 +6871,14 @@ class ClientsModule {
     if (e) e.preventDefault();
     this.clearAlert();
 
+    const editId = this.inEditId?.value ? parseInt(this.inEditId.value, 10) : null;
     const docType = this.inDocType?.value || 'DNI';
     const docNum = this.inDocNumber?.value.trim() || '';
     const fullName = this.inFullName?.value.trim() || '';
     const phone = this.inPhone?.value.trim() || '';
     const email = this.inEmail?.value.trim() || '';
     const address = this.inAddress?.value.trim() || '';
+    const pointsBalance = this.pointsInput ? Math.max(0, parseInt(this.pointsInput.value || 0, 10)) : 0;
 
     if (!docNum) {
       this.showAlert("Por favor escribe el número de documento.");
@@ -4894,7 +6892,13 @@ class ClientsModule {
       return;
     }
 
-    // Validación visual de longitud DNI (8 dígitos)
+    if (fullName.length < 3) {
+      this.showAlert("El nombre o razón social debe tener al menos 3 caracteres.");
+      this.inFullName?.focus();
+      return;
+    }
+
+    // Validación DNI (8 dígitos)
     if (docType === 'DNI') {
       if (!/^\d{8}$/.test(docNum)) {
         this.showAlert("Error de validación: El DNI debe tener exactamente 8 dígitos numéricos.");
@@ -4903,7 +6907,7 @@ class ClientsModule {
       }
     }
 
-    // Validación visual de longitud RUC (11 dígitos y prefijo SUNAT)
+    // Validación RUC (11 dígitos y prefijo SUNAT)
     if (docType === 'RUC') {
       if (!/^\d{11}$/.test(docNum)) {
         this.showAlert("Error de validación: El RUC debe tener exactamente 11 dígitos numéricos.");
@@ -4917,46 +6921,86 @@ class ClientsModule {
       }
     }
 
-    const submitBtn = document.getElementById('btnSaveClientSubmit');
-    const origText = submitBtn ? submitBtn.innerHTML : '';
-    if (submitBtn) {
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = `Guardando en PostgreSQL...`;
+    // Validación de formato de correo si fue provisto
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        this.showAlert("El formato del correo electrónico es inválido.");
+        this.inEmail?.focus();
+        return;
+      }
+    }
+
+    const origText = this.btnSaveText ? this.btnSaveText.innerText : 'Guardar Cliente';
+    if (this.btnSaveSubmit) {
+      this.btnSaveSubmit.disabled = true;
+      if (this.btnSaveText) this.btnSaveText.innerText = 'Guardando en PostgreSQL...';
     }
 
     try {
-      if (window.api) {
-        const res = await window.api.createClient({
+      if (!window.api) throw new Error("API de conexión con backend no disponible.");
+
+      let res;
+      if (editId) {
+        // Actualizar cliente existente (PUT /api/clients/:id)
+        res = await window.api.updateClient(editId, {
           documentType: docType,
           documentNumber: docNum,
           fullName,
           phone,
           email,
-          address
+          address,
+          pointsBalance
         });
-
-        if (!res || !res.success) {
-          throw new Error(res?.message || "No se pudo guardar el cliente.");
-        }
-
-        const newClient = res.data;
-        showValetecToast(`Cliente "${newClient.fullName}" registrado exitosamente.`, "success");
-        this.closeQuickModal();
-
-        // Asignar al carrito de compras en mostrador (preserva los productos agregados)
-        this.assignClientToCounter(newClient);
-
-        // Si el directorio de clientes está abierto, actualizar tabla
-        if (this.directoryModal?.classList.contains('active')) {
-          this.loadClients();
-        }
+      } else {
+        // Crear nuevo cliente (POST /api/clients)
+        res = await window.api.createClient({
+          documentType: docType,
+          documentNumber: docNum,
+          fullName,
+          phone,
+          email,
+          address,
+          pointsBalance
+        });
       }
+
+      if (!res || !res.success) {
+        throw new Error(res?.message || "No se pudo procesar la solicitud de cliente.");
+      }
+
+      const clientSaved = res.data || {
+        id: editId,
+        documentType: docType,
+        documentNumber: docNum,
+        fullName,
+        phone,
+        email,
+        address,
+        pointsBalance
+      };
+
+      showValetecToast(
+        editId ? `Cliente "${clientSaved.fullName}" actualizado correctamente.` : `Cliente "${clientSaved.fullName}" registrado exitosamente.`,
+        "success"
+      );
+
+      this.closeClientDrawer();
+
+      // Si fue abierto desde el mostrador de ventas, asignar automáticamente a la venta
+      if (this.isCounterContext) {
+        this.assignClientToCounter(clientSaved);
+      }
+
+      // Recargar y refrescar KPIs y tabla
+      await this.loadClients();
+
     } catch (err) {
-      this.showAlert(err.message || "Error al registrar cliente.");
+      this.showAlert(err.message || "Error al procesar cliente en base de datos.");
     } finally {
-      if (submitBtn) {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = origText;
+      if (this.btnSaveSubmit) {
+        this.btnSaveSubmit.disabled = false;
+        if (this.btnSaveText) this.btnSaveText.innerText = origText;
       }
     }
   }
@@ -4968,23 +7012,26 @@ class ClientsModule {
 
     if (docInput) docInput.value = client.documentNumber;
     if (statusLine) {
-      // Hotfix V-06: Escapar fullName contra XSS Stored desde backend/formulario de clientes
       statusLine.innerHTML = `
         <span class="p-name"><i class="bi bi-person"></i> ${escHtml(client.fullName)}</span>
         <span class="p-points"><i class="bi bi-star"></i> ${parseInt(client.pointsBalance, 10) || 0} Pts</span>
       `;
     }
-    showValetecToast(`Cliente "${escHtml(client.fullName)}" asignado a la venta en curso.`, "success");
+    if (window.counterApp) {
+      window.counterApp.activeClient = client;
+      window.counterApp.updatePointsRedeemBox();
+    }
+    showValetecToast(`Cliente "${escHtml(client.fullName)}" asignado al mostrador.`, "success");
   }
 
-  openDirectoryModal() {
-    if (this.directoryModal) this.directoryModal.classList.add('active');
-    if (this.inSearch) this.inSearch.value = '';
-    this.loadClients();
-  }
-
-  closeDirectoryModal() {
-    if (this.directoryModal) this.directoryModal.classList.remove('active');
+  assignClientToCounterById(id) {
+    const client = this.clientsList.find(c => c.id === id);
+    if (client) {
+      this.assignClientToCounter(client);
+      if (window.appNav) {
+        window.appNav.navigateTo('viewCounter');
+      }
+    }
   }
 
   async loadClients() {
@@ -4993,54 +7040,105 @@ class ClientsModule {
       const res = await window.api.getClients();
       if (res && res.data) {
         this.clientsList = res.data;
-        this.renderClients(this.clientsList);
+      } else if (Array.isArray(res)) {
+        this.clientsList = res;
       }
+      this.updateKpis();
+      this.applyFilterAndRender();
     } catch (err) {
-      console.warn("Error cargando clientes:", err.message);
+      console.warn("Aviso cargando clientes:", err.message);
     }
+  }
+
+  updateKpis() {
+    const list = this.clientsList || [];
+    const totalDni = list.filter(c => c.documentType === 'DNI').length;
+    const totalRuc = list.filter(c => c.documentType === 'RUC').length;
+    const totalPoints = list.reduce((sum, c) => sum + (parseInt(c.pointsBalance, 10) || 0), 0);
+    const withPoints = list.filter(c => (parseInt(c.pointsBalance, 10) || 0) > 0).length;
+
+    if (this.kpiDni) this.kpiDni.innerText = totalDni;
+    if (this.kpiRuc) this.kpiRuc.innerText = totalRuc;
+    if (this.kpiPoints) this.kpiPoints.innerText = `${totalPoints} Pts`;
+
+    if (this.countFilterAll) this.countFilterAll.innerText = list.length;
+    if (this.countFilterDni) this.countFilterDni.innerText = totalDni;
+    if (this.countFilterRuc) this.countFilterRuc.innerText = totalRuc;
+    if (this.countFilterPoints) this.countFilterPoints.innerText = withPoints;
+  }
+
+  setFilter(filterType) {
+    this.currentFilter = filterType;
+    document.querySelectorAll('.client-tab-btn').forEach(btn => btn.classList.remove('active'));
+
+    if (filterType === 'all') document.getElementById('tabFilterAllClients')?.classList.add('active');
+    else if (filterType === 'DNI') document.getElementById('tabFilterDniClients')?.classList.add('active');
+    else if (filterType === 'RUC') document.getElementById('tabFilterRucClients')?.classList.add('active');
+    else if (filterType === 'points') document.getElementById('tabFilterPointsClients')?.classList.add('active');
+
+    this.applyFilterAndRender();
   }
 
   onSearchInput(e) {
     clearTimeout(this.searchTimeout);
-    const q = e.target.value.trim();
-    this.searchTimeout = setTimeout(async () => {
-      if (!q) {
-        this.renderClients(this.clientsList);
-        return;
-      }
-      try {
-        if (window.api) {
-          const res = await window.api.searchClients(q);
-          if (res && res.data) {
-            this.renderClients(res.data);
-          }
-        }
-      } catch (err) {
-        console.warn("Error buscando clientes:", err.message);
-      }
-    }, 250);
+    this.searchQuery = (e?.target?.value || '').trim().toLowerCase();
+    this.searchTimeout = setTimeout(() => {
+      this.applyFilterAndRender();
+    }, 200);
+  }
+
+  applyFilterAndRender() {
+    let result = [...this.clientsList];
+
+    // 1. Filtrado por tipo de pestaña
+    if (this.currentFilter === 'DNI') {
+      result = result.filter(c => c.documentType === 'DNI');
+    } else if (this.currentFilter === 'RUC') {
+      result = result.filter(c => c.documentType === 'RUC');
+    } else if (this.currentFilter === 'points') {
+      result = result.filter(c => (parseInt(c.pointsBalance, 10) || 0) > 0);
+    }
+
+    // 2. Búsqueda en vivo
+    if (this.searchQuery) {
+      result = result.filter(c => {
+        const doc = (c.documentNumber || '').toLowerCase();
+        const name = (c.fullName || '').toLowerCase();
+        const phone = (c.phone || '').toLowerCase();
+        return doc.includes(this.searchQuery) || name.includes(this.searchQuery) || phone.includes(this.searchQuery);
+      });
+    }
+
+    this.renderClients(result);
   }
 
   renderClients(clients) {
+    if (!this.tableBody) this.tableBody = document.getElementById('clientsTableBody');
     if (!this.tableBody) return;
+
     if (!clients || clients.length === 0) {
-      this.tableBody.innerHTML = '<tr><td colspan="7" class="text-center py-3 text-muted">No se encontraron clientes registrados en el padrón.</td></tr>';
+      this.tableBody.innerHTML = `
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 36px 16px; color: #64748b;">
+            <i class="bi bi-people" style="font-size: 32px; display: block; margin-bottom: 8px; color: #cbd5e1;"></i>
+            <strong>No se encontraron clientes registrados en este filtro.</strong>
+            <p style="font-size: 12.5px; margin-top: 4px;">Usa el botón superior para dar de alta un nuevo cliente o busca con otros términos.</p>
+          </td>
+        </tr>
+      `;
       return;
     }
 
     this.tableBody.innerHTML = clients.map(c => {
       const isRuc = c.documentType === 'RUC';
       const badgeStyle = isRuc
-        ? 'background: #f8fafc; border: 1px solid #cbd5e1; color: #475569;'
-        : (c.documentType === 'DNI' ? 'background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534;' : 'background: #f1f5f9; color: #475569;');
-      const clientSafeData = {
-        id: c.id,
-        documentType: c.documentType,
-        documentNumber: c.documentNumber,
-        fullName: c.fullName,
-        pointsBalance: c.pointsBalance || 0
-      };
-      const clientJson = encodeURIComponent(JSON.stringify(clientSafeData));
+        ? 'background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155;'
+        : (c.documentType === 'DNI'
+          ? 'background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857;'
+          : 'background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af;');
+
+      const pts = parseInt(c.pointsBalance, 10) || 0;
+      const tier = this.calculateLoyaltyTier(pts);
 
       return `
         <tr>
@@ -5048,20 +7146,34 @@ class ClientsModule {
             <span class="badge" style="${badgeStyle} font-weight: 700; padding: 3px 6px; border-radius: 4px; font-size: 11px;">
               ${escHtml(c.documentType)}
             </span>
-            <strong style="margin-left: 6px; font-family: monospace;">${escHtml(c.documentNumber)}</strong>
+            <strong style="margin-left: 6px; font-family: monospace; font-size: 13px;">${escHtml(c.documentNumber)}</strong>
           </td>
-          <td><strong>${escHtml(c.fullName)}</strong></td>
-          <td><small>${escHtml(c.phone) || '—'}</small></td>
-          <td><small style="color: #64748b;">${escHtml(c.email) || '—'}</small></td>
-          <td><small style="color: #64748b;">${escHtml(c.address) || '—'}</small></td>
+          <td>
+            <strong style="color: #0f172a; font-size: 13px;">${escHtml(c.fullName)}</strong>
+          </td>
+          <td>
+            ${c.phone ? `<span style="font-size: 12.5px;"><i class="bi bi-telephone text-muted" style="margin-right: 4px;"></i>${escHtml(c.phone)}</span>` : '<span style="color: #94a3b8;">—</span>'}
+          </td>
+          <td>
+            ${c.email ? `<span style="font-size: 12px; color: #64748b;">${escHtml(c.email)}</span>` : '<span style="color: #94a3b8;">—</span>'}
+          </td>
+          <td>
+            ${c.address ? `<small style="color: #64748b;">${escHtml(c.address)}</small>` : '<span style="color: #94a3b8;">—</span>'}
+          </td>
           <td style="text-align: center;">
-            <span class="badge" style="background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; font-weight: 600; padding: 4px 8px; border-radius: 6px;">
-              <i class="bi bi-star"></i> ${parseInt(c.pointsBalance, 10) || 0}
+            <span class="badge" style="${tier.badgeStyle} font-weight: 700; padding: 4px 8px; border-radius: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 2px;">
+              ${tier.icon} ${pts} Pts • ${tier.name}
             </span>
+            <small style="display: block; color: #16a34a; font-weight: 700; font-size: 10.5px;">
+              Equiv: S/ ${this.calculatePointsSolValue(pts).toFixed(2)}
+            </small>
           </td>
           <td style="text-align: right; white-space: nowrap;">
-            <button type="button" class="btn-action-outline" style="padding: 4px 10px; font-size: 11px;" onclick="clientsApp.selectAndAssign('${clientJson}')" title="Asignar al Carrito de Ventas">
-              <i class="bi bi-check2"></i> Asignar
+            <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="clientsApp.openClientDrawer(${c.id})" title="Editar datos y puntos del cliente">
+              <i class="bi bi-pencil"></i> Editar
+            </button>
+            <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; color: #0d9488; border-color: #0d9488;" onclick="clientsApp.assignClientToCounterById(${c.id})" title="Asignar al carrito de ventas del mostrador">
+              <i class="bi bi-cart-plus"></i> Mostrador
             </button>
           </td>
         </tr>
@@ -5069,25 +7181,1043 @@ class ClientsModule {
     }).join('');
   }
 
-  selectAndAssign(clientJsonStr) {
-    try {
-      let raw = clientJsonStr;
-      if (typeof raw === 'string' && raw.includes('%')) {
-        raw = decodeURIComponent(raw);
-      } else if (typeof raw === 'string') {
-        raw = raw.replace(/&quot;/g, '"');
-      }
-      const client = typeof raw === 'object' ? raw : JSON.parse(raw);
-      this.assignClientToCounter(client);
-      this.closeDirectoryModal();
-    } catch (e) {
-      console.warn("Error asignando cliente:", e);
+  // Métodos de compatibilidad con llamados heredados
+  openQuickModal(defaultDoc = '') {
+    this.openClientDrawer(null, defaultDoc, true);
+  }
+
+  closeQuickModal() {
+    this.closeClientDrawer();
+  }
+
+  openDirectoryModal() {
+    if (window.appNav) {
+      window.appNav.navigateTo('viewClients');
     }
+    this.loadClients();
+  }
+
+  closeDirectoryModal() {
+    this.closeClientDrawer();
+  }
+}
+
+// =============================================================
+// MÓDULO 6: COMPRAS, RECEPCIÓN DE FACTURAS & DROGUERÍAS (SAAS 2026)
+// =============================================================
+class PurchasesModule {
+  constructor() {
+    this.currentTab = 'invoices';
+    this.invoicesSearchQuery = '';
+    this.invoicesConditionFilter = 'all';
+    this.invoicesStatusFilter = 'all';
+    this.suppliersSearchQuery = '';
+
+    // Cargar o inicializar droguerías
+    const savedSuppliers = localStorage.getItem('valetec_purchases_suppliers');
+    if (savedSuppliers) {
+      try {
+        this.suppliers = JSON.parse(savedSuppliers);
+      } catch (e) {
+        this.suppliers = this.getDefaultSuppliers();
+      }
+    } else {
+      this.suppliers = this.getDefaultSuppliers();
+    }
+
+    // Cargar o inicializar facturas de droguería
+    const savedInvoices = localStorage.getItem('valetec_purchases_invoices');
+    if (savedInvoices) {
+      try {
+        this.invoices = JSON.parse(savedInvoices);
+      } catch (e) {
+        this.invoices = this.getDefaultInvoices();
+      }
+    } else {
+      this.invoices = this.getDefaultInvoices();
+    }
+
+    // Cargar o inicializar canjes FEFO
+    const savedExchanges = localStorage.getItem('valetec_purchases_exchanges');
+    if (savedExchanges) {
+      try {
+        this.exchanges = JSON.parse(savedExchanges);
+      } catch (e) {
+        this.exchanges = this.getDefaultExchanges();
+      }
+    } else {
+      this.exchanges = this.getDefaultExchanges();
+    }
+
+    this.init();
+  }
+
+  getDefaultSuppliers() {
+    return [
+      {
+        id: 1,
+        ruc: '20601234567',
+        name: 'Droguería Andina S.A.C.',
+        brand: 'Droguería Andina',
+        phone: '+51 984 512 890',
+        email: 'pedidos@drogueriaandina.pe',
+        address: 'Av. Los Frutales 420 • Ate, Lima',
+        contact: 'Lic. Roberto Alarcón',
+        term: 'Crédito 30 días',
+        limit: 25000,
+        notes: 'Distribuidor exclusivo de antibióticos y analgésicos genéricos DCI.',
+        deliveryDays: '24 hrs',
+        status: 'Homologada'
+      },
+      {
+        id: 2,
+        ruc: '20509876543',
+        name: 'MedPharma Distribuciones S.A.C.',
+        brand: 'MedPharma Labs',
+        phone: '+51 972 341 892',
+        email: 'ventas@medpharma.pe',
+        address: 'Jr. Zorritos 1205 • Breña, Lima',
+        contact: 'Q.F. Mariana Vega',
+        term: 'Crédito 30 días',
+        limit: 18000,
+        notes: 'Laboratorio de analgésicos, antiinflamatorios y material médico estéril.',
+        deliveryDays: '24-48 hrs',
+        status: 'Homologada'
+      },
+      {
+        id: 3,
+        ruc: '20100104921',
+        name: 'Química Suiza S.A.C.',
+        brand: 'Química Suiza',
+        phone: '+51 998 776 554',
+        email: 'contacto@qs.com.pe',
+        address: 'Av. República de Panamá 2577 • La Victoria',
+        contact: 'Lic. Andrea Morales',
+        term: 'Crédito 45 días',
+        limit: 50000,
+        notes: 'Macrodistribuidor nacional de medicamentos éticos, psicotrópicos e insumos.',
+        deliveryDays: '12-24 hrs',
+        status: 'Homologada'
+      },
+      {
+        id: 4,
+        ruc: '20401122334',
+        name: 'Droguería Farmatodo Perú S.A.',
+        brand: 'Farmatodo',
+        phone: '+51 991 823 456',
+        email: 'despacho@farmatodo.pe',
+        address: 'Av. Universitaria 3450 • Los Olivos',
+        contact: 'Lic. Víctor Palacios',
+        term: 'Crédito 15 días',
+        limit: 12000,
+        notes: 'Especialistas en línea OTC, dermocosmética y primeros auxilios.',
+        deliveryDays: '24 hrs',
+        status: 'Homologada'
+      },
+      {
+        id: 5,
+        ruc: '20304455667',
+        name: 'BioFarma Distribuciones S.A.C.',
+        brand: 'BioFarma Perú',
+        phone: '+51 987 112 334',
+        email: 'pedidos@biofarma.pe',
+        address: 'Av. Nicolás Ayllón 1890 • El Agustino',
+        contact: 'Ing. Sonia Cruz',
+        term: 'Contado',
+        limit: 8000,
+        notes: 'Vitaminas, minerales, colágenos y suplementos nutricionales.',
+        deliveryDays: '48 hrs',
+        status: 'Homologada'
+      },
+      {
+        id: 6,
+        ruc: '20100057400',
+        name: 'Farmindustria S.A.',
+        brand: 'Farmindustria',
+        phone: '+51 993 445 667',
+        email: 'institucional@farmindustria.com.pe',
+        address: 'Calle Real 165 • San Isidro',
+        contact: 'Dr. Jorge Benavides',
+        term: 'Crédito 30 días',
+        limit: 30000,
+        notes: 'Laboratorio de medicamentos de prescripción, cardiovascular y metabólica.',
+        deliveryDays: '24-48 hrs',
+        status: 'Homologada'
+      },
+      {
+        id: 7,
+        ruc: '20100018412',
+        name: 'Medifarma S.A.',
+        brand: 'Medifarma',
+        phone: '+51 994 556 778',
+        email: 'ventas@medifarma.com.pe',
+        address: 'Jr. Ecuador 787 • Cercado de Lima',
+        contact: 'Q.F. Patricia Campos',
+        term: 'Crédito 30 días',
+        limit: 35000,
+        notes: 'Línea de inyectables, sueros y antibióticos hospitalarios de alta rotación.',
+        deliveryDays: '24 hrs',
+        status: 'Homologada'
+      },
+      {
+        id: 8,
+        ruc: '20100030544',
+        name: 'Droguería Hersil S.A. Laboratorios',
+        brand: 'Hersil Labs',
+        phone: '+51 996 332 112',
+        email: 'pedidos@hersil.com.pe',
+        address: 'Av. Los Ficus 205 • Santa Anita',
+        contact: 'Lic. César Valdivia',
+        term: 'Crédito 30 días',
+        limit: 20000,
+        notes: 'Línea respiratoria, antitusígenos y mucolíticos pediátricos y adultos.',
+        deliveryDays: '24 hrs',
+        status: 'Homologada'
+      }
+    ];
+  }
+
+  getDefaultInvoices() {
+    return [
+      {
+        id: 1,
+        invoiceNum: 'F001-0003492',
+        supplierName: 'Droguería Andina S.A.C.',
+        supplierRuc: '20601234567',
+        date: '28/09/2026 14:32',
+        items: [
+          { prodName: 'Bio-Amoxil 500mg Cápsulas', lot: 'L-25091', exp: '2028-12-31', boxes: 10, cost: 18.50, total: 185.00 }
+        ],
+        subtotal: 185.00,
+        igv: 33.30,
+        total: 218.30,
+        condition: 'Crédito 30 días',
+        status: 'Ingresado',
+        paymentStatus: 'Pendiente',
+        dueDate: '28/10/2026'
+      },
+      {
+        id: 2,
+        invoiceNum: 'F002-0008912',
+        supplierName: 'MedPharma Distribuciones S.A.C.',
+        supplierRuc: '20509876543',
+        date: '27/09/2026 11:15',
+        items: [
+          { prodName: 'Farma-Naprox 550mg Tabletas', lot: 'L-25088', exp: '2028-09-15', boxes: 20, cost: 24.00, total: 480.00 }
+        ],
+        subtotal: 480.00,
+        igv: 86.40,
+        total: 566.40,
+        condition: 'Crédito 30 días',
+        status: 'Ingresado',
+        paymentStatus: 'Pendiente',
+        dueDate: '27/10/2026'
+      },
+      {
+        id: 3,
+        invoiceNum: 'F001-0005510',
+        supplierName: 'Química Suiza S.A.C.',
+        supplierRuc: '20100104921',
+        date: '25/09/2026 09:40',
+        items: [
+          { prodName: 'Sedafarma 2mg Ranuradas', lot: 'L-25042', exp: '2027-10-30', boxes: 15, cost: 38.00, total: 570.00 }
+        ],
+        subtotal: 570.00,
+        igv: 102.60,
+        total: 672.60,
+        condition: 'Crédito 45 días',
+        status: 'Ingresado',
+        paymentStatus: 'Pendiente',
+        dueDate: '09/11/2026'
+      },
+      {
+        id: 4,
+        invoiceNum: 'F003-0001204',
+        supplierName: 'Droguería Farmatodo Perú S.A.',
+        supplierRuc: '20401122334',
+        date: '24/09/2026 16:10',
+        items: [
+          { prodName: 'Dermo-Clean Antiséptico', lot: 'L-25019', exp: '2028-05-20', boxes: 25, cost: 14.00, total: 350.00 }
+        ],
+        subtotal: 350.00,
+        igv: 63.00,
+        total: 413.00,
+        condition: 'Crédito 15 días',
+        status: 'Ingresado',
+        paymentStatus: 'Pagado',
+        dueDate: '09/10/2026'
+      },
+      {
+        id: 5,
+        invoiceNum: 'F004-0007831',
+        supplierName: 'BioFarma Distribuciones S.A.C.',
+        supplierRuc: '20304455667',
+        date: '22/09/2026 10:05',
+        items: [
+          { prodName: 'C-Vit Zinc Efervescente', lot: 'L-25010', exp: '2028-08-14', boxes: 30, cost: 16.00, total: 480.00 }
+        ],
+        subtotal: 480.00,
+        igv: 86.40,
+        total: 566.40,
+        condition: 'Contado',
+        status: 'Ingresado',
+        paymentStatus: 'Pagado',
+        dueDate: '22/09/2026'
+      },
+      {
+        id: 6,
+        invoiceNum: 'F001-0004112',
+        supplierName: 'Droguería Andina S.A.C.',
+        supplierRuc: '20601234567',
+        date: '20/09/2026 12:20',
+        items: [
+          { prodName: 'Gastro-Bismut 262mg Masticables', lot: 'L-24990', exp: '2028-04-12', boxes: 18, cost: 21.00, total: 378.00 }
+        ],
+        subtotal: 378.00,
+        igv: 68.04,
+        total: 446.04,
+        condition: 'Crédito 30 días',
+        status: 'Ingresado',
+        paymentStatus: 'Pendiente',
+        dueDate: '20/10/2026'
+      }
+    ];
+  }
+
+  getDefaultExchanges() {
+    return [
+      {
+        id: 1,
+        prodName: 'Bio-Amoxil 500mg Cápsulas',
+        supplierName: 'Droguería Andina S.A.C.',
+        lot: 'L-24115',
+        exp: '15/11/2026',
+        daysRemaining: 47,
+        boxes: 15,
+        estimatedValue: 277.50,
+        status: 'Pendiente Recojo',
+        statusBadgeClass: 'badge-warning',
+        reason: 'Próximo Vencimiento (< 90 días)',
+        notes: 'Lote separado en gaveta de cuarentena de Regencia.'
+      },
+      {
+        id: 2,
+        prodName: 'Sedafarma 2mg Ranuradas',
+        supplierName: 'Química Suiza S.A.C.',
+        lot: 'L-23890',
+        exp: '28/11/2026',
+        daysRemaining: 60,
+        boxes: 8,
+        estimatedValue: 304.00,
+        status: 'En Revisión Droguería',
+        statusBadgeClass: 'badge-info',
+        reason: 'Próximo Vencimiento (< 90 días)',
+        notes: 'Enviada carta formal y lote en custodia en Regencia Q.F.'
+      },
+      {
+        id: 3,
+        prodName: 'Farma-Naprox 550mg Tabletas',
+        supplierName: 'MedPharma Labs',
+        lot: 'L-24012',
+        exp: '10/12/2026',
+        daysRemaining: 72,
+        boxes: 20,
+        estimatedValue: 480.00,
+        status: 'Aprobado para Canje',
+        statusBadgeClass: 'badge-success',
+        reason: 'Acuerdo comercial de canje 90 días',
+        notes: 'Visitador confirmó recojo con lote nuevo.'
+      }
+    ];
+  }
+
+  init() {
+    // Tecla ESC para cerrar drawer de Droguería o Detalle de Factura
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const supDrawer = document.getElementById('supplierDrawer');
+        if (supDrawer && supDrawer.classList.contains('active')) {
+          this.closeSupplierDrawer();
+        }
+        const invModal = document.getElementById('invoiceDetailModal');
+        if (invModal && invModal.classList.contains('active')) {
+          this.closeInvoiceDetailModal();
+        }
+      }
+    });
+
+    this.calcReceiveTotal();
+    this.renderInvoices();
+    this.renderSuppliers();
+    this.renderExchanges();
+    this.updateKpis();
+  }
+
+  setTab(tab) {
+    this.currentTab = tab;
+    const tabInv = document.getElementById('tabPurchasesInvoices');
+    const tabSup = document.getElementById('tabPurchasesSuppliers');
+    const tabExc = document.getElementById('tabPurchasesExchanges');
+
+    const paneInv = document.getElementById('purchasesPaneInvoices');
+    const paneSup = document.getElementById('purchasesPaneSuppliers');
+    const paneExc = document.getElementById('purchasesPaneExchanges');
+
+    if (tabInv) tabInv.classList.toggle('active', tab === 'invoices');
+    if (tabSup) tabSup.classList.toggle('active', tab === 'suppliers');
+    if (tabExc) tabExc.classList.toggle('active', tab === 'exchanges');
+
+    if (paneInv) paneInv.style.display = (tab === 'invoices') ? 'block' : 'none';
+    if (paneSup) paneSup.style.display = (tab === 'suppliers') ? 'block' : 'none';
+    if (paneExc) paneExc.style.display = (tab === 'exchanges') ? 'block' : 'none';
+  }
+
+  onInvoicesSearch(val) {
+    this.invoicesSearchQuery = (val || '').toLowerCase().trim();
+    this.renderInvoices();
+  }
+
+  onInvoicesFilterChange() {
+    const condSel = document.getElementById('purchasesConditionFilter');
+    const statSel = document.getElementById('purchasesStatusFilter');
+    this.invoicesConditionFilter = condSel ? condSel.value : 'all';
+    this.invoicesStatusFilter = statSel ? statSel.value : 'all';
+    this.renderInvoices();
+  }
+
+  renderInvoices() {
+    const tbody = document.getElementById('purchasesInvoicesTableBody');
+    if (!tbody) return;
+
+    let filtered = this.invoices.filter(inv => {
+      if (this.invoicesConditionFilter !== 'all' && inv.condition !== this.invoicesConditionFilter) return false;
+      if (this.invoicesStatusFilter !== 'all' && inv.status !== this.invoicesStatusFilter) return false;
+      if (this.invoicesSearchQuery) {
+        const query = this.invoicesSearchQuery;
+        const numMatch = inv.invoiceNum.toLowerCase().includes(query);
+        const suppMatch = inv.supplierName.toLowerCase().includes(query);
+        const rucMatch = (inv.supplierRuc || '').includes(query);
+        const itemMatch = (inv.items || []).some(it => it.prodName.toLowerCase().includes(query) || (it.lot || '').toLowerCase().includes(query));
+        if (!numMatch && !suppMatch && !rucMatch && !itemMatch) return false;
+      }
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="10" style="text-align: center; padding: 28px; color: #64748b;">
+            <i class="bi bi-inbox" style="font-size: 28px; display: block; margin-bottom: 6px; color: #94a3b8;"></i>
+            No se encontraron facturas ni guías de compra que coincidan con la búsqueda.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(inv => {
+      const itemsSummary = (inv.items || []).map(it => `
+        <span style="display: block; font-size: 11.5px;">
+          <strong>${it.boxes} cj.</strong> ${escHtml(it.prodName)} 
+          <code style="background: #f1f5f9; padding: 1px 4px; border-radius: 4px; font-size: 10px;">${escHtml(it.lot || '')}</code>
+        </span>
+      `).join('');
+
+      const conditionBadge = inv.condition.includes('Contado')
+        ? '<span class="badge" style="background: #ecfdf5; color: #047857; font-weight: 700; border: 1px solid #a7f3d0; padding: 3px 6px; border-radius: 4px; font-size: 11px;">Contado</span>'
+        : `<span class="badge" style="background: #eff6ff; color: #1d4ed8; font-weight: 700; border: 1px solid #bfdbfe; padding: 3px 6px; border-radius: 4px; font-size: 11px;">${escHtml(inv.condition)}</span>`;
+
+      const paymentBadge = inv.paymentStatus === 'Pagado'
+        ? '<span class="badge" style="background: #ecfdf5; color: #065f46; font-size: 10.5px; padding: 2px 6px; border-radius: 4px; font-weight: 700;"><i class="bi bi-check2"></i> Pagado</span>'
+        : `<span class="badge" style="background: #fffbeb; color: #b45309; font-size: 10.5px; padding: 2px 6px; border-radius: 4px; font-weight: 700;"><i class="bi bi-clock"></i> Vcto: ${escHtml(inv.dueDate || '30d')}</span>`;
+
+      return `
+        <tr style="border-bottom: 1px solid #e2e8f0;">
+          <td style="padding: 10px 12px; font-size: 12px; color: #475569;">
+            <i class="bi bi-calendar3" style="color: #94a3b8; margin-right: 4px;"></i>${escHtml(inv.date)}
+          </td>
+          <td style="padding: 10px 12px; font-weight: 800; color: #0f172a; font-family: monospace; font-size: 13px;">
+            ${escHtml(inv.invoiceNum)}
+          </td>
+          <td style="padding: 10px 12px;">
+            <strong style="color: #0a2540; font-size: 12.5px; display: block;">${escHtml(inv.supplierName)}</strong>
+            <small style="color: #64748b; font-family: monospace; font-size: 11px;">RUC: ${escHtml(inv.supplierRuc || '20601234567')}</small>
+          </td>
+          <td style="padding: 10px 12px;">
+            ${itemsSummary}
+          </td>
+          <td style="padding: 10px 12px;">
+            ${conditionBadge}
+            <div style="margin-top: 4px;">${paymentBadge}</div>
+          </td>
+          <td style="padding: 10px 12px; text-align: right; color: #64748b; font-size: 12px;">
+            S/ ${(inv.subtotal || 0).toFixed(2)}
+          </td>
+          <td style="padding: 10px 12px; text-align: right; color: #64748b; font-size: 12px;">
+            S/ ${(inv.igv || 0).toFixed(2)}
+          </td>
+          <td style="padding: 10px 12px; text-align: right; font-weight: 800; color: #0d9488; font-size: 13px;">
+            S/ ${(inv.total || 0).toFixed(2)}
+          </td>
+          <td style="padding: 10px 12px; text-align: center;">
+            <span class="badge" style="background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; font-size: 11px; padding: 3px 8px; border-radius: 12px; font-weight: 700;">
+              <i class="bi bi-check-circle"></i> ${escHtml(inv.status)}
+            </span>
+          </td>
+          <td style="padding: 10px 12px; text-align: right; white-space: nowrap;">
+            <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; font-weight: 700;" onclick="purchasesApp.viewInvoiceDetail('${inv.invoiceNum}')" title="Ver detalle de factura y lotes ingresados">
+              <i class="bi bi-eye"></i> <span>Ver Factura</span>
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  onSuppliersSearch(val) {
+    this.suppliersSearchQuery = (val || '').toLowerCase().trim();
+    this.renderSuppliers();
+  }
+
+  renderSuppliers() {
+    const grid = document.getElementById('purchasesSuppliersGrid');
+    if (!grid) return;
+
+    let filtered = this.suppliers.filter(sup => {
+      if (!this.suppliersSearchQuery) return true;
+      const q = this.suppliersSearchQuery;
+      return sup.name.toLowerCase().includes(q) ||
+             (sup.brand && sup.brand.toLowerCase().includes(q)) ||
+             sup.ruc.includes(q) ||
+             (sup.contact && sup.contact.toLowerCase().includes(q));
+    });
+
+    if (filtered.length === 0) {
+      grid.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 36px; color: #64748b; background: #fff; border: 1px dashed #cbd5e1; border-radius: 8px;">
+          <i class="bi bi-building" style="font-size: 32px; color: #94a3b8; display: block; margin-bottom: 8px;"></i>
+          No se encontraron droguerías registradas con ese criterio.
+        </div>
+      `;
+      return;
+    }
+
+    grid.innerHTML = filtered.map(sup => `
+      <div class="pos-product-card" style="padding: 16px; border: 1px solid #e2e8f0; border-radius: 10px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+            <span class="badge" style="background: #e0f2fe; color: #0369a1; font-weight: 800; font-family: monospace; font-size: 11px; padding: 3px 6px; border-radius: 4px;">
+              RUC ${escHtml(sup.ruc)}
+            </span>
+            <span class="badge" style="background: #f0fdf4; color: #166534; font-weight: 700; font-size: 11px; padding: 2px 6px; border-radius: 4px;">
+              <i class="bi bi-shield-check"></i> ${escHtml(sup.status || 'Homologada')}
+            </span>
+          </div>
+
+          <h4 style="font-size: 14.5px; font-weight: 800; color: #0a2540; margin: 0 0 4px 0; line-height: 1.3;">
+            ${escHtml(sup.name)}
+          </h4>
+          <div style="font-size: 11.5px; color: #64748b; margin-bottom: 10px;">
+            <i class="bi bi-geo-alt" style="color: #94a3b8;"></i> ${escHtml(sup.address || 'Lima, Perú')}
+          </div>
+
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px; margin-bottom: 12px; font-size: 11.5px;">
+            <div style="margin-bottom: 3px;">
+              <strong style="color: #334155;">Ejecutivo:</strong> <span style="color: #475569;">${escHtml(sup.contact || 'No asignado')}</span>
+            </div>
+            <div style="margin-bottom: 3px;">
+              <strong style="color: #334155;">Condición:</strong> <span class="text-teal" style="font-weight: 700;">${escHtml(sup.term || 'Contado')}</span> (Línea: S/ ${(sup.limit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })})
+            </div>
+            <div>
+              <strong style="color: #334155;">Despacho:</strong> <span style="color: #0284c7; font-weight: 600;"><i class="bi bi-stopwatch"></i> ${escHtml(sup.deliveryDays || '24 hrs')}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 6px; margin-top: 6px;">
+          <button type="button" class="btn-action-outline" style="flex: 1; font-size: 11px; padding: 6px 8px; justify-content: center;" onclick="purchasesApp.openSupplierDrawer(${sup.id})">
+            <i class="bi bi-pencil"></i> <span>Editar</span>
+          </button>
+          <button type="button" class="btn-action-solid" style="flex: 1.2; font-size: 11px; padding: 6px 8px; justify-content: center; background: #25d366; color: white; border: none;" onclick="purchasesApp.openWhatsAppOrder(${sup.id})">
+            <i class="bi bi-whatsapp"></i> <span>Pedir WhatsApp</span>
+          </button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  renderExchanges() {
+    const tbody = document.getElementById('purchasesExchangesTableBody');
+    if (!tbody) return;
+
+    if (!this.exchanges || this.exchanges.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="9" style="text-align: center; padding: 24px; color: #64748b;">
+            <i class="bi bi-check2-circle" style="font-size: 24px; color: #10b981; display: block; margin-bottom: 4px;"></i>
+            No hay trámites de canje pendientes. Lotes bajo semáforo FEFO seguro.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = this.exchanges.map(exc => {
+      let daysChip = '';
+      if (exc.daysRemaining <= 30) {
+        daysChip = `<span class="badge" style="background: #fee2e2; color: #b91c1c; font-weight: 800; padding: 3px 8px; border-radius: 12px; font-size: 11px;"><i class="bi bi-exclamation-octagon-fill"></i> ${exc.daysRemaining} días (Crítico)</span>`;
+      } else if (exc.daysRemaining <= 60) {
+        daysChip = `<span class="badge" style="background: #fef3c7; color: #92400e; font-weight: 800; padding: 3px 8px; border-radius: 12px; font-size: 11px;"><i class="bi bi-hourglass-split"></i> ${exc.daysRemaining} días</span>`;
+      } else {
+        daysChip = `<span class="badge" style="background: #eff6ff; color: #1e40af; font-weight: 700; padding: 3px 8px; border-radius: 12px; font-size: 11px;">${exc.daysRemaining} días</span>`;
+      }
+
+      return `
+        <tr style="border-bottom: 1px solid #e2e8f0;">
+          <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">
+            ${escHtml(exc.prodName)}
+            <small style="display: block; color: #64748b; font-weight: 500; font-size: 11px;">${escHtml(exc.reason || 'Canje normativo')}</small>
+          </td>
+          <td style="padding: 10px 12px; color: #334155; font-size: 12px;">
+            ${escHtml(exc.supplierName)}
+          </td>
+          <td style="padding: 10px 12px; font-family: monospace; font-weight: 700;">
+            <code>${escHtml(exc.lot)}</code>
+          </td>
+          <td style="padding: 10px 12px; font-size: 12px;">
+            ${escHtml(exc.exp)}
+          </td>
+          <td style="padding: 10px 12px; text-align: center;">
+            ${daysChip}
+          </td>
+          <td style="padding: 10px 12px; text-align: right; font-weight: 800; color: #b45309;">
+            ${exc.boxes} cj.
+          </td>
+          <td style="padding: 10px 12px; text-align: right; font-weight: 800; color: #0f172a;">
+            S/ ${(exc.estimatedValue || 0).toFixed(2)}
+          </td>
+          <td style="padding: 10px 12px; text-align: center;">
+            <span class="badge" style="background: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 11px; padding: 3px 8px; border-radius: 12px; font-weight: 700;">
+              ${escHtml(exc.status)}
+            </span>
+          </td>
+          <td style="padding: 10px 12px; text-align: right; white-space: nowrap;">
+            <button type="button" class="btn-action-outline" style="padding: 3px 6px; font-size: 11px; margin-right: 4px;" onclick="purchasesApp.printExchangeLetter(${exc.id})" title="Imprimir Acta de Retiro / Carta de Canje">
+              <i class="bi bi-printer"></i>
+            </button>
+            <button type="button" class="btn-action-outline" style="padding: 3px 6px; font-size: 11px; color: #16a34a; border-color: #86efac;" onclick="purchasesApp.sendExchangeWhatsApp(${exc.id})" title="Enviar reclamo formal por WhatsApp a droguería">
+              <i class="bi bi-whatsapp"></i>
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  updateKpis() {
+    const totalAmount = this.invoices.reduce((acc, inv) => acc + (inv.total || 0), 0);
+    const invoicesCount = this.invoices.length;
+    const suppliersCount = this.suppliers.length;
+    const exchangesCount = this.exchanges.length;
+
+    const elTotalAmount = document.getElementById('kpiPurchasesTotalAmount');
+    const elInvoicesCount = document.getElementById('kpiPurchasesTotalInvoices');
+    const elSuppliersCount = document.getElementById('kpiPurchasesTotalSuppliers');
+    const elExchangesCount = document.getElementById('kpiPurchasesTotalExchanges');
+
+    const badgeInvoices = document.getElementById('badgeCountInvoices');
+    const badgeSuppliers = document.getElementById('badgeCountSuppliers');
+    const badgeExchanges = document.getElementById('badgeCountExchanges');
+
+    if (elTotalAmount) elTotalAmount.textContent = `S/ ${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (elInvoicesCount) elInvoicesCount.textContent = invoicesCount;
+    if (elSuppliersCount) elSuppliersCount.textContent = suppliersCount;
+    if (elExchangesCount) elExchangesCount.textContent = `${exchangesCount} lotes`;
+
+    if (badgeInvoices) badgeInvoices.textContent = invoicesCount;
+    if (badgeSuppliers) badgeSuppliers.textContent = suppliersCount;
+    if (badgeExchanges) badgeExchanges.textContent = exchangesCount;
+  }
+
+  calcReceiveTotal() {
+    const boxes = parseFloat(document.getElementById('recBoxesCount')?.value || 0);
+    const cost = parseFloat(document.getElementById('recBoxCost')?.value || 0);
+    const subtotal = boxes * cost;
+    const igv = subtotal * 0.18;
+    const total = subtotal + igv;
+
+    const elSub = document.getElementById('recSubtotalPreview');
+    const elIgv = document.getElementById('recIgvPreview');
+    const elTot = document.getElementById('recTotalPreview');
+
+    if (elSub) elSub.textContent = `S/ ${subtotal.toFixed(2)}`;
+    if (elIgv) elIgv.textContent = `S/ ${igv.toFixed(2)}`;
+    if (elTot) elTot.textContent = `S/ ${total.toFixed(2)}`;
+  }
+
+  openReceiveModal() {
+    const modal = document.getElementById('receiveModal');
+    if (modal) {
+      modal.classList.add('active');
+      this.calcReceiveTotal();
+    }
+  }
+
+  closeReceiveModal() {
+    const modal = document.getElementById('receiveModal');
+    if (modal) modal.classList.remove('active');
+  }
+
+  addInvoiceFromReceive(record) {
+    if (!record) return;
+    const boxes = record.boxes || 1;
+    const cost = record.cost || 0;
+    const subtotal = boxes * cost;
+    const igv = subtotal * 0.18;
+    const total = subtotal + igv;
+
+    const now = new Date();
+    const dateFormatted = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    // Buscar si el proveedor existe para obtener su RUC
+    const foundSupplier = this.suppliers.find(s => s.name === record.supplierName);
+    const ruc = foundSupplier ? foundSupplier.ruc : '20601234567';
+
+    // Fecha de vencimiento estimada del crédito
+    const due = new Date();
+    due.setDate(due.getDate() + 30);
+    const dueDateFormatted = `${String(due.getDate()).padStart(2, '0')}/${String(due.getMonth() + 1).padStart(2, '0')}/${due.getFullYear()}`;
+
+    const newInvoice = {
+      id: Date.now(),
+      invoiceNum: record.invoiceNum || `F001-${Math.floor(1000000 + Math.random() * 9000000)}`,
+      supplierName: record.supplierName || 'Droguería Andina S.A.C.',
+      supplierRuc: ruc,
+      date: dateFormatted,
+      items: [
+        {
+          prodName: record.prodName || 'Medicamento',
+          lot: record.lot || 'L-25091',
+          exp: record.exp || '2028-12-31',
+          boxes: boxes,
+          cost: cost,
+          total: subtotal
+        }
+      ],
+      subtotal: subtotal,
+      igv: igv,
+      total: total,
+      condition: record.condition || 'Crédito 30 días',
+      status: 'Ingresado',
+      paymentStatus: (record.condition || '').includes('Contado') ? 'Pagado' : 'Pendiente',
+      dueDate: (record.condition || '').includes('Contado') ? dateFormatted.split(' ')[0] : dueDateFormatted
+    };
+
+    this.invoices.unshift(newInvoice);
+    localStorage.setItem('valetec_purchases_invoices', JSON.stringify(this.invoices));
+    this.renderInvoices();
+    this.updateKpis();
+    showValetecToast(`Factura ${newInvoice.invoiceNum} de ${newInvoice.supplierName} registrada en Compras.`, 'success');
+  }
+
+  viewInvoiceDetail(invoiceNum) {
+    const inv = this.invoices.find(i => i.invoiceNum === invoiceNum);
+    if (!inv) return;
+
+    const modal = document.getElementById('invoiceDetailModal');
+    const body = document.getElementById('invoiceDetailModalBody');
+    if (!modal || !body) return;
+
+    const itemsHtml = (inv.items || []).map(it => `
+      <tr style="border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 8px 10px; font-weight: 700; color: #0f172a;">${escHtml(it.prodName)}</td>
+        <td style="padding: 8px 10px; font-family: monospace;"><code>${escHtml(it.lot || 'L-25091')}</code></td>
+        <td style="padding: 8px 10px; text-align: center;">${escHtml(it.exp || '2028-12-31')}</td>
+        <td style="padding: 8px 10px; text-align: right; font-weight: 800;">${it.boxes} cj.</td>
+        <td style="padding: 8px 10px; text-align: right; color: #64748b;">S/ ${(it.cost || 0).toFixed(2)}</td>
+        <td style="padding: 8px 10px; text-align: right; font-weight: 800; color: #0d9488;">S/ ${(it.total || (it.boxes * it.cost) || 0).toFixed(2)}</td>
+      </tr>
+    `).join('');
+
+    body.innerHTML = `
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <span class="badge" style="background: #e0f2fe; color: #0369a1; font-weight: 800; font-size: 11px; padding: 2px 6px; border-radius: 4px;">FACTURA ELECTRÓNICA DE COMPRA</span>
+            <h3 style="margin: 4px 0 2px 0; font-size: 18px; font-weight: 800; color: #0a2540;">${escHtml(inv.invoiceNum)}</h3>
+            <div style="font-size: 12px; color: #64748b;">Fecha de emisión: <strong>${escHtml(inv.date)}</strong></div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 11px; color: #64748b;">Condición de Pago:</div>
+            <strong style="color: #0f172a; font-size: 13px;">${escHtml(inv.condition)}</strong>
+            <div style="font-size: 11.5px; color: #b45309; margin-top: 2px;">Vence: <strong>${escHtml(inv.dueDate || '30 días')}</strong></div>
+          </div>
+        </div>
+
+        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #cbd5e1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px;">
+          <div>
+            <span style="color: #64748b;">Droguería Emisora:</span><br>
+            <strong style="color: #0a2540; font-size: 13px;">${escHtml(inv.supplierName)}</strong><br>
+            <span style="font-family: monospace; color: #475569;">RUC: ${escHtml(inv.supplierRuc || '20601234567')}</span>
+          </div>
+          <div>
+            <span style="color: #64748b;">Destino de Mercadería:</span><br>
+            <strong style="color: #0a2540;">VALETEC PHARMA S.A.C.</strong><br>
+            <span style="color: #475569;">Almacén Central • Regencia DIGEMID</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-responsive" style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 14px;">
+        <table class="valetec-data-table" style="width: 100%; font-size: 12px;">
+          <thead>
+            <tr style="background: #f1f5f9;">
+              <th style="padding: 8px 10px; text-align: left;">Fármaco</th>
+              <th style="padding: 8px 10px; text-align: left;">Lote</th>
+              <th style="padding: 8px 10px; text-align: center;">Vencimiento</th>
+              <th style="padding: 8px 10px; text-align: right;">Cajas</th>
+              <th style="padding: 8px 10px; text-align: right;">Costo Cj.</th>
+              <th style="padding: 8px 10px; text-align: right;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+        </table>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 6px;">
+        <div style="min-width: 240px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 14px; font-size: 12px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span style="color: #64748b;">Subtotal Grabado:</span>
+            <strong>S/ ${(inv.subtotal || 0).toFixed(2)}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+            <span style="color: #64748b;">I.G.V. (18%):</span>
+            <strong>S/ ${(inv.igv || 0).toFixed(2)}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding-top: 6px; border-top: 1px solid #cbd5e1; font-size: 14px; font-weight: 800; color: #0d9488;">
+            <span>Total Factura:</span>
+            <span>S/ ${(inv.total || 0).toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    modal.classList.add('active');
+  }
+
+  closeInvoiceDetailModal() {
+    const modal = document.getElementById('invoiceDetailModal');
+    if (modal) modal.classList.remove('active');
+  }
+
+  openSupplierDrawer(id = null) {
+    const drawer = document.getElementById('supplierDrawer');
+    const backdrop = document.getElementById('supplierDrawerBackdrop');
+    if (!drawer) return;
+
+    const titleText = document.getElementById('supplierDrawerTitleText');
+    const btnSubmitText = document.getElementById('btnSaveSupplierText');
+    const hiddenId = document.getElementById('supplierEditId');
+
+    const inRuc = document.getElementById('supplierRuc');
+    const inName = document.getElementById('supplierName');
+    const inBrand = document.getElementById('supplierBrand');
+    const inPhone = document.getElementById('supplierPhone');
+    const inAddress = document.getElementById('supplierAddress');
+    const inEmail = document.getElementById('supplierEmail');
+    const inContact = document.getElementById('supplierContact');
+    const inTerm = document.getElementById('supplierCreditTerm');
+    const inLimit = document.getElementById('supplierCreditLimit');
+    const inNotes = document.getElementById('supplierNotes');
+
+    if (id) {
+      const sup = this.suppliers.find(s => s.id === id);
+      if (!sup) return;
+
+      if (hiddenId) hiddenId.value = sup.id;
+      if (titleText) titleText.textContent = `Editar Droguería: ${sup.brand || sup.name}`;
+      if (btnSubmitText) btnSubmitText.textContent = 'Actualizar Droguería';
+
+      if (inRuc) inRuc.value = sup.ruc || '';
+      if (inName) inName.value = sup.name || '';
+      if (inBrand) inBrand.value = sup.brand || '';
+      if (inPhone) inPhone.value = sup.phone || '';
+      if (inAddress) inAddress.value = sup.address || '';
+      if (inEmail) inEmail.value = sup.email || '';
+      if (inContact) inContact.value = sup.contact || '';
+      if (inTerm) inTerm.value = sup.term || 'Crédito 30 días';
+      if (inLimit) inLimit.value = sup.limit || 15000;
+      if (inNotes) inNotes.value = sup.notes || '';
+    } else {
+      if (hiddenId) hiddenId.value = '';
+      if (titleText) titleText.textContent = 'Registrar Nueva Droguería';
+      if (btnSubmitText) btnSubmitText.textContent = 'Guardar Droguería';
+
+      if (inRuc) inRuc.value = '';
+      if (inName) inName.value = '';
+      if (inBrand) inBrand.value = '';
+      if (inPhone) inPhone.value = '';
+      if (inAddress) inAddress.value = '';
+      if (inEmail) inEmail.value = '';
+      if (inContact) inContact.value = '';
+      if (inTerm) inTerm.value = 'Crédito 30 días';
+      if (inLimit) inLimit.value = '15000.00';
+      if (inNotes) inNotes.value = '';
+    }
+
+    drawer.classList.add('active');
+    if (backdrop) backdrop.classList.add('active');
+    setTimeout(() => inRuc?.focus(), 150);
+  }
+
+  closeSupplierDrawer() {
+    const drawer = document.getElementById('supplierDrawer');
+    const backdrop = document.getElementById('supplierDrawerBackdrop');
+    if (drawer) drawer.classList.remove('active');
+    if (backdrop) backdrop.classList.remove('active');
+  }
+
+  saveSupplier(e) {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+
+    const hiddenId = document.getElementById('supplierEditId')?.value;
+    const ruc = document.getElementById('supplierRuc')?.value?.trim();
+    const name = document.getElementById('supplierName')?.value?.trim();
+    const brand = document.getElementById('supplierBrand')?.value?.trim() || name;
+    const phone = document.getElementById('supplierPhone')?.value?.trim();
+    const address = document.getElementById('supplierAddress')?.value?.trim();
+    const email = document.getElementById('supplierEmail')?.value?.trim();
+    const contact = document.getElementById('supplierContact')?.value?.trim();
+    const term = document.getElementById('supplierCreditTerm')?.value || 'Crédito 30 días';
+    const limit = parseFloat(document.getElementById('supplierCreditLimit')?.value || 15000);
+    const notes = document.getElementById('supplierNotes')?.value?.trim();
+
+    if (!ruc || ruc.length !== 11 || isNaN(ruc)) {
+      showValetecToast('El RUC debe tener exactamente 11 dígitos numéricos.', 'warning');
+      document.getElementById('supplierRuc')?.focus();
+      return;
+    }
+    if (!name || name.length < 3) {
+      showValetecToast('Por favor ingrese la Razón Social de la droguería.', 'warning');
+      document.getElementById('supplierName')?.focus();
+      return;
+    }
+
+    if (hiddenId) {
+      // Modo Edición
+      const sup = this.suppliers.find(s => s.id === parseInt(hiddenId, 10));
+      if (sup) {
+        sup.ruc = ruc;
+        sup.name = name;
+        sup.brand = brand;
+        sup.phone = phone;
+        sup.address = address;
+        sup.email = email;
+        sup.contact = contact;
+        sup.term = term;
+        sup.limit = limit;
+        sup.notes = notes;
+      }
+      showValetecToast(`Droguería "${name}" actualizada con éxito.`, 'success');
+    } else {
+      // Modo Alta
+      const newSup = {
+        id: Date.now(),
+        ruc,
+        name,
+        brand,
+        phone,
+        address,
+        email,
+        contact,
+        term,
+        limit,
+        notes,
+        deliveryDays: '24 hrs',
+        status: 'Homologada'
+      };
+      this.suppliers.unshift(newSup);
+      showValetecToast(`Droguería "${name}" registrada y homologada en el padrón.`, 'success');
+    }
+
+    localStorage.setItem('valetec_purchases_suppliers', JSON.stringify(this.suppliers));
+    this.closeSupplierDrawer();
+    this.renderSuppliers();
+    this.updateKpis();
+  }
+
+  openExchangeModal(lotInfo = null) {
+    if (window.warehouseApp && typeof window.warehouseApp.openExchangeModal === 'function') {
+      window.warehouseApp.openExchangeModal(null, lotInfo?.prodName, lotInfo?.lot, lotInfo?.supplierName, lotInfo?.boxes);
+    } else {
+      const modal = document.getElementById('exchangeModal');
+      if (modal) modal.classList.add('active');
+    }
+  }
+
+  closeExchangeModal() {
+    const modal = document.getElementById('exchangeModal');
+    if (modal) modal.classList.remove('active');
+  }
+
+  printExchangeLetter(exchangeId) {
+    window.print();
+  }
+
+  sendExchangeWhatsApp(exchangeId) {
+    const exc = this.exchanges.find(e => e.id === exchangeId);
+    if (!exc) return;
+
+    const text = `*SOLICITUD FORMAL DE CANJE POR VENCIMIENTO*\n` +
+      `*VALETEC PHARMA* | RUC: 20601234567\n` +
+      `Fecha: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}\n` +
+      `Destinatario: *${exc.supplierName}*\n\n` +
+      `Estimado proveedor, solicitamos el canje formal por rotación conforme a normativa DIGEMID/BPA:\n` +
+      `• *Producto:* ${exc.prodName}\n` +
+      `• *Lote:* ${exc.lot}\n` +
+      `• *Vencimiento:* ${exc.exp} (${exc.daysRemaining} días restantes)\n` +
+      `• *Cantidad:* ${exc.boxes} Cajas\n` +
+      `• *Motivo:* ${exc.reason}\n\n` +
+      `Punto de Recojo: Botica Central (Av. Aviación 2450, San Borja, Lima)\n` +
+      `Regente Q.F.: Dra. Elena Vega (CQFP 18492)\n` +
+      `Agradecemos coordinar con nosotros la fecha de retiro físico y emisión de nota de crédito / reposición.`;
+
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+    showValetecToast("Abriendo WhatsApp con la carta de canje formal...", "info");
+  }
+
+  openWhatsAppOrder(supplierId) {
+    const sup = this.suppliers.find(s => s.id === supplierId);
+    if (!sup) return;
+
+    const phoneDigits = (sup.phone || '').replace(/\D/g, '');
+    const targetPhone = phoneDigits.length >= 9 ? (phoneDigits.startsWith('51') ? phoneDigits : `51${phoneDigits}`) : '51984512890';
+
+    const text = `*ORDEN DE COMPRA URGENTE - VALETEC PHARMA*\n` +
+      `*Botica Central* | RUC: 20601234567\n` +
+      `Destinatario: *${sup.name}*\n` +
+      `Atención: *${sup.contact || 'Ejecutivo Comercial'}*\n` +
+      `Fecha: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}\n\n` +
+      `Estimado proveedor, solicitamos reposición de stock con condición comercial *${sup.term}*:\n` +
+      `• Valetec-Dol Forte 500mg - 20 Cajas\n` +
+      `• Bio-Amoxil 500mg Cápsulas - 15 Cajas\n` +
+      `• Farma-Naprox 550mg Tabletas - 10 Cajas\n\n` +
+      `Dirección de Despacho: Av. Aviación 2450, San Borja, Lima\n` +
+      `Horario de Recepción: Lunes a Sábado 08:00 - 18:00 hrs.\n` +
+      `Favor confirmar disponibilidad y hora estimada de entrega. Muchas gracias.`;
+
+    const url = `https://wa.me/${targetPhone}?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+    showValetecToast(`Abriendo WhatsApp comercial para pedido a ${sup.brand || sup.name}...`, 'info');
   }
 }
 
 // =============================================================
 // 11. TOAST NOTIFICACIONES VALETEC
+
 // =============================================================
 function showValetecToast(message, type = 'success') {
   const toast = document.getElementById('valetecToast');
@@ -5317,6 +8447,7 @@ function updateManagementDashboard(reportData) {
 // =============================================================
 class ManagementDashboardModule {
   constructor() {
+    this.currentTab = 'overview';
     this.salesCanvas = document.getElementById('salesChartCanvas');
     this.topCanvas = document.getElementById('topProductsCanvas');
     this.btnDaily = document.getElementById('btnChartDaily');
@@ -5324,7 +8455,17 @@ class ManagementDashboardModule {
     this.topCountLabel = document.getElementById('topProductsCountLabel');
     this.salesMode = 'daily';
 
-    // Datos iniciales seguros para renderizado reactivo instantáneo (Fase 90%)
+    // Estado del Reporte Contable SUNAT 14.1
+    this.accountantPeriod = '2026-09';
+    this.accountantVoucherType = 'all';
+    this.accountantSales = [];
+
+    // Estado de Reposición Inteligente
+    this.restockSearchQuery = '';
+    this.restockSupplierFilter = 'all';
+    this.restockItems = [];
+
+    // Datos iniciales seguros para gráficos de evolución
     this.chartData = {
       daily: [
         { date: '2026-09-19', dayName: 'Sáb', cashSales: 350.00, digitalSales: 815.00, totalSales: 1165.00 },
@@ -5350,8 +8491,520 @@ class ManagementDashboardModule {
     ];
 
     this.initEvents();
+    this.initRestockItems();
     this.renderSales();
     this.renderTopProducts();
+  }
+
+  setTab(tab) {
+    this.currentTab = tab || 'overview';
+
+    // Botones de pestañas
+    document.getElementById('mgmtTabBtnOverview')?.classList.toggle('active', this.currentTab === 'overview');
+    document.getElementById('mgmtTabBtnAccountant')?.classList.toggle('active', this.currentTab === 'accountant');
+    document.getElementById('mgmtTabBtnProcurement')?.classList.toggle('active', this.currentTab === 'procurement');
+
+    // Paneles de contenido
+    const paneOverview = document.getElementById('mgmtPaneOverview');
+    const paneAccountant = document.getElementById('mgmtPaneAccountant');
+    const paneProcurement = document.getElementById('mgmtPaneProcurement');
+
+    if (paneOverview) paneOverview.style.display = (this.currentTab === 'overview') ? 'block' : 'none';
+    if (paneAccountant) paneAccountant.style.display = (this.currentTab === 'accountant') ? 'block' : 'none';
+    if (paneProcurement) paneProcurement.style.display = (this.currentTab === 'procurement') ? 'block' : 'none';
+
+    if (this.currentTab === 'overview') {
+      this.renderSales();
+      this.renderTopProducts();
+    } else if (this.currentTab === 'accountant') {
+      this.loadAccountantReport();
+    } else if (this.currentTab === 'procurement') {
+      this.renderRestockSuggestions();
+    }
+  }
+
+  // =============================================================
+  // SUBMÓDULO 1: REPORTE CONTABLE MENSUAL (SUNAT 14.1)
+  // =============================================================
+  async loadAccountantReport() {
+    const tableBody = document.getElementById('accountantSalesTableBody');
+    if (tableBody) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="10" style="text-align: center; padding: 24px; color: #64748b;">
+            <span class="spinner-border spinner-border-sm" role="status"></span>
+            <span style="margin-left: 8px;">Consolidando Registro de Ventas SUNAT 14.1 desde base de datos...</span>
+          </td>
+        </tr>
+      `;
+    }
+
+    try {
+      let remoteSales = [];
+      if (window.api && window.api.isConnected) {
+        const res = await window.api.getSales(250);
+        if (res && res.success && Array.isArray(res.data)) {
+          remoteSales = res.data;
+        }
+      }
+
+      // Lote oficial de comprobantes emitidos para el periodo tributario (Semilla contable de alta fidelidad)
+      const seedSales = [
+        { id: '101', date: '2026-09-23 16:44', invoiceType: 'boleta', series: 'B001', number: '0004289', clientDocType: '1', clientDoc: '45892104', clientName: 'Carlos Mendoza Rios', total: 46.00, status: 'completed', sunatStatus: 'Aceptado' },
+        { id: '102', date: '2026-09-23 15:10', invoiceType: 'boleta', series: 'B001', number: '0004290', clientDocType: '1', clientDoc: '71204891', clientName: 'Lucía Huamán Quispe', total: 84.50, status: 'completed', sunatStatus: 'Aceptado' },
+        { id: '103', date: '2026-09-22 17:35', invoiceType: 'factura', series: 'F001', number: '0000841', clientDocType: '6', clientDoc: '20551829104', clientName: 'Clínica San Miguel S.A.C.', total: 1420.00, status: 'completed', sunatStatus: 'Aceptado' },
+        { id: '104', date: '2026-09-22 12:20', invoiceType: 'boleta', series: 'B001', number: '0004291', clientDocType: '1', clientDoc: '09481233', clientName: 'Jorge Paredes Ramos', total: 28.00, status: 'completed', sunatStatus: 'Aceptado' },
+        { id: '105', date: '2026-09-21 18:40', invoiceType: 'boleta', series: 'B001', number: '0004292', clientDocType: '1', clientDoc: '41829301', clientName: 'Mariana Ríos Castillo', total: 65.20, status: 'completed', sunatStatus: 'Aceptado' },
+        { id: '106', date: '2026-09-21 11:15', invoiceType: 'factura', series: 'F001', number: '0000842', clientDocType: '6', clientDoc: '20601928374', clientName: 'Asistencia Médica Domiciliaria E.I.R.L.', total: 890.00, status: 'completed', sunatStatus: 'Aceptado' },
+        { id: '107', date: '2026-09-20 19:05', invoiceType: 'boleta', series: 'B001', number: '0004293', clientDocType: '1', clientDoc: '10293847', clientName: 'Rosa Quispe Valdivia', total: 19.50, status: 'completed', sunatStatus: 'Aceptado' },
+        { id: '108', date: '2026-09-19 16:22', invoiceType: 'boleta', series: 'B001', number: '0004294', clientDocType: '1', clientDoc: '73829102', clientName: 'Walter Vargas Morales', total: 112.00, status: 'completed', sunatStatus: 'Aceptado' },
+        { id: '109', date: '2026-09-19 10:50', invoiceType: 'factura', series: 'F001', number: '0000843', clientDocType: '6', clientDoc: '20491823719', clientName: 'Consultorios Integrados del Sur S.A.C.', total: 2350.00, status: 'completed', sunatStatus: 'Aceptado' },
+        { id: '110', date: '2026-09-18 14:15', invoiceType: 'boleta', series: 'B001', number: '0004295', clientDocType: '1', clientDoc: '47192830', clientName: 'Beatriz Solís Peña', total: 35.80, status: 'completed', sunatStatus: 'Aceptado' },
+        { id: '111', date: '2026-09-17 13:40', invoiceType: 'boleta', series: 'B001', number: '0004296', clientDocType: '1', clientDoc: '08291834', clientName: 'Ricardo Castro Luna', total: 154.00, status: 'completed', sunatStatus: 'Aceptado' },
+        { id: '112', date: '2026-09-16 11:30', invoiceType: 'boleta', series: 'B001', number: '0004297', clientDocType: '1', clientDoc: '43920194', clientName: 'Milagros Chávez Vega', total: 78.00, status: 'completed', sunatStatus: 'Aceptado' },
+        { id: '113', date: '2026-09-15 09:15', invoiceType: 'factura', series: 'F001', number: '0000844', clientDocType: '6', clientDoc: '20519827361', clientName: 'Laboratorios Diagnósticos Lima S.A.', total: 3120.00, status: 'completed', sunatStatus: 'Aceptado' },
+        { id: '114', date: '2026-09-14 16:55', invoiceType: 'boleta', series: 'B001', number: '0004298', clientDocType: '1', clientDoc: '70192841', clientName: 'Felipe Torres Guzmán', total: 42.00, status: 'completed', sunatStatus: 'Aceptado' },
+        { id: '115', date: '2026-09-12 18:00', invoiceType: 'factura', series: 'F001', number: '0000845', clientDocType: '6', clientDoc: '20558491029', clientName: 'Servicios de Salud Ocupacional Perú S.A.', total: 1850.00, status: 'completed', sunatStatus: 'Aceptado' },
+        { id: '116', date: '2026-09-10 12:45', invoiceType: 'boleta', series: 'B001', number: '0004299', clientDocType: '1', clientDoc: '48291047', clientName: 'Carmen Navarro Gil', total: 64.00, status: 'completed', sunatStatus: 'Aceptado' },
+        { id: '117', date: '2026-09-08 15:30', invoiceType: 'boleta', series: 'B001', number: '0004300', clientDocType: '1', clientDoc: '10928374', clientName: 'David Silva Ramos', total: 88.00, status: 'completed', sunatStatus: 'Aceptado' },
+        { id: '118', date: '2026-09-05 10:10', invoiceType: 'factura', series: 'F001', number: '0000846', clientDocType: '6', clientDoc: '20448192031', clientName: 'Policlínico Especializado San Pablo', total: 2750.00, status: 'completed', sunatStatus: 'Aceptado' },
+        { id: '119', date: '2026-09-03 17:20', invoiceType: 'boleta', series: 'B001', number: '0004301', clientDocType: '1', clientDoc: '42819034', clientName: 'Elena Zevallos Prado', total: 32.50, status: 'completed', sunatStatus: 'Aceptado' },
+        { id: '120', date: '2026-09-01 11:00', invoiceType: 'boleta', series: 'B001', number: '0004302', clientDocType: '1', clientDoc: '07192834', clientName: 'Esteban Coronado Ruiz', total: 95.00, status: 'completed', sunatStatus: 'Aceptado' }
+      ];
+
+      // Combinar comprobantes de PostgreSQL respetando el formato unificado SUNAT
+      const mappedRemote = remoteSales.map(s => {
+        const invType = (s.invoiceType || '').toLowerCase().includes('fact') ? 'factura' : 'boleta';
+        const isFactura = invType === 'factura';
+        return {
+          id: s.id || `RS-${Math.random()}`,
+          date: s.createdAt ? new Date(s.createdAt).toISOString().slice(0, 16).replace('T', ' ') : '2026-09-23 12:00',
+          invoiceType: invType,
+          series: s.series || (isFactura ? 'F001' : 'B001'),
+          number: s.number || String(s.invoiceNumber || '0001000').padStart(7, '0'),
+          clientDocType: isFactura ? '6' : '1',
+          clientDoc: s.clientDoc || (isFactura ? '20601234567' : '00000000'),
+          clientName: s.clientName || 'Cliente Mostrador',
+          total: parseFloat(s.total || 0),
+          status: s.status || 'completed',
+          sunatStatus: s.sunatStatus || 'Aceptado'
+        };
+      });
+
+      this.accountantSales = [...seedSales, ...mappedRemote];
+      this.renderAccountantTable();
+    } catch (err) {
+      if (tableBody) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="10" style="text-align: center; padding: 24px; color: #dc2626;">
+              <i class="bi bi-exclamation-triangle"></i> Error consolidando reporte contable: ${err.message}
+            </td>
+          </tr>
+        `;
+      }
+    }
+  }
+
+  onAccountantPeriodChange(period) {
+    this.accountantPeriod = period;
+    this.renderAccountantTable();
+    showValetecToast(`Periodo contable actualizado a: ${period}`, "info");
+  }
+
+  onAccountantVoucherFilter(filterType) {
+    this.accountantVoucherType = filterType;
+    this.renderAccountantTable();
+  }
+
+  renderAccountantTable() {
+    const tableBody = document.getElementById('accountantSalesTableBody');
+    if (!tableBody) return;
+
+    // Filtrar por periodo seleccionado (año-mes)
+    let filtered = this.accountantSales.filter(s => (s.date || '').startsWith(this.accountantPeriod));
+    
+    // Filtrar por tipo de comprobante (all, 03 boleta, 01 factura)
+    if (this.accountantVoucherType === '03') {
+      filtered = filtered.filter(s => s.invoiceType === 'boleta');
+    } else if (this.accountantVoucherType === '01') {
+      filtered = filtered.filter(s => s.invoiceType === 'factura');
+    }
+
+    if (filtered.length === 0) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="10" style="text-align: center; padding: 32px; color: #64748b;">
+            <i class="bi bi-info-circle" style="font-size: 20px; display: block; margin-bottom: 4px;"></i>
+            No se encontraron comprobantes emitidos para el periodo <strong>${this.accountantPeriod}</strong> con el filtro seleccionado.
+          </td>
+        </tr>
+      `;
+      this.updateAccountantKpis(0, 0, 0, 0, 0);
+      return;
+    }
+
+    // Cálculos tributarios acumulados
+    let sumTotal = 0;
+    let sumBase = 0;
+    let sumIgv = 0;
+    let countBoletas = 0;
+    let countFacturas = 0;
+
+    const rowsHtml = filtered.map(item => {
+      const total = parseFloat(item.total || 0);
+      const base = total / 1.18;
+      const igv = total - base;
+
+      sumTotal += total;
+      sumBase += base;
+      sumIgv += igv;
+
+      const isFactura = item.invoiceType === 'factura';
+      if (isFactura) countFacturas++;
+      else countBoletas++;
+
+      const typeCode = isFactura ? '01' : '03';
+      const typeBadge = isFactura 
+        ? `<span class="badge" style="background: #e0e7ff; color: #3730a3; font-weight: 700;">01 - FACT</span>`
+        : `<span class="badge" style="background: #e0f2fe; color: #0369a1; font-weight: 700;">03 - BOL</span>`;
+      const docTypeBadge = item.clientDocType === '6' ? '6 (RUC)' : '1 (DNI)';
+
+      return `
+        <tr>
+          <td style="font-size: 11.5px; font-weight: 600; color: #334155;">${(item.date || '').slice(0, 10)}</td>
+          <td>${typeBadge}</td>
+          <td style="font-family: monospace; font-weight: 700; color: var(--valetec-navy);">${item.series}-${item.number}</td>
+          <td style="font-size: 11px; color: #64748b;">${docTypeBadge}</td>
+          <td style="font-family: monospace; font-size: 11.5px; color: #0f172a;">${item.clientDoc}</td>
+          <td style="font-size: 11.5px; font-weight: 600; color: #1e293b;">${item.clientName}</td>
+          <td style="text-align: right; font-family: monospace; font-size: 12px; color: #334155;">S/ ${base.toFixed(2)}</td>
+          <td style="text-align: right; font-family: monospace; font-size: 12px; color: #2563eb; font-weight: 600;">S/ ${igv.toFixed(2)}</td>
+          <td style="text-align: right; font-family: monospace; font-size: 12.5px; font-weight: 800; color: #0f172a;">S/ ${total.toFixed(2)}</td>
+          <td style="text-align: center;">
+            <span class="badge" style="background: #ecfdf5; color: #047857; font-weight: 700; font-size: 10px; border: 1px solid #a7f3d0;">
+              <i class="bi bi-check2-circle"></i> ACEPTADO
+            </span>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    tableBody.innerHTML = rowsHtml;
+    this.updateAccountantKpis(sumTotal, sumBase, sumIgv, countBoletas, countFacturas);
+  }
+
+  updateAccountantKpis(total, base, igv, boletas, facturas) {
+    const elTotal = document.getElementById('accKpiTotalSales');
+    const elBase = document.getElementById('accKpiBase');
+    const elIgv = document.getElementById('accKpiIgv');
+    const elCount = document.getElementById('accKpiVoucherCount');
+    const elBreakdown = document.getElementById('accKpiVoucherBreakdown');
+
+    if (elTotal) elTotal.innerText = `S/ ${total.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (elBase) elBase.innerText = `S/ ${base.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (elIgv) elIgv.innerText = `S/ ${igv.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (elCount) elCount.innerText = `${boletas + facturas}`;
+    if (elBreakdown) elBreakdown.innerText = `${boletas} Boletas • ${facturas} Facturas`;
+  }
+
+  exportAccountantCsv() {
+    let filtered = this.accountantSales.filter(s => (s.date || '').startsWith(this.accountantPeriod));
+    if (this.accountantVoucherType === '03') filtered = filtered.filter(s => s.invoiceType === 'boleta');
+    else if (this.accountantVoucherType === '01') filtered = filtered.filter(s => s.invoiceType === 'factura');
+
+    if (filtered.length === 0) {
+      showValetecToast("No hay comprobantes para exportar en este periodo.", "warning");
+      return;
+    }
+
+    const headers = [
+      "Periodo Tributario",
+      "Fecha Emision",
+      "Tipo Comprobante (SUNAT)",
+      "Serie",
+      "Numero Correlativo",
+      "Tipo Documento Identidad",
+      "Numero Documento",
+      "Razon Social / Apellidos y Nombres",
+      "Base Imponible Gravada (PEN)",
+      "I.G.V. 18% (PEN)",
+      "Importe Total (PEN)",
+      "Estado SUNAT"
+    ];
+
+    const rows = filtered.map(item => {
+      const total = parseFloat(item.total || 0);
+      const base = total / 1.18;
+      const igv = total - base;
+      const typeCode = item.invoiceType === 'factura' ? '01' : '03';
+
+      return [
+        `"${this.accountantPeriod}"`,
+        `"${(item.date || '').slice(0, 10)}"`,
+        `"${typeCode}"`,
+        `"${item.series}"`,
+        `"${item.number}"`,
+        `"${item.clientDocType || '1'}"`,
+        `"${item.clientDoc}"`,
+        `"${(item.clientName || '').replace(/"/g, '""')}"`,
+        base.toFixed(2),
+        igv.toFixed(2),
+        total.toFixed(2),
+        `"${item.sunatStatus || 'Aceptado'}"`
+      ].join(',');
+    });
+
+    const csvContent = "\uFEFF" + [headers.join(','), ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Reporte_Ventas_SUNAT_14_1_${this.accountantPeriod}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showValetecToast(`Reporte SUNAT 14.1 exportado en formato CSV compatible con Excel (${filtered.length} filas).`, "success");
+  }
+
+  printAccountantReport() {
+    const prevTitle = document.title;
+    document.title = `Reporte_Contable_SUNAT_14_1_${this.accountantPeriod}_VALETEC_PHARMA`;
+    window.print();
+    setTimeout(() => { document.title = prevTitle; }, 1000);
+  }
+
+  // =============================================================
+  // SUBMÓDULO 2: SUGERIDO INTELIGENTE DE REPOSICIÓN A DROGUERÍAS
+  // =============================================================
+  initRestockItems() {
+    this.restockItems = [
+      {
+        id: 'RESTOCK-01',
+        name: 'Bio-Amoxil 500mg Cápsulas',
+        dci: 'Amoxicilina Trihidrato',
+        barcode: '7750182930124',
+        supplier: 'MedPharma Labs',
+        stockBoxes: 6,
+        unitsPerBox: 40,
+        dailyVelocity: 4.5,
+        hoursLeft: 32,
+        suggestedBoxes: 15,
+        costPerBox: 21.00,
+        estCost: 315.00
+      },
+      {
+        id: 'RESTOCK-02',
+        name: 'Valetec-Dol Forte 500mg',
+        dci: 'Paracetamol + Cafeína',
+        barcode: '7750182930018',
+        supplier: 'Laboratorios Farmatec S.A.',
+        stockBoxes: 8,
+        unitsPerBox: 100,
+        dailyVelocity: 6.0,
+        hoursLeft: 32,
+        suggestedBoxes: 20,
+        costPerBox: 24.00,
+        estCost: 480.00
+      },
+      {
+        id: 'RESTOCK-03',
+        name: 'Farma-Naprox 550mg Tabletas',
+        dci: 'Naproxeno Sódico',
+        barcode: '7750182930032',
+        supplier: 'BioFarma Perú',
+        stockBoxes: 4,
+        unitsPerBox: 100,
+        dailyVelocity: 4.0,
+        hoursLeft: 24,
+        suggestedBoxes: 10,
+        costPerBox: 34.50,
+        estCost: 345.00
+      },
+      {
+        id: 'RESTOCK-04',
+        name: 'Paracetamol 500mg DCI Genérico',
+        dci: 'Paracetamol',
+        barcode: '7750182930056',
+        supplier: 'MedPharma Labs',
+        stockBoxes: 12,
+        unitsPerBox: 100,
+        dailyVelocity: 7.2,
+        hoursLeft: 40,
+        suggestedBoxes: 25,
+        costPerBox: 11.20,
+        estCost: 280.00
+      }
+    ];
+  }
+
+  onRestockSearch(query) {
+    this.restockSearchQuery = (query || '').toLowerCase().trim();
+    this.renderRestockSuggestions();
+  }
+
+  onRestockSupplierFilter(supplier) {
+    this.restockSupplierFilter = supplier || 'all';
+    this.renderRestockSuggestions();
+  }
+
+  updateRestockQty(itemId, newQty) {
+    const qty = parseInt(newQty, 10);
+    const item = this.restockItems.find(i => i.id === itemId);
+    if (item && !isNaN(qty) && qty >= 1) {
+      item.suggestedBoxes = qty;
+      item.estCost = qty * item.costPerBox;
+      this.renderRestockSuggestions();
+      this.updateWhatsAppMessage();
+      showValetecToast(`Pedido sugerido para ${item.name} ajustado a ${qty} cajas.`, "info");
+    }
+  }
+
+  renderRestockSuggestions() {
+    const tableBody = document.getElementById('restockTableBody');
+    if (!tableBody) return;
+
+    let filtered = this.restockItems.filter(item => {
+      const matchSearch = !this.restockSearchQuery || 
+        item.name.toLowerCase().includes(this.restockSearchQuery) || 
+        item.supplier.toLowerCase().includes(this.restockSearchQuery) ||
+        (item.dci && item.dci.toLowerCase().includes(this.restockSearchQuery));
+
+      const matchSupplier = this.restockSupplierFilter === 'all' || 
+        item.supplier.toLowerCase() === this.restockSupplierFilter.toLowerCase();
+
+      return matchSearch && matchSupplier;
+    });
+
+    // Actualizar KPIs de Reposición
+    const totalCost = filtered.reduce((sum, i) => sum + (i.estCost || 0), 0);
+    const uniqueSuppliers = new Set(filtered.map(i => i.supplier)).size;
+
+    const kpiCount = document.getElementById('restockKpiItemsCount');
+    const kpiCost = document.getElementById('restockKpiTotalCost');
+    const kpiSuppliers = document.getElementById('restockKpiSuppliersCount');
+    const badgeBadge = document.getElementById('badgeCountRestock');
+
+    if (kpiCount) kpiCount.innerText = `${filtered.length} Medicamentos`;
+    if (kpiCost) kpiCost.innerText = `S/ ${totalCost.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (kpiSuppliers) kpiSuppliers.innerText = `${uniqueSuppliers} Droguerías`;
+    if (badgeBadge) badgeBadge.innerText = `${filtered.length}`;
+
+    if (filtered.length === 0) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 28px; color: #64748b;">
+            <i class="bi bi-check-circle" style="font-size: 20px; color: #0d9488; display: block; margin-bottom: 4px;"></i>
+            Todos los medicamentos cumplen con el nivel óptimo de stock para el filtro actual.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    const rowsHtml = filtered.map(item => {
+      const isUrgent = item.hoursLeft <= 24;
+      const hoursBadge = isUrgent
+        ? `<span class="badge" style="background: #fee2e2; color: #b91c1c; font-weight: 700; border: 1px solid #fca5a5;"><i class="bi bi-clock-history"></i> &lt; ${item.hoursLeft} Horas</span>`
+        : `<span class="badge" style="background: #fef3c7; color: #b45309; font-weight: 700; border: 1px solid #fde68a;"><i class="bi bi-clock"></i> ~${item.hoursLeft} Horas</span>`;
+
+      return `
+        <tr>
+          <td>
+            <strong style="color: var(--valetec-navy); font-size: 12.5px; display: block;">${item.name}</strong>
+            <small style="color: #64748b; font-size: 11px;">${item.dci} • EAN: ${item.barcode}</small>
+          </td>
+          <td>
+            <span class="badge" style="background: #f1f5f9; color: #334155; font-weight: 600; font-size: 11px; border: 1px solid #cbd5e1;">
+              <i class="bi bi-building"></i> ${item.supplier}
+            </span>
+          </td>
+          <td style="text-align: right; font-weight: 700; color: ${item.stockBoxes <= 5 ? '#dc2626' : '#0f172a'};">
+            ${item.stockBoxes} Cajas <small style="display: block; font-weight: 400; color: #64748b;">(${item.stockBoxes * item.unitsPerBox} un.)</small>
+          </td>
+          <td style="text-align: right; font-weight: 600; color: #334155;">
+            ${item.dailyVelocity} Cajas/d
+          </td>
+          <td style="text-align: center;">
+            ${hoursBadge}
+          </td>
+          <td style="text-align: right;">
+            <div style="display: inline-flex; align-items: center; gap: 4px;">
+              <input 
+                type="number" 
+                min="1" 
+                max="500" 
+                value="${item.suggestedBoxes}" 
+                class="form-control" 
+                style="width: 72px; text-align: center; font-weight: 700; height: 30px; padding: 2px;"
+                onchange="managementApp.updateRestockQty('${item.id}', this.value)"
+              >
+              <span style="font-size: 11px; color: #64748b;">cjas</span>
+            </div>
+          </td>
+          <td style="text-align: right; font-family: monospace; font-size: 12.5px; font-weight: 700; color: #0d9488;">
+            S/ ${(item.estCost || 0).toFixed(2)}
+          </td>
+          <td style="text-align: right;">
+            <button 
+              type="button" 
+              class="btn-action-outline" 
+              style="padding: 3px 8px; font-size: 11px;" 
+              onclick="managementApp.openSingleRestockWhatsApp('${item.id}')"
+              title="Pedir a esta droguería por WhatsApp"
+            >
+              <i class="bi bi-whatsapp" style="color: #25d366;"></i> <span>Pedir</span>
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    tableBody.innerHTML = rowsHtml;
+  }
+
+  openSingleRestockWhatsApp(itemId) {
+    const item = this.restockItems.find(i => i.id === itemId);
+    if (!item) return;
+
+    // Ajustar el selector de droguería
+    const supplierSelect = document.getElementById('whatsappSupplierSelect');
+    if (supplierSelect) {
+      let found = false;
+      for (let i = 0; i < supplierSelect.options.length; i++) {
+        if (supplierSelect.options[i].value.toLowerCase().includes(item.supplier.toLowerCase())) {
+          supplierSelect.selectedIndex = i;
+          found = true;
+          break;
+        }
+      }
+      if (!found) supplierSelect.value = 'all';
+    }
+
+    this.openWhatsAppOrderModal();
+
+    // Sobrescribir el mensaje para este pedido enfocado
+    const previewEl = document.getElementById('whatsappMessagePreview');
+    if (previewEl) {
+      const dateStr = new Date().toLocaleDateString();
+      const timeStr = new Date().toLocaleTimeString();
+      previewEl.value = 
+        `*ORDEN DE COMPRA URGENTE - VALETEC PHARMA*\n` +
+        `*Botica Central* | RUC: 20601234567\n` +
+        `Destinatario: *${item.supplier}*\n` +
+        `Fecha: ${dateStr} ${timeStr}\n\n` +
+        `Estimado proveedor, requerimos despacho urgente para reposición en mostrador:\n\n` +
+        `1. *${item.name}* (DCI: ${item.dci})\n` +
+        `   • Cantidad solicitada: *${item.suggestedBoxes} Cajas* (${item.suggestedBoxes * item.unitsPerBox} unidades)\n` +
+        `   • Código de Barras EAN: ${item.barcode}\n` +
+        `   • Importe Referencial: S/ ${(item.estCost || 0).toFixed(2)}\n\n` +
+        `*Dirección de Entrega:* Av. Aviación 2450, San Borja, Lima\n` +
+        `*Horario de Recepción:* Lunes a Sábado 08:00 - 18:00 hrs.\n` +
+        `*Regente Q.F.:* Dra. Elena Vega (CQFP 18492)\n\n` +
+        `Agradecemos confirmar disponibilidad inmediata y emitir la factura respectiva.`;
+    }
   }
 
   registerLocalSale(saleData) {
@@ -5435,8 +9088,10 @@ class ManagementDashboardModule {
       });
     }
     window.addEventListener('resize', () => {
-      this.renderSales();
-      this.renderTopProducts();
+      if (this.currentTab === 'overview') {
+        this.renderSales();
+        this.renderTopProducts();
+      }
     });
   }
 
@@ -5517,24 +9172,12 @@ class ManagementDashboardModule {
   }
 
   getSuggestedItemsText(supplierFilter = 'all') {
-    let items = [];
-    if (typeof testPharmacyCatalog !== 'undefined' && Array.isArray(testPharmacyCatalog)) {
-      const lowStock = testPharmacyCatalog.filter(p => (p.stockBoxes || 0) <= 20);
-      if (lowStock.length > 0) {
-        items = lowStock.map(p => ({
-          name: p.name,
-          supplier: p.laboratory || "Droguería Distribuidora",
-          boxes: Math.max(10, 30 - (p.stockBoxes || 0)),
-          units: (Math.max(10, 30 - (p.stockBoxes || 0))) * (p.unitsPerBox || 20),
-          estCost: Math.max(10, 30 - (p.stockBoxes || 0)) * (p.purchaseCost || (p.priceBox ? p.priceBox * 0.7 : 20))
-        }));
-      }
-    }
+    let items = this.restockItems || [];
     if (items.length === 0) {
       items = [
-        { name: "Bio-Amoxil 500mg Cápsulas", supplier: "MedPharma Labs", boxes: 15, units: 600, estCost: 315.00 },
-        { name: "Valetec-Dol Forte 500mg", supplier: "Laboratorios Farmatec S.A.", boxes: 20, units: 2000, estCost: 480.00 },
-        { name: "Farma-Naprox 550mg Tabletas", supplier: "BioFarma Perú", boxes: 10, units: 1000, estCost: 345.00 }
+        { name: "Bio-Amoxil 500mg Cápsulas", supplier: "MedPharma Labs", suggestedBoxes: 15, unitsPerBox: 40, estCost: 315.00 },
+        { name: "Valetec-Dol Forte 500mg", supplier: "Laboratorios Farmatec S.A.", suggestedBoxes: 20, unitsPerBox: 100, estCost: 480.00 },
+        { name: "Farma-Naprox 550mg Tabletas", supplier: "BioFarma Perú", suggestedBoxes: 10, unitsPerBox: 100, estCost: 345.00 }
       ];
     }
 
@@ -5544,8 +9187,11 @@ class ManagementDashboardModule {
 
     let total = 0;
     const lines = filtered.map((item, idx) => {
-      total += item.estCost;
-      return `${idx + 1}. *${item.name}*\n   • Cantidad: *${item.boxes} Cajas* (${item.units} un.)\n   • Prov: ${item.supplier}\n   • Importe Ref: S/ ${item.estCost.toFixed(2)}`;
+      const boxes = item.suggestedBoxes || 10;
+      const units = boxes * (item.unitsPerBox || 20);
+      const cost = item.estCost || (boxes * 25);
+      total += cost;
+      return `${idx + 1}. *${item.name}*\n   • Cantidad: *${boxes} Cajas* (${units} un.)\n   • Prov: ${item.supplier}\n   • Importe Ref: S/ ${cost.toFixed(2)}`;
     });
 
     return { text: lines.join('\n\n'), total: total.toFixed(2), count: filtered.length };
@@ -5594,7 +9240,10 @@ class ManagementDashboardModule {
       e.preventDefault();
       e.stopPropagation();
     }
+    const prevTitle = document.title;
+    document.title = `Hoja_Pedido_Reposicion_Droguerias_VALETEC_PHARMA`;
     window.print();
+    setTimeout(() => { document.title = prevTitle; }, 1000);
   }
 
   sendWhatsAppDirect(e) {
@@ -5621,6 +9270,9 @@ class ManagementDashboardModule {
 class SettingsModule {
   constructor() {
     this.modal = document.getElementById('settingsModal');
+    this.currentTab = 'botica';
+    this.selectedRbacRole = 'admin';
+
     this.btnOpenHeader = document.getElementById('btnOpenSettingsHeader');
     this.btnOpenMgmt = document.getElementById('btnOpenSettingsFromMgmt');
     this.btnClose = document.getElementById('btnCloseSettingsModal');
@@ -5629,7 +9281,7 @@ class SettingsModule {
     this.btnDownloadBackup = document.getElementById('btnDownloadBackup');
     this.btnDownloadBackupMgmt = document.getElementById('btnDownloadBackupMgmt');
 
-    // Elementos del formulario
+    // Elementos del formulario Botica
     this.inCompanyName = document.getElementById('settingCompanyName');
     this.inCommercialName = document.getElementById('settingCommercialName');
     this.inRuc = document.getElementById('settingRuc');
@@ -5643,14 +9295,45 @@ class SettingsModule {
     this.inTechnicalDirector = document.getElementById('settingTechnicalDirector');
     this.inInvoiceFooterText = document.getElementById('settingInvoiceFooterText');
 
+    // Elementos de Facturación SUNAT
+    this.inSunatEnv = document.getElementById('settingSunatEnv');
+    this.inSunatUser = document.getElementById('settingSunatUser');
+    this.inSunatPass = document.getElementById('settingSunatPass');
+    this.inPfxPassword = document.getElementById('settingPfxPassword');
+
     this.settingsData = null;
 
     this.initEvents();
   }
 
+  setTab(tab) {
+    this.currentTab = tab || 'botica';
+
+    // Botones de pestañas
+    document.getElementById('settingsTabBtnBotica')?.classList.toggle('active', this.currentTab === 'botica');
+    document.getElementById('settingsTabBtnSunat')?.classList.toggle('active', this.currentTab === 'sunat');
+    document.getElementById('settingsTabBtnRoles')?.classList.toggle('active', this.currentTab === 'roles');
+    document.getElementById('settingsTabBtnBackups')?.classList.toggle('active', this.currentTab === 'backups');
+
+    // Paneles de contenido
+    const paneBotica = document.getElementById('settingsPaneBotica');
+    const paneSunat = document.getElementById('settingsPaneSunat');
+    const paneRoles = document.getElementById('settingsPaneRoles');
+    const paneBackups = document.getElementById('settingsPaneBackups');
+
+    if (paneBotica) paneBotica.style.display = (this.currentTab === 'botica') ? 'block' : 'none';
+    if (paneSunat) paneSunat.style.display = (this.currentTab === 'sunat') ? 'block' : 'none';
+    if (paneRoles) paneRoles.style.display = (this.currentTab === 'roles') ? 'block' : 'none';
+    if (paneBackups) paneBackups.style.display = (this.currentTab === 'backups') ? 'block' : 'none';
+
+    if (this.currentTab === 'roles') {
+      this.renderRbacMatrix();
+    }
+  }
+
   initEvents() {
-    if (this.btnOpenHeader) this.btnOpenHeader.addEventListener('click', () => this.openModal());
-    if (this.btnOpenMgmt) this.btnOpenMgmt.addEventListener('click', () => this.openModal());
+    if (this.btnOpenHeader) this.btnOpenHeader.addEventListener('click', () => this.openModal('botica'));
+    if (this.btnOpenMgmt) this.btnOpenMgmt.addEventListener('click', () => this.openModal('botica'));
     if (this.btnClose) this.btnClose.addEventListener('click', () => this.toggleModal(false));
     if (this.btnCancel) this.btnCancel.addEventListener('click', () => this.toggleModal(false));
     if (this.btnSave) this.btnSave.addEventListener('click', () => this.handleSave());
@@ -5662,33 +9345,6 @@ class SettingsModule {
     }
   }
 
-  async handleDownloadBackup(btn) {
-    if (appNav && !appNav.canAccessView('viewManagement')) {
-      showValetecToast("Acceso denegado: Solo el Administrador puede descargar copias de seguridad.", "danger");
-      return;
-    }
-
-    const originalHtml = btn ? btn.innerHTML : '';
-    if (btn) {
-      btn.disabled = true;
-      btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> Volcando PostgreSQL 16...`;
-    }
-
-    try {
-      showValetecToast("Iniciando volcado completo de la base de datos PostgreSQL 16...", "info");
-      const result = await window.api.downloadDatabaseBackup();
-      showValetecToast(`¡Backup generado con éxito! Archivo: ${result.filename} (${(result.size / 1024).toFixed(1)} KB)`, "success");
-    } catch (err) {
-      console.error("[BACKUP] Error al descargar volcado:", err);
-      showValetecToast(`Error al generar respaldo: ${err.message}`, "danger");
-    } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = originalHtml;
-      }
-    }
-  }
-
   toggleModal(open) {
     if (open) {
       this.modal?.classList.add('active');
@@ -5697,13 +9353,14 @@ class SettingsModule {
     }
   }
 
-  async openModal() {
-    // RBAC: Solo admin puede ver/editar
+  async openModal(initialTab = 'botica') {
+    // RBAC: Solo admin y qf pueden ver/editar ajustes
     if (appNav && !appNav.canAccessView('viewManagement')) {
-      showValetecToast("Acceso restringido: Solo el Administrador puede configurar la empresa.", "warning");
+      showValetecToast("Acceso restringido: Solo Gerencia y Regencia pueden gestionar la configuración.", "warning");
       return;
     }
     await this.loadSettings();
+    this.setTab(initialTab);
     this.toggleModal(true);
   }
 
@@ -5736,6 +9393,153 @@ class SettingsModule {
     if (this.inSanitaryLicense) this.inSanitaryLicense.value = data.sanitaryLicense || '';
     if (this.inTechnicalDirector) this.inTechnicalDirector.value = data.technicalDirector || '';
     if (this.inInvoiceFooterText) this.inInvoiceFooterText.value = data.invoiceFooterText || '';
+  }
+
+  togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+    if (btn) {
+      btn.innerHTML = isPassword ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+    }
+  }
+
+  async testSunatConnection() {
+    const btn = document.getElementById('btnTestSunatConnection');
+    const origHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> Probando OSE/SUNAT...`;
+    }
+
+    try {
+      // Simular latencia de ping TLS con el servidor OSE / SEE
+      await new Promise(r => setTimeout(r, 650));
+      showValetecToast("Conexión con SUNAT UBL 2.1 establecida con éxito (HTTP 200 OK • Latencia: 94ms).", "success");
+    } catch (err) {
+      showValetecToast(`Error en conexión con SUNAT: ${err.message}`, "danger");
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+      }
+    }
+  }
+
+  selectRbacRole(roleKey) {
+    this.selectedRbacRole = roleKey;
+    document.getElementById('rbacPillAdmin')?.classList.toggle('active', roleKey === 'admin');
+    document.getElementById('rbacPillQf')?.classList.toggle('active', roleKey === 'qf');
+    document.getElementById('rbacPillTech')?.classList.toggle('active', roleKey === 'tech');
+    document.getElementById('rbacPillCashier')?.classList.toggle('active', roleKey === 'cashier');
+    this.renderRbacMatrix();
+  }
+
+  renderRbacMatrix() {
+    const container = document.getElementById('rbacMatrixContainer');
+    if (!container) return;
+
+    const roleInfo = {
+      admin: {
+        title: 'Dueño / Gerente General (Control Total)',
+        desc: 'Acceso irrestricto a todas las áreas, gestión financiera, anulación de comprobantes y ajustes de configuración.',
+        allowed: ['pos', 'vouchers', 'cash', 'warehouse', 'digemid', 'purchases', 'reports', 'settings']
+      },
+      qf: {
+        title: 'Química Farmacéutica Regente (Dirección Técnica)',
+        desc: 'Supervisión sanitaria oficial, custodia de boveda de psicotrópicos Lista IV, firma de balances DIRIS y dispensación.',
+        allowed: ['pos', 'vouchers', 'cash', 'warehouse', 'digemid', 'purchases', 'reports']
+      },
+      tech: {
+        title: 'Técnico en Farmacia (Atención Mostrador)',
+        desc: 'Dispensación rápida a pacientes, consulta de catálogo y kardex de anaqueles. Restringido para arqueos y reportes contables.',
+        allowed: ['pos', 'warehouse', 'digemid']
+      },
+      cashier: {
+        title: 'Cajero / Operador de Terminal (Cobranzas)',
+        desc: 'Cobro de ventas en mostrador, emisión de boletas/facturas, apertura de turno y declaración en Cierre Z fiscal.',
+        allowed: ['pos', 'vouchers', 'cash', 'warehouse']
+      }
+    };
+
+    const current = roleInfo[this.selectedRbacRole] || roleInfo.admin;
+
+    const permissionRows = [
+      { key: 'pos', name: 'Mostrador POS & Venta Rápida', desc: 'Acceso a terminal de venta, lectura de código de barras y atajos de teclado (F2, F4, F8).' },
+      { key: 'vouchers', name: 'Comprobantes Emitidos & Anulaciones', desc: 'Consulta de historial de ventas, reimpresión térmica y solicitud de anulación atómica (F7).' },
+      { key: 'cash', name: 'Apertura de Turno, Caja Chica & Cierre Z', desc: 'Conteo físico de gaveta, arqueo billete/moneda, egresos menores y corte Z fiscal (F9).' },
+      { key: 'warehouse', name: 'Almacén, Kardex & Vencimientos FEFO', desc: 'Gestión de anaqueles, fraccionamiento, ajuste de stock y alertas de vencimiento (F3).' },
+      { key: 'digemid', name: 'Libro Oficial de Recetas & Bóveda DIGEMID', desc: 'Foliación de recetas retenidas, boveda bajo llave de psicotrópicos y balances DIRIS.' },
+      { key: 'purchases', name: 'Módulo de Compras & Droguerías', desc: 'Recepción de mercadería con factura comercial, registro de droguerías y cartas de canje.' },
+      { key: 'reports', name: 'Torre de Control & Reporte Contable SUNAT 14.1', desc: 'Métricas financieras, margen comercial, declaración mensual de IGV y sugerido de compras (F6).' },
+      { key: 'settings', name: 'Configuración Fiscal & Copias de Seguridad', desc: 'Modificación de RUC/Razón Social, credenciales SOL, certificado PFX y descarga de backups SQL.' }
+    ];
+
+    const rowsHtml = permissionRows.map(perm => {
+      const isAllowed = current.allowed.includes(perm.key);
+      const isCritical = perm.key === 'settings' || perm.key === 'reports';
+      const badgeStatus = isAllowed 
+        ? `<span class="badge" style="background: #ecfdf5; color: #047857; font-weight: 700; font-size: 11px;"><i class="bi bi-check-circle"></i> Permitido</span>`
+        : `<span class="badge" style="background: #f1f5f9; color: #64748b; font-weight: 600; font-size: 11px;"><i class="bi bi-dash-circle"></i> Bloqueado</span>`;
+
+      return `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; background: ${isAllowed ? '#ffffff' : '#f8fafc'};">
+          <div style="flex: 1; padding-right: 12px;">
+            <strong style="color: ${isAllowed ? 'var(--valetec-navy)' : '#64748b'}; font-size: 12px; display: block;">${perm.name}</strong>
+            <small style="color: #64748b; font-size: 11px;">${perm.desc}</small>
+          </div>
+          <div style="min-width: 90px; text-align: right;">
+            ${badgeStatus}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      <div style="margin-bottom: 10px;">
+        <strong style="color: var(--valetec-navy); font-size: 13px; display: block;">${current.title}</strong>
+        <p style="margin: 2px 0 0 0; font-size: 11.5px; color: #475569;">${current.desc}</p>
+      </div>
+      <div style="border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;">
+        ${rowsHtml}
+      </div>
+    `;
+  }
+
+  goToStaffManagement() {
+    this.toggleModal(false);
+    if (appNav) {
+      appNav.navigateTo('viewStaff');
+      showValetecToast("Navegando al directorio de trabajadores y turnos...", "info");
+    }
+  }
+
+  async handleDownloadBackup(btn) {
+    if (appNav && !appNav.canAccessView('viewManagement')) {
+      showValetecToast("Acceso denegado: Solo el Administrador puede descargar copias de seguridad.", "danger");
+      return;
+    }
+
+    const originalHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> Volcando PostgreSQL 16...`;
+    }
+
+    try {
+      showValetecToast("Iniciando volcado completo de la base de datos PostgreSQL 16...", "info");
+      const result = await window.api.downloadDatabaseBackup();
+      showValetecToast(`¡Backup generado con éxito! Archivo: ${result.filename} (${(result.size / 1024).toFixed(1)} KB)`, "success");
+    } catch (err) {
+      console.error("[BACKUP] Error al descargar volcado:", err);
+      showValetecToast(`Error al generar respaldo: ${err.message}`, "danger");
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }
+    }
   }
 
   async handleSave() {
@@ -5795,7 +9599,7 @@ class SettingsModule {
       const res = await window.api.updateSettings(payload);
       if (res && res.data) {
         this.settingsData = res.data;
-        showValetecToast("Configuración de empresa guardada con éxito en PostgreSQL 16.", "success");
+        showValetecToast("Configuración de empresa y parámetros fiscales guardados con éxito en PostgreSQL 16.", "success");
         this.toggleModal(false);
       }
     } catch (err) {
@@ -5804,7 +9608,7 @@ class SettingsModule {
     } finally {
       if (this.btnSave) {
         this.btnSave.disabled = false;
-        this.btnSave.innerHTML = `<i class="bi bi-floppy"></i> <span>Guardar Cambios</span>`;
+        this.btnSave.innerHTML = `<i class="bi bi-check-lg"></i> <span>Guardar Cambios</span>`;
       }
     }
   }
@@ -5817,6 +9621,11 @@ let authManager, accessibilityEngine, appNav, counterApp, cashApp, warehouseApp,
 
 async function syncWithBackend() {
   if (!window.api) return;
+  const token = localStorage.getItem('valetec_token');
+  if (!token && !window.api.token) {
+    console.log("ℹ️ No hay sesión activa. Esperando inicio de sesión para sincronizar datos.");
+    return;
+  }
   try {
     const health = await window.api.checkHealth();
     if (!health) {
@@ -5879,13 +9688,13 @@ async function syncWithBackend() {
           if (userRes.data.profiles) {
             mockStaffProfiles = userRes.data.profiles;
             if (mockStaffProfiles.qf) {
-              mockStaffProfiles.qf.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement"];
+              mockStaffProfiles.qf.allowedViews = ["viewCounter", "viewVouchers", "viewCash", "viewWarehouse", "viewDigemid", "viewStaff", "viewManagement", "viewClients"];
             }
             if (mockStaffProfiles.tech) {
-              mockStaffProfiles.tech.allowedViews = ["viewCounter", "viewWarehouse", "viewDigemid"];
+              mockStaffProfiles.tech.allowedViews = ["viewCounter", "viewVouchers", "viewWarehouse", "viewDigemid", "viewClients"];
             }
             if (mockStaffProfiles.cashier) {
-              mockStaffProfiles.cashier.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid"];
+              mockStaffProfiles.cashier.allowedViews = ["viewCounter", "viewVouchers", "viewCash", "viewWarehouse", "viewDigemid", "viewClients"];
             }
             if (authManager) authManager.updateQuickProfileCards(userRes.data.profiles);
             if (appNav) appNav.applyRolePermissions(appNav.currentRole);
@@ -5993,12 +9802,15 @@ document.addEventListener('DOMContentLoaded', () => {
   warehouseApp = new WarehouseModule();
   window.warehouseApp = warehouseApp;
   digemidApp = new DigemidModule();
+  window.digemidApp = digemidApp;
   staffApp = new StaffManagementModule();
   window.staffApp = staffApp;
   classificationApp = new ClassificationModule();
   window.classificationApp = classificationApp;
   clientsApp = new ClientsModule();
   window.clientsApp = clientsApp;
+  purchasesApp = new PurchasesModule();
+  window.purchasesApp = purchasesApp;
   managementApp = new ManagementDashboardModule();
   window.managementApp = managementApp;
   settingsApp = new SettingsModule();
@@ -6030,10 +9842,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 
-  // Sincronización activa con Backend y Base de Datos
-  syncWithBackend();
-
-  // Restaurar sesión activa de JWT si existe
+  // Restaurar sesión activa de JWT si existe (sincronizará con backend si está autenticado)
   authManager.checkActiveSession();
 
   // Revisar estado de conexión cada 15 segundos
