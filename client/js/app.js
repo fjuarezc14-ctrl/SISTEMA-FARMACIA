@@ -49,6 +49,82 @@ function getActiveStaffName(fallbackRole = 'cashier', defaultName = 'Cajero de T
 }
 window.getActiveStaffName = getActiveStaffName;
 
+/**
+ * =============================================================
+ * LÓGICA OFICIAL DE FRACCIONAMIENTO DE INVENTARIO VALETEC PHARMA
+ * =============================================================
+ * Convierte el total de unidades mínimas registradas en Kardex a su descomposición
+ * física real en mostrador y almacén:
+ * - Cajas cerradas = floor(stockUnits / unitsPerBox)
+ * - Blísters sueltos = floor((stockUnits % unitsPerBox) / unitsPerBlister)
+ * - Pastillas sueltas = (stockUnits % unitsPerBox) % unitsPerBlister
+ */
+function formatFractionalStock(stockUnits, unitsPerBox = 100, unitsPerBlister = 10) {
+  const totalUnits = Math.max(0, parseInt(stockUnits, 10) || 0);
+  const uBox = Math.max(1, parseInt(unitsPerBox, 10) || 1);
+  const uBli = Math.max(1, parseInt(unitsPerBlister, 10) || 1);
+
+  if (totalUnits <= 0) {
+    return {
+      boxes: 0,
+      blisters: 0,
+      looseUnits: 0,
+      totalUnits: 0,
+      htmlBadge: `<span class="badge-stock-zero" style="color: #dc2626; font-weight: 700;"><i class="bi bi-x-circle"></i> Agotado (0 un.)</span>`,
+      summaryText: 'Agotado (0 unidades)',
+      compactLabel: '0 un.'
+    };
+  }
+
+  // Producto unitario puro (jarabes, frascos, ampollas sin fraccionamiento uBox <= 1)
+  if (uBox <= 1) {
+    return {
+      boxes: totalUnits,
+      blisters: 0,
+      looseUnits: 0,
+      totalUnits,
+      htmlBadge: `<strong>${totalUnits} un.</strong>`,
+      summaryText: `${totalUnits} unidades`,
+      compactLabel: `${totalUnits} un.`
+    };
+  }
+
+  const boxes = Math.floor(totalUnits / uBox);
+  const remainderAfterBoxes = totalUnits % uBox;
+
+  let blisters = 0;
+  let looseUnits = remainderAfterBoxes;
+
+  if (uBli > 1 && uBli < uBox) {
+    blisters = Math.floor(remainderAfterBoxes / uBli);
+    looseUnits = remainderAfterBoxes % uBli;
+  }
+
+  const parts = [];
+  if (boxes > 0) parts.push(`<strong>${boxes} ${boxes === 1 ? 'caja' : 'cajas'}</strong>`);
+  if (blisters > 0) parts.push(`<strong>${blisters} ${blisters === 1 ? 'blíster' : 'blísters'}</strong>`);
+  if (looseUnits > 0) parts.push(`<strong>${looseUnits} ${looseUnits === 1 ? 'pastilla' : 'pastillas'}</strong>`);
+
+  const breakdown = parts.length > 0 ? parts.join(' + ') : '<strong>0 un.</strong>';
+
+  const compactParts = [];
+  if (boxes > 0) compactParts.push(`${boxes}cj`);
+  if (blisters > 0) compactParts.push(`${blisters}bl`);
+  if (looseUnits > 0) compactParts.push(`${looseUnits}u`);
+  const compactLabel = compactParts.length > 0 ? compactParts.join(' • ') : '0u';
+
+  return {
+    boxes,
+    blisters,
+    looseUnits,
+    totalUnits,
+    htmlBadge: `${breakdown} <br><small style="color: var(--text-muted); font-size: 11px;">(Total: ${totalUnits} past.)</small>`,
+    summaryText: `${parts.map(p => p.replace(/<[^>]+>/g, '')).join(' + ')} (Total: ${totalUnits} past.)`,
+    compactLabel: `${compactLabel} (${totalUnits}u)`
+  };
+}
+window.formatFractionalStock = formatFractionalStock;
+
 // 1. DATASET DE PRUEBA: MEDICAMENTOS CON EQUIVALENCIAS DCI
 // =============================================================
 let testPharmacyCatalog = [
@@ -64,8 +140,8 @@ let testPharmacyCatalog = [
     unitPrice: 0.35,
     unitsPerBox: 100,
     unitsPerBlister: 10,
-    stockBoxes: 4,
-    stockBlisters: 14,
+    stockBoxes: 1,
+    stockBlisters: 4,
     stockUnits: 140,
     prescriptionType: "free",
     barcode: "7750990001",
@@ -91,7 +167,7 @@ let testPharmacyCatalog = [
     unitPrice: 0.30,
     unitsPerBox: 100,
     unitsPerBlister: 10,
-    stockBoxes: 2,
+    stockBoxes: 0,
     stockBlisters: 8,
     stockUnits: 80,
     prescriptionType: "required", // Requiere CMP
@@ -113,8 +189,8 @@ let testPharmacyCatalog = [
     unitPrice: 0.55,
     unitsPerBox: 80,
     unitsPerBlister: 8,
-    stockBoxes: 5,
-    stockBlisters: 10,
+    stockBoxes: 0,
+    stockBlisters: 8,
     stockUnits: 64,
     prescriptionType: "free",
     barcode: "7750990003",
@@ -141,8 +217,8 @@ let testPharmacyCatalog = [
     unitPrice: 0.40,
     unitsPerBox: 100,
     unitsPerBlister: 10,
-    stockBoxes: 3,
-    stockBlisters: 11,
+    stockBoxes: 1,
+    stockBlisters: 1,
     stockUnits: 110,
     prescriptionType: "free",
     barcode: "7750990004",
@@ -163,7 +239,7 @@ let testPharmacyCatalog = [
     unitPrice: 0.65,
     unitsPerBox: 100,
     unitsPerBlister: 10,
-    stockBoxes: 1,
+    stockBoxes: 0,
     stockBlisters: 2,
     stockUnits: 25,
     prescriptionType: "retained", // Receta Retenida en Libro Oficial
@@ -208,8 +284,8 @@ let testPharmacyCatalog = [
     unitPrice: 0.18,
     unitsPerBox: 100,
     unitsPerBlister: 10,
-    stockBoxes: 8,
-    stockBlisters: 20,
+    stockBoxes: 2,
+    stockBlisters: 0,
     stockUnits: 200,
     prescriptionType: "free",
     barcode: "7750990007",
@@ -1443,6 +1519,23 @@ class CounterModule {
       if (p.prescriptionType === 'required') rxPill = `<span class="rx-badge required">Receta CMP</span>`;
       if (p.prescriptionType === 'retained') rxPill = `<span class="rx-badge retained">Controlado</span>`;
 
+      // Cálculo de fraccionamiento matemático oficial
+      const stockInfo = formatFractionalStock(p.stockUnits, p.unitsPerBox, p.unitsPerBlister);
+
+      // Determinar presentaciones activas con precio mayor a cero
+      const hasBox = p.boxPrice !== null && p.boxPrice !== undefined && Number(p.boxPrice) > 0;
+      const hasBlister = p.blisterPrice !== null && p.blisterPrice !== undefined && Number(p.blisterPrice) > 0;
+      const hasUnit = p.unitPrice !== null && p.unitPrice !== undefined && Number(p.unitPrice) > 0;
+
+      let defaultFrac = 'box';
+      if (!hasBox && hasBlister) defaultFrac = 'blister';
+      else if (!hasBox && !hasBlister && hasUnit) defaultFrac = 'unit';
+
+      let defaultPrice = 0;
+      if (defaultFrac === 'box') defaultPrice = Number(p.boxPrice) || 0;
+      else if (defaultFrac === 'blister') defaultPrice = Number(p.blisterPrice) || 0;
+      else defaultPrice = Number(p.unitPrice) || 0;
+
       return `
         <article class="product-staff-card ${isOut ? 'out-stock' : ''}" data-id="${p.id}">
           <div class="card-header-compact">
@@ -1464,20 +1557,22 @@ class CounterModule {
           </div>
 
           <div class="stock-fraction-unified-row">
-            <div class="prod-compact-stock" title="${p.stockBoxes} Cajas (${p.stockBlisters} blíst. / ${p.stockUnits} past.)">
-              <span class="stock-num">${p.stockBoxes}</span><span class="stock-unit"> cj</span>
-              <span class="stock-sep">•</span>
-              <span class="stock-sub">${p.stockBlisters}bl / ${p.stockUnits}u</span>
+            <div class="prod-compact-stock" title="${stockInfo.summaryText}">
+              ${stockInfo.boxes > 0 ? `<span class="stock-num">${stockInfo.boxes}</span><span class="stock-unit"> cj</span>` : ''}
+              ${stockInfo.boxes > 0 && (stockInfo.blisters > 0 || stockInfo.looseUnits > 0) ? `<span class="stock-sep">•</span>` : ''}
+              ${stockInfo.blisters > 0 ? `<span class="stock-num">${stockInfo.blisters}</span><span class="stock-unit"> bl</span>` : ''}
+              ${stockInfo.looseUnits > 0 ? `<span class="stock-sub">+${stockInfo.looseUnits}u</span>` : ''}
+              <small style="color: var(--text-muted); font-size: 10px; margin-left: 2px;">(${p.stockUnits}u)</small>
             </div>
             <div class="fraction-segmented-control">
-              <button type="button" class="btn-frac-pick active" data-frac="box" data-id="${p.id}">Caja</button>
-              <button type="button" class="btn-frac-pick" data-frac="blister" data-id="${p.id}">Blíst</button>
-              <button type="button" class="btn-frac-pick" data-frac="unit" data-id="${p.id}">Past</button>
+              ${hasBox ? `<button type="button" class="btn-frac-pick ${defaultFrac === 'box' ? 'active' : ''}" data-frac="box" data-id="${p.id}">Caja</button>` : ''}
+              ${hasBlister ? `<button type="button" class="btn-frac-pick ${defaultFrac === 'blister' ? 'active' : ''}" data-frac="blister" data-id="${p.id}">Blíst</button>` : ''}
+              ${hasUnit ? `<button type="button" class="btn-frac-pick ${defaultFrac === 'unit' ? 'active' : ''}" data-frac="unit" data-id="${p.id}">Past</button>` : ''}
             </div>
           </div>
 
           <div class="card-action-footer">
-            <span class="price-tag" id="prodPriceDisplay_${p.id}">S/ ${p.boxPrice.toFixed(2)}</span>
+            <span class="price-tag" id="prodPriceDisplay_${p.id}">S/ ${defaultPrice.toFixed(2)}</span>
             <button 
               type="button" 
               class="btn-dispense" 
@@ -1509,7 +1604,7 @@ class CounterModule {
         if (frac === 'unit') price = prod.unitPrice;
 
         const el = document.getElementById(`prodPriceDisplay_${prodId}`);
-        if (el) el.innerText = `S/ ${price.toFixed(2)}`;
+        if (el) el.innerText = `S/ ${(Number(price) || 0).toFixed(2)}`;
       });
     });
   }
@@ -1573,7 +1668,12 @@ class CounterModule {
     let frac = 'box';
     if (card) {
       const active = card.querySelector('.btn-frac-pick.active');
-      if (active) frac = active.dataset.frac;
+      if (active) {
+        frac = active.dataset.frac;
+      } else {
+        const firstBtn = card.querySelector('.btn-frac-pick');
+        if (firstBtn) frac = firstBtn.dataset.frac;
+      }
     }
     this.addItem(prodId, frac);
   }
@@ -3591,8 +3691,10 @@ class WarehouseModule {
 
         const prod = testPharmacyCatalog.find(p => p.id === prodId);
         if (prod) {
-          prod.stockBoxes += boxes;
-          prod.stockUnits += (boxes * prod.unitsPerBox);
+          prod.stockUnits += (boxes * (prod.unitsPerBox || 100));
+          const fracCalc = formatFractionalStock(prod.stockUnits, prod.unitsPerBox, prod.unitsPerBlister);
+          prod.stockBoxes = fracCalc.boxes;
+          prod.stockBlisters = fracCalc.blisters;
           prod.lotNumber = lot;
           prod.expireDate = exp;
           prod.location = loc;
@@ -3894,7 +3996,14 @@ class WarehouseModule {
         if (window.api) {
           const res = await window.api.createProduct(payload);
           if (res?.data) {
-            testPharmacyCatalog.unshift(Object.assign({ stockBoxes: initBoxes, stockBlisters: initBoxes * 10, stockUnits: initBoxes * 100, fefoStatus: 'good' }, res.data, payload));
+            const totalUnits = initBoxes * unitsPerBox;
+            const stockCalc = formatFractionalStock(totalUnits, unitsPerBox, unitsPerBlister);
+            testPharmacyCatalog.unshift(Object.assign({
+              stockBoxes: stockCalc.boxes,
+              stockBlisters: stockCalc.blisters,
+              stockUnits: totalUnits,
+              fefoStatus: 'good'
+            }, res.data, payload));
           }
         }
         showValetecToast(`Medicamento "${name}" creado exitosamente en catálogo.`, "success");
@@ -3969,6 +4078,8 @@ class WarehouseModule {
       }
       const badgesHtml = badges.length > 0 ? `<div style="margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap;">${badges.join('')}</div>` : '';
 
+      const stockInfo = formatFractionalStock(p.stockUnits, p.unitsPerBox, p.unitsPerBlister);
+
       return `
         <tr style="${isInactive ? 'opacity: 0.65; background-color: #f8fafc;' : ''}">
           <td><code>${escHtml(p.barcode)}</code></td>
@@ -3980,7 +4091,7 @@ class WarehouseModule {
           </td>
           <td>${escHtml(p.laboratory)}</td>
           <td><span class="shelf-tag"><i class="bi bi-geo-alt"></i> ${escHtml(p.location)}</span></td>
-          <td><strong>${p.stockBoxes} cajas</strong> (${p.stockBlisters} blíst. / ${p.stockUnits} past.)</td>
+          <td style="font-variant-numeric: tabular-nums;">${stockInfo.htmlBadge}</td>
           <td><code>${escHtml(p.lotNumber)}</code></td>
           <td><strong>${escHtml(p.expireDate)}</strong></td>
           <td><span class="fefo-chip ${fefoClass}">${fefoLabel}</span></td>
@@ -4069,7 +4180,8 @@ class WarehouseModule {
     if (!prod) return;
 
     if (info) info.style.display = 'block';
-    if (stockEl) stockEl.innerText = `${prod.stockBoxes || 0} cajas (${prod.stockBlisters || 0} blísters / ${prod.stockUnits || 0} unid.)`;
+    const adjStockInfo = formatFractionalStock(prod.stockUnits, prod.unitsPerBox, prod.unitsPerBlister);
+    if (stockEl) stockEl.innerText = adjStockInfo.summaryText;
     if (locBadge) locBadge.innerHTML = `<i class="bi bi-geo-alt"></i> ${escHtml(prod.location || 'Góndola Principal')}`;
 
     if (lotSelect) {
@@ -4168,8 +4280,9 @@ class WarehouseModule {
           } else {
             prod.stockUnits = Math.max(0, (prod.stockUnits || 0) - unitsToAdjust);
           }
-          prod.stockBoxes = Math.floor(prod.stockUnits / (prod.unitsPerBox || 100));
-          prod.stockBlisters = Math.floor(prod.stockUnits / (prod.unitsPerBlister || 10));
+          const fracCalc = formatFractionalStock(prod.stockUnits, prod.unitsPerBox, prod.unitsPerBlister);
+          prod.stockBoxes = fracCalc.boxes;
+          prod.stockBlisters = fracCalc.blisters;
 
           this.closeAdjustmentModal();
           this.render();
@@ -4335,7 +4448,7 @@ class WarehouseModule {
           <td><code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 700; color: #0f172a;">${escHtml(l.lotNumber)}</code></td>
           <td><strong>${escHtml(l.expireDate)}</strong></td>
           <td><strong style="color: ${daysColor};">${l.daysLeft} d</strong></td>
-          <td><strong>${l.stockBoxes} cj.</strong> <small class="text-muted">(${l.stockUnits} un.)</small></td>
+          <td style="font-variant-numeric: tabular-nums;">${formatFractionalStock(l.stockUnits, l.unitsPerBox || 100, l.unitsPerBlister || 10).compactLabel}</td>
           <td style="text-align: right; white-space: nowrap;">
             <div class="fefo-action-group">
               <button type="button" class="btn-fefo-action btn-fefo-canje" onclick="warehouseApp.handleCanjeClick(${idx})" title="Tramitar Canje con Proveedor">
@@ -4574,8 +4687,9 @@ class WarehouseModule {
         const valSaleEl = document.getElementById('kardexValuedSaleDisplay');
         const marginEl = document.getElementById('kardexMarginDisplay');
 
+        const kStock = formatFractionalStock(stock.totalUnits || 0, p.unitsPerBox || 100, p.unitsPerBlister || 10);
         if (stockEl) stockEl.innerText = `${stock.totalUnits || 0} un.`;
-        if (boxEl) boxEl.innerText = `${stock.totalBoxes || 0} cajas (${stock.totalBlisters || 0} blíst.)`;
+        if (boxEl) boxEl.innerText = kStock.summaryText;
 
         if (unitEl) unitEl.innerText = `S/ ${(val.unitPrice || 0).toFixed(2)}`;
         if (costEl) costEl.innerText = `Costo est: S/ ${(val.estimatedCostUnit || 0).toFixed(2)}`;

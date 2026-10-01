@@ -280,19 +280,24 @@ async function seedDatabase() {
           }
         }
 
+        const uBox = Math.max(1, parseInt(p.units_per_box, 10) || 100);
+        const uBli = Math.max(1, parseInt(p.units_per_blister, 10) || 10);
+        const calcBoxes = Math.floor(p.lot.units / uBox);
+        const calcBlisters = Math.floor(p.lot.units / uBli);
+
         const existingLot = await get('SELECT id FROM lotes_fefo WHERE product_id = $1 AND lot_number = $2', [prod.id, p.lot.number]);
         if (!existingLot) {
           await run(
             `INSERT INTO lotes_fefo (product_id, lot_number, expire_date, stock_boxes, stock_blisters, stock_units, fefo_status)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [prod.id, p.lot.number, p.lot.expire, p.lot.boxes, p.lot.blisters, p.lot.units, p.lot.fefo]
+            [prod.id, p.lot.number, p.lot.expire, calcBoxes, calcBlisters, p.lot.units, p.lot.fefo]
           );
         } else {
           await run(
             `UPDATE lotes_fefo 
              SET stock_boxes = $1, stock_blisters = $2, stock_units = $3, fefo_status = $4, expire_date = $5 
              WHERE id = $6`,
-            [p.lot.boxes, p.lot.blisters, p.lot.units, p.lot.fefo, p.lot.expire, existingLot.id]
+            [calcBoxes, calcBlisters, p.lot.units, p.lot.fefo, p.lot.expire, existingLot.id]
           );
         }
       }

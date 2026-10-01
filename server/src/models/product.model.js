@@ -276,8 +276,8 @@ class ProductModel {
               'id', l.id,
               'lotNumber', l.lot_number,
               'expireDate', TO_CHAR(l.expire_date, 'YYYY-MM-DD'),
-              'stockBoxes', l.stock_boxes,
-              'stockBlisters', l.stock_blisters,
+              'stockBoxes', FLOOR(l.stock_units / GREATEST(1, p.units_per_box)),
+              'stockBlisters', FLOOR(l.stock_units / GREATEST(1, p.units_per_blister)),
               'stockUnits', l.stock_units,
               'fefoStatus', l.fefo_status
             ) ORDER BY l.expire_date ASC
@@ -299,37 +299,46 @@ class ProductModel {
 
     const totalCount = rows.length > 0 ? parseInt(rows[0].full_count, 10) : 0;
 
-    const formatted = rows.map(p => ({
-      id: p.id,
-      name: p.name,
-      genericDci: p.genericDci,
-      laboratory: p.laboratory,
-      category: p.categorySlug,
-      categoryName: p.categoryName,
-      location: p.location,
-      boxPrice: p.boxPrice,
-      blisterPrice: p.blisterPrice,
-      unitPrice: p.unitPrice,
-      unitsPerBox: p.unitsPerBox,
-      unitsPerBlister: p.unitsPerBlister,
-      stockBoxes: p.stockBoxes || 0,
-      stockBlisters: p.stockBlisters || 0,
-      stockUnits: p.stockUnits || 0,
-      prescriptionType: p.prescriptionType,
-      sanitaryRegistry: p.sanitaryRegistry,
-      status: p.status,
-      barcode: p.barcode,
-      lotNumber: p.lotNumber || 'N/A',
-      expireDate: p.expireDate || 'N/A',
-      fefoStatus: p.fefoStatus || 'good',
-      lots: p.lots || [],
-      genericAlt: p.genericAltName ? {
-        id: p.genericAltId,
-        name: p.genericAltName,
-        boxPrice: p.genericAltBoxPrice,
-        savingPercent: p.genericSavingPercent || 50
-      } : null
-    }));
+    const formatted = rows.map(p => {
+      const totalUnits = Math.max(0, parseInt(p.stockUnits, 10) || 0);
+      const uBox = Math.max(1, parseInt(p.unitsPerBox, 10) || 100);
+      const uBli = Math.max(1, parseInt(p.unitsPerBlister, 10) || 10);
+      const boxes = Math.floor(totalUnits / uBox);
+      const rem = totalUnits % uBox;
+      const blisters = (uBli > 1 && uBli < uBox) ? Math.floor(rem / uBli) : 0;
+
+      return {
+        id: p.id,
+        name: p.name,
+        genericDci: p.genericDci,
+        laboratory: p.laboratory,
+        category: p.categorySlug,
+        categoryName: p.categoryName,
+        location: p.location,
+        boxPrice: p.boxPrice,
+        blisterPrice: p.blisterPrice,
+        unitPrice: p.unitPrice,
+        unitsPerBox: p.unitsPerBox,
+        unitsPerBlister: p.unitsPerBlister,
+        stockBoxes: boxes,
+        stockBlisters: Math.floor(totalUnits / uBli),
+        stockUnits: totalUnits,
+        prescriptionType: p.prescriptionType,
+        sanitaryRegistry: p.sanitaryRegistry,
+        status: p.status,
+        barcode: p.barcode,
+        lotNumber: p.lotNumber || 'N/A',
+        expireDate: p.expireDate || 'N/A',
+        fefoStatus: p.fefoStatus || 'good',
+        lots: p.lots || [],
+        genericAlt: p.genericAltName ? {
+          id: p.genericAltId,
+          name: p.genericAltName,
+          boxPrice: p.genericAltBoxPrice,
+          savingPercent: p.genericSavingPercent || 50
+        } : null
+      };
+    });
 
     if (isPaginated) {
       return {
