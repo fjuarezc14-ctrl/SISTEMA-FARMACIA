@@ -1535,12 +1535,13 @@ class CounterModule {
       // Determinar presentaciones activas con precio mayor a cero
       const hasBox = p.boxPrice !== null && p.boxPrice !== undefined && Number(p.boxPrice) > 0;
       const hasBlister = p.blisterPrice !== null && p.blisterPrice !== undefined && Number(p.blisterPrice) > 0;
+      const hasUnit = p.unitPrice !== null && p.unitPrice !== undefined && Number(p.unitPrice) > 0;
       const isUnitOnly = (p.unitsPerBox <= 1) || (!hasBox && !hasBlister);
       const unitBtnLabel = isUnitOnly ? 'Unid' : 'Past';
 
       let defaultFrac = 'box';
       if (!hasBox && hasBlister) defaultFrac = 'blister';
-      else if (!hasBox && !hasBlister && hasUnit) defaultFrac = 'unit';
+      else if (!hasBox && !hasBlister) defaultFrac = 'unit';
 
       let defaultPrice = 0;
       if (defaultFrac === 'box') defaultPrice = Number(p.boxPrice) || 0;
@@ -1696,11 +1697,29 @@ class CounterModule {
       return;
     }
 
+    const hasBox = prod.boxPrice !== null && prod.boxPrice !== undefined && Number(prod.boxPrice) > 0 && (prod.unitsPerBox || 100) > 1;
+    const hasBlister = prod.blisterPrice !== null && prod.blisterPrice !== undefined && Number(prod.blisterPrice) > 0 && (prod.unitsPerBlister || 10) > 1;
+
+    // Ajustar presentación solicitada si el producto no la soporta
+    if (frac === 'box' && !hasBox) {
+      frac = hasBlister ? 'blister' : 'unit';
+    } else if (frac === 'blister' && !hasBlister) {
+      frac = hasBox ? 'box' : 'unit';
+    }
+
     let price = prod.boxPrice;
     let label = "Caja";
     let maxQty = prod.stockBoxes || 0;
-    if (frac === 'blister') { price = prod.blisterPrice; label = "Blíster"; maxQty = prod.stockBlisters || 0; }
-    else if (frac === 'unit') { price = prod.unitPrice; label = "Pastilla"; maxQty = prod.stockUnits || 0; }
+    if (frac === 'blister') {
+      price = prod.blisterPrice;
+      label = "Blíster";
+      maxQty = prod.stockBlisters || 0;
+    } else if (frac === 'unit') {
+      price = prod.unitPrice;
+      const isUnitOnly = (prod.unitsPerBox <= 1) || (!hasBox && !hasBlister);
+      label = isUnitOnly ? "Unidad" : "Pastilla";
+      maxQty = prod.stockUnits || 0;
+    }
 
     if (maxQty <= 0) {
       showValetecToast(`Sin stock de ${label} disponible para ${prod.name}.`, "danger");
