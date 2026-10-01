@@ -107,19 +107,26 @@ class ProductModel {
     }
 
     // 7. Unidades por empaque (opcionales al crear con valores por defecto)
+    let parsedUpb = null;
     const rawUpb = data.units_per_box !== undefined ? data.units_per_box : data.unitsPerBox;
     if (rawUpb !== undefined && rawUpb !== null && rawUpb !== '') {
-      const upb = parseInt(rawUpb, 10);
-      if (isNaN(upb) || upb <= 0) {
+      parsedUpb = parseInt(rawUpb, 10);
+      if (isNaN(parsedUpb) || parsedUpb <= 0) {
         errors.push('Las unidades por caja deben ser un entero mayor a cero.');
       }
     }
+
+    let parsedUpbl = null;
     const rawUpbl = data.units_per_blister !== undefined ? data.units_per_blister : data.unitsPerBlister;
     if (rawUpbl !== undefined && rawUpbl !== null && rawUpbl !== '') {
-      const upbl = parseInt(rawUpbl, 10);
-      if (isNaN(upbl) || upbl <= 0) {
+      parsedUpbl = parseInt(rawUpbl, 10);
+      if (isNaN(parsedUpbl) || parsedUpbl <= 0) {
         errors.push('Las unidades por blíster deben ser un entero mayor a cero.');
       }
+    }
+
+    if (parsedUpb && parsedUpbl && parsedUpb > 1 && parsedUpbl > 1 && parsedUpbl > parsedUpb) {
+      errors.push('Las unidades por blíster no pueden ser mayores a las unidades por caja.');
     }
 
     // 8. Tipo de prescripción médica (DIGEMID)
@@ -567,12 +574,21 @@ class ProductModel {
       data.status || 'active'
     ]);
 
-    // 2. Si se proporcionó un lote inicial, crearlo
-    if (data.initialLot && data.initialLot.lotNumber && data.initialLot.expireDate) {
-      ProductModel.validateLot(data.initialLot);
-      const boxes = parseInt(data.initialLot.stockBoxes || 0, 10);
-      const blisters = parseInt(data.initialLot.stockBlisters || 0, 10);
-      let units = parseInt(data.initialLot.stockUnits || 0, 10);
+    // 2. Si se proporcionó un lote inicial (objeto o campos planos), crearlo
+    const lotObj = data.initialLot || (data.lotNumber && data.expireDate ? {
+      lotNumber: data.lotNumber,
+      expireDate: data.expireDate,
+      stockBoxes: data.initialBoxes || 0,
+      stockBlisters: data.initialBlisters || 0,
+      stockUnits: data.initialUnits || data.stockUnits || 0,
+      fefoStatus: data.fefoStatus || 'good'
+    } : null);
+
+    if (lotObj && lotObj.lotNumber && lotObj.expireDate) {
+      ProductModel.validateLot(lotObj);
+      const boxes = parseInt(lotObj.stockBoxes || 0, 10);
+      const blisters = parseInt(lotObj.stockBlisters || 0, 10);
+      let units = parseInt(lotObj.stockUnits || 0, 10);
 
       if (units === 0 && (boxes > 0 || blisters > 0)) {
         units = (boxes * upb) + (blisters * upbl);
@@ -580,18 +596,40 @@ class ProductModel {
       const finalBoxes = boxes > 0 ? boxes : (upb > 1 ? Math.floor(units / upb) : units);
       const finalBlisters = blisters > 0 ? blisters : (upbl > 1 ? Math.floor((units % upb) / upbl) : 0);
 
-      await runFn(`
+      const insertedLot = await getFn(`
         INSERT INTO lotes_fefo (product_id, lot_number, expire_date, stock_boxes, stock_blisters, stock_units, fefo_status)
-        VALUES ($1, $2, $3, $4, $5, $6, $7);
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *;
       `, [
         newProd.id,
-        data.initialLot.lotNumber.trim(),
-        data.initialLot.expireDate.trim(),
+        lotObj.lotNumber.trim(),
+        lotObj.expireDate.trim(),
         finalBoxes,
         finalBlisters,
         units,
-        data.initialLot.fefoStatus || 'good'
+        lotObj.fefoStatus || 'good'
       ]);
+
+      if (units > 0 && insertedLot) {
+        await runFn(`
+          INSERT INTO kardex (
+            product_id, lot_id, movement_type, reference_type, reference_id,
+            quantity, unit_type, previous_stock, new_stock, reason, user_name
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
+        `, [
+          newProd.id,
+          insertedLot.id,
+          'init',
+          'INVENTARIO_INICIAL',
+          `INIT-${newProd.id}`,
+          units,
+          'unit',
+          0,
+          units,
+          'Apertura de lote / Stock inicial de catálogo',
+          'Administrador'
+        ]);
+      }
     }
 
     return newProd;
@@ -854,20 +892,49 @@ class ProductModel {
       throw Object.assign(new Error(`Producto #${validId} no encontrado.`), { statusCode: 404 });
     }
 
+    const isDeduction = ['out', 'loss', 'expired', 'damage', 'spoilage', 'breakage', 'diff_out', 'donation'].includes(adjustmentType);
+    const isAddition = ['diff_in', 'return_customer', 'in'].includes(adjustmentType);
+
     let lot = null;
-    if (lotId) {
-      lot = await getFn('SELECT * FROM lotes_fefo WHERE id = $1 AND product_id = $2 FOR UPDATE', [lotId, validId]);
-    } else {
-      lot = await getFn(
-        `SELECT * FROM lotes_fefo 
-         WHERE product_id = $1 AND stock_units > 0 
-         ORDER BY expire_date ASC LIMIT 1 FOR UPDATE`,
-        [validId]
-      );
+    if (lotId && lotId !== 'auto') {
+      const parsedLotId = parseInt(lotId, 10);
+      if (!isNaN(parsedLotId) && parsedLotId > 0) {
+        lot = await getFn('SELECT * FROM lotes_fefo WHERE id = $1 AND product_id = $2 FOR UPDATE', [parsedLotId, validId]);
+      } else {
+        lot = await getFn('SELECT * FROM lotes_fefo WHERE lot_number = $1 AND product_id = $2 FOR UPDATE', [String(lotId).trim(), validId]);
+      }
     }
 
     if (!lot) {
-      throw Object.assign(new Error(`No se encontró un lote disponible para el producto "${prod.name}".`), { statusCode: 404 });
+      if (isDeduction) {
+        lot = await getFn(
+          `SELECT * FROM lotes_fefo 
+           WHERE product_id = $1 AND stock_units > 0 
+           ORDER BY expire_date ASC LIMIT 1 FOR UPDATE`,
+          [validId]
+        );
+      } else {
+        lot = await getFn(
+          `SELECT * FROM lotes_fefo 
+           WHERE product_id = $1 
+           ORDER BY expire_date ASC LIMIT 1 FOR UPDATE`,
+          [validId]
+        );
+      }
+    }
+
+    if (!lot && isAddition) {
+      // Si el producto no tenía ningún lote registrado y se realiza un ingreso, crear lote automático
+      const autoLotNum = `L-${Math.floor(10000 + Math.random() * 90000)}`;
+      lot = await getFn(`
+        INSERT INTO lotes_fefo (product_id, lot_number, expire_date, stock_boxes, stock_blisters, stock_units, fefo_status)
+        VALUES ($1, $2, (CURRENT_DATE + INTERVAL '2 years')::date, 0, 0, 0, 'good')
+        RETURNING *;
+      `, [validId, autoLotNum]);
+    }
+
+    if (!lot) {
+      throw Object.assign(new Error(`No se encontró un lote disponible con existencias para el producto "${prod.name}".`), { statusCode: 404 });
     }
 
     let unitsToAdjust = numQty;
@@ -877,7 +944,6 @@ class ProductModel {
       unitsToAdjust = numQty * parseInt(prod.units_per_blister, 10);
     }
 
-    const isDeduction = ['out', 'loss', 'expired', 'damage'].includes(adjustmentType);
     const prevStock = parseInt(lot.stock_units, 10);
 
     if (isDeduction && prevStock < unitsToAdjust) {
@@ -907,7 +973,7 @@ class ProductModel {
         adjustmentType,
         'AJUSTE_MANUAL',
         kardexId,
-        unitsToAdjust,
+        isDeduction ? -unitsToAdjust : unitsToAdjust,
         unitType || 'unit',
         prevStock,
         newStock,

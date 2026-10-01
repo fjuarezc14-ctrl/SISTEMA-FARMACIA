@@ -380,7 +380,7 @@ class SaleModel {
         TO_CHAR(v.sunat_sent_at, 'YYYY-MM-DD HH24:MI:SS') AS "sunatSentAt",
         v.hash_cpe AS "hashCpe",
         u.name AS "cashierName",
-        TO_CHAR(v.created_at, 'YYYY-MM-DD HH24:MI:SS') AS "createdAt",
+        TO_CHAR(v.created_at AT TIME ZONE 'America/Lima', 'YYYY-MM-DD"T"HH24:MI:SS-05:00') AS "createdAt",
         COUNT(*) OVER() AS full_count
       FROM ventas v
       JOIN usuarios u ON v.user_id = u.id
@@ -442,7 +442,7 @@ class SaleModel {
         v.turno_id AS "turnoId",
         v.user_id AS "userId",
         u.name AS "cashierName",
-        TO_CHAR(v.created_at, 'YYYY-MM-DD HH24:MI:SS') AS "createdAt"
+        TO_CHAR(v.created_at AT TIME ZONE 'America/Lima', 'YYYY-MM-DD"T"HH24:MI:SS-05:00') AS "createdAt"
       FROM ventas v
       JOIN usuarios u ON v.user_id = u.id
       WHERE v.id = $1

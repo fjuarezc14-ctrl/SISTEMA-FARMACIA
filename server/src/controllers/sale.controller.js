@@ -65,12 +65,17 @@ async function createSale(req, res, next) {
 
     // 2. Ejecutar transacción atómica ACID
     const saleResult = await transaction(async (tx) => {
-      // 2.1 Obtener turno de caja abierto asignado o turno abierto de mostrador
+      // 2.1 Obtener turno de caja abierto asignado o turno abierto de mostrador (Obligatorio)
       let shift = await CashModel.getOpenShift({ userId: activeUserId }, tx);
       if (!shift) {
         shift = await CashModel.getOpenShift({}, tx);
       }
-      const turnoId = shift ? shift.id : null;
+      if (!shift) {
+        const err = new Error('No existe un turno de caja abierto en este momento. Debe realizar la apertura de caja para registrar ventas.');
+        err.statusCode = 400;
+        throw err;
+      }
+      const turnoId = shift.id;
 
       // 2.2 Generar correlativo atómico con candado transaccional
       const series = SaleModel.SERIES_MAP[invoiceType];

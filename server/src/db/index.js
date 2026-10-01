@@ -1,7 +1,7 @@
 const { Pool } = require('pg');
 const config = require('../config/env');
 
-// Configure PostgreSQL connection pool
+// Configure PostgreSQL connection pool with America/Lima timezone
 const pool = new Pool({
   host: config.pgHost,
   port: config.pgPort,
@@ -10,7 +10,8 @@ const pool = new Pool({
   database: config.pgDatabase,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000
+  connectionTimeoutMillis: 5000,
+  options: '-c timezone=America/Lima'
 });
 
 pool.on('error', (err) => {

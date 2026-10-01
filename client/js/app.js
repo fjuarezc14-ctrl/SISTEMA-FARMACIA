@@ -1145,6 +1145,16 @@ class NavigationController {
     if (viewId === 'viewCounter') {
       setTimeout(() => { document.getElementById('fastProductSearch')?.focus(); }, 100);
     }
+    if (viewId === 'viewVouchers' && typeof counterApp !== 'undefined' && counterApp) {
+      setTimeout(() => {
+        counterApp.loadVouchersView();
+      }, 50);
+    }
+    if (viewId === 'viewCash' && typeof syncWithBackend === 'function') {
+      setTimeout(() => {
+        syncWithBackend();
+      }, 50);
+    }
     if (viewId === 'viewManagement' && window.managementApp) {
       setTimeout(() => {
         window.managementApp.renderSales();
@@ -1525,7 +1535,8 @@ class CounterModule {
       // Determinar presentaciones activas con precio mayor a cero
       const hasBox = p.boxPrice !== null && p.boxPrice !== undefined && Number(p.boxPrice) > 0;
       const hasBlister = p.blisterPrice !== null && p.blisterPrice !== undefined && Number(p.blisterPrice) > 0;
-      const hasUnit = p.unitPrice !== null && p.unitPrice !== undefined && Number(p.unitPrice) > 0;
+      const isUnitOnly = (p.unitsPerBox <= 1) || (!hasBox && !hasBlister);
+      const unitBtnLabel = isUnitOnly ? 'Unid' : 'Past';
 
       let defaultFrac = 'box';
       if (!hasBox && hasBlister) defaultFrac = 'blister';
@@ -1567,7 +1578,7 @@ class CounterModule {
             <div class="fraction-segmented-control">
               ${hasBox ? `<button type="button" class="btn-frac-pick ${defaultFrac === 'box' ? 'active' : ''}" data-frac="box" data-id="${p.id}">Caja</button>` : ''}
               ${hasBlister ? `<button type="button" class="btn-frac-pick ${defaultFrac === 'blister' ? 'active' : ''}" data-frac="blister" data-id="${p.id}">Blíst</button>` : ''}
-              ${hasUnit ? `<button type="button" class="btn-frac-pick ${defaultFrac === 'unit' ? 'active' : ''}" data-frac="unit" data-id="${p.id}">Past</button>` : ''}
+              ${hasUnit ? `<button type="button" class="btn-frac-pick ${defaultFrac === 'unit' ? 'active' : ''}" data-frac="unit" data-id="${p.id}">${unitBtnLabel}</button>` : ''}
             </div>
           </div>
 
@@ -2139,6 +2150,13 @@ class CounterModule {
       return;
     }
 
+    // Validación estricta: Caja abierta requerida para registrar ventas
+    if (window.cashApp && !window.cashApp.currentShift) {
+      this._checkoutInProgress = false;
+      showValetecToast("Caja cerrada: No es posible emitir ventas sin un turno de caja abierto. Por favor, abre el turno de caja (F9) con el saldo inicial para iniciar la jornada.", "warning");
+      return;
+    }
+
     const needsRx = this.order.some(i => i.product.prescriptionType !== 'free');
     if (needsRx) {
       const cmp = this.docCmpInput?.value.trim();
@@ -2289,6 +2307,11 @@ class CounterModule {
 
       // 1. Mostrar comprobante térmico en pantalla
       this.showReceiptModal(saleData);
+
+      // 1.0 Actualizar automáticamente la lista de comprobantes del turno
+      if (this.loadVouchersView) {
+        this.loadVouchersView().catch(() => {});
+      }
 
       // 1.1 Si hay un paciente identificado, acumular puntos según reglas activas y puntos promocionales
       if (this.activeClient && window.clientsApp) {
@@ -2524,6 +2547,29 @@ class CounterModule {
 
       const totalNum = parseFloat(s.total || 0).toFixed(2);
 
+      let formattedDate = 'Hoy';
+      if (s.createdAt) {
+        try {
+          const raw = String(s.createdAt).trim();
+          const d = raw.includes('T') ? new Date(raw) : new Date(raw.replace(' ', 'T') + '-05:00');
+          if (!isNaN(d.getTime())) {
+            formattedDate = d.toLocaleString('es-PE', {
+              year: 'numeric',
+              month: 'numeric',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: true
+            });
+          } else {
+            formattedDate = raw;
+          }
+        } catch (e) {
+          formattedDate = String(s.createdAt);
+        }
+      }
+
       return `
         <tr style="${!isCompleted ? 'background: #fef2f2; opacity: 0.75;' : ''}">
           <td>
@@ -2533,7 +2579,7 @@ class CounterModule {
             </div>
           </td>
           <td>
-            <small style="color: #64748b; font-size: 12px;">${escHtml(s.createdAt ? new Date(s.createdAt).toLocaleString('es-PE') : 'Hoy')}</small>
+            <small style="color: #64748b; font-size: 12px;">${escHtml(formattedDate)}</small>
           </td>
           <td>
             <strong style="color: #0f172a; font-size: 13px; display: block;">${escHtml(s.customerName || 'CLIENTE GENERAL')}</strong>
@@ -3763,6 +3809,13 @@ class WarehouseModule {
       const inU = document.getElementById('medUnitPrice');
       if (inU) { inU.disabled = !on; if (!on) inU.value = ''; }
     }
+
+    // Actualizar dinámicamente la etiqueta de stock inicial según la forma farmacéutica
+    const lblInitialQty = document.getElementById('lblMedInitialQty');
+    if (lblInitialQty) {
+      const boxOn = !!this.toggleBox?.checked;
+      lblInitialQty.innerText = boxOn ? 'Cajas a Ingresar:' : 'Frascos / Unidades a Ingresar:';
+    }
   }
 
   openCreateModal() {
@@ -3871,15 +3924,25 @@ class WarehouseModule {
   }
 
   autoCalcPrices() {
-    if (!this.toggleBox?.checked) return;
-    const box = parseFloat(document.getElementById('medBoxPrice').value || 0);
-    const uBox = parseInt(document.getElementById('medUnitsPerBox').value || 100, 10);
-    const uBli = parseInt(document.getElementById('medUnitsPerBlister').value || 10, 10);
+    const boxInp = document.getElementById('medBoxPrice');
+    const uBoxInp = document.getElementById('medUnitsPerBox');
+    const uBliInp = document.getElementById('medUnitsPerBlister');
     const blisterInp = document.getElementById('medBlisterPrice');
     const unitInp = document.getElementById('medUnitPrice');
 
+    const uBox = parseInt(uBoxInp?.value || 100, 10);
+    const uBli = parseInt(uBliInp?.value || 10, 10);
+
+    // Advertencia de coherencia de empaque si blíster > caja
+    if (this.toggleBox?.checked && this.toggleBlister?.checked && uBli > uBox) {
+      showValetecToast(`Las unidades por blíster (${uBli}) no pueden ser mayores que la caja (${uBox}).`, "warning");
+    }
+
+    if (!this.toggleBox?.checked) return;
+    const box = parseFloat(boxInp?.value || 0);
+
     if (box > 0 && uBox > 0) {
-      const blisInBox = uBox / uBli;
+      const blisInBox = Math.max(1, uBox / Math.max(1, uBli));
       if (this.toggleBlister?.checked && (!blisterInp.value || parseFloat(blisterInp.value) === 0)) {
         blisterInp.value = ((box / blisInBox) * 1.15).toFixed(2);
       }
@@ -3984,24 +4047,47 @@ class WarehouseModule {
         showValetecToast(`Medicamento "${name}" actualizado con éxito.`, "success");
       } else {
         // Modo Alta
-        const initBoxes = parseInt(document.getElementById('medInitialBoxes')?.value || 0, 10);
+        const initQty = parseInt(document.getElementById('medInitialBoxes')?.value || 0, 10);
         const lotNumber = document.getElementById('medLotNumber')?.value?.trim();
         const expireDate = document.getElementById('medExpireDate')?.value;
-        if (initBoxes > 0) {
+
+        const initBoxes = sellBox ? initQty : 0;
+        const initUnits = sellBox ? (initBoxes * unitsPerBox) : initQty;
+
+        if (initQty > 0 || lotNumber || expireDate) {
           payload.initialBoxes = initBoxes;
+          payload.initialUnits = initUnits;
           payload.lotNumber = lotNumber || `L-${Math.floor(10000 + Math.random() * 90000)}`;
           payload.expireDate = expireDate || '2028-12-31';
+          payload.initialLot = {
+            lotNumber: payload.lotNumber,
+            expireDate: payload.expireDate,
+            stockBoxes: initBoxes,
+            stockBlisters: 0,
+            stockUnits: initUnits,
+            fefoStatus: 'good'
+          };
         }
 
         if (window.api) {
           const res = await window.api.createProduct(payload);
           if (res?.data) {
-            const totalUnits = initBoxes * unitsPerBox;
+            const totalUnits = initUnits;
             const stockCalc = formatFractionalStock(totalUnits, unitsPerBox, unitsPerBlister);
             testPharmacyCatalog.unshift(Object.assign({
               stockBoxes: stockCalc.boxes,
               stockBlisters: stockCalc.blisters,
               stockUnits: totalUnits,
+              lotNumber: payload.lotNumber || 'N/A',
+              expireDate: payload.expireDate || 'N/A',
+              lotes_fefo: payload.lotNumber ? [{
+                lot_number: payload.lotNumber,
+                expire_date: payload.expireDate,
+                stock_boxes: stockCalc.boxes,
+                stock_blisters: stockCalc.blisters,
+                stock_units: totalUnits,
+                fefo_status: 'good'
+              }] : [],
               fefoStatus: 'good'
             }, res.data, payload));
           }
@@ -4071,7 +4157,9 @@ class WarehouseModule {
         badges.push(`<span style="background: #f0fdf4; color: #15803d; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; border: 1px solid #bbf7d0;">Blíster: S/ ${Number(p.blisterPrice).toFixed(2)}</span>`);
       }
       if (p.unitPrice && Number(p.unitPrice) > 0) {
-        badges.push(`<span style="background: #fef3c7; color: #b45309; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; border: 1px solid #fde68a;">Pastilla: S/ ${Number(p.unitPrice).toFixed(2)}</span>`);
+        const isUnitOnly = (p.unitsPerBox <= 1) || (!p.boxPrice && !p.blisterPrice);
+        const unitLabel = isUnitOnly ? 'Unidad' : 'Pastilla';
+        badges.push(`<span style="background: #fef3c7; color: #b45309; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; border: 1px solid #fde68a;">${unitLabel}: S/ ${Number(p.unitPrice).toFixed(2)}</span>`);
       }
       if (p.bonusPoints && Number(p.bonusPoints) > 0) {
         badges.push(`<span style="background: #fff7ed; color: #ea580c; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 4px; border: 1px solid #fed7aa; display: inline-flex; align-items: center; gap: 3px;"><i class="bi bi-gift-fill"></i> +${Number(p.bonusPoints)} Pts</span>`);
@@ -4168,6 +4256,7 @@ class WarehouseModule {
     const stockEl = document.getElementById('adjCurrentStock');
     const locBadge = document.getElementById('adjLocationBadge');
     const lotSelect = document.getElementById('adjLotId');
+    const unitSelect = document.getElementById('adjUnitType');
 
     if (!pId) {
       if (info) info.style.display = 'none';
@@ -4184,10 +4273,39 @@ class WarehouseModule {
     if (stockEl) stockEl.innerText = adjStockInfo.summaryText;
     if (locBadge) locBadge.innerHTML = `<i class="bi bi-geo-alt"></i> ${escHtml(prod.location || 'Góndola Principal')}`;
 
+    // 1. Filtrar dinámicamente las presentaciones válidas para este medicamento
+    if (unitSelect) {
+      const hasBox = prod.boxPrice !== null && prod.boxPrice !== undefined && Number(prod.boxPrice) > 0 && (prod.unitsPerBox || 100) > 1;
+      const hasBlister = prod.blisterPrice !== null && prod.blisterPrice !== undefined && Number(prod.blisterPrice) > 0 && (prod.unitsPerBlister || 10) > 1;
+
+      let options = [];
+      if (!hasBox && !hasBlister) {
+        options.push('<option value="unit">Frascos / Unidades</option>');
+      } else {
+        options.push('<option value="unit">Pastillas / Unidades sueltas</option>');
+        if (hasBlister) {
+          options.push(`<option value="blister">Blísters completos (${prod.unitsPerBlister || 10} past.)</option>`);
+        }
+        if (hasBox) {
+          options.push(`<option value="box">Cajas completas (${prod.unitsPerBox || 100} past.)</option>`);
+        }
+      }
+      unitSelect.innerHTML = options.join('');
+    }
+
+    // 2. Cargar lotes FEFO disponibles
     if (lotSelect) {
-      lotSelect.innerHTML = `
-        <option value="${escHtml(prod.lotNumber || 'L-PRINCIPAL')}">Lote Activo: ${escHtml(prod.lotNumber || 'L-24115')} (Vence: ${escHtml(prod.expireDate || '2028-12-31')})</option>
-      `;
+      if (Array.isArray(prod.lotes_fefo) && prod.lotes_fefo.length > 0) {
+        lotSelect.innerHTML = prod.lotes_fefo.map(l =>
+          `<option value="${l.id || l.lot_number}">Lote: ${escHtml(l.lot_number)} (Vence: ${l.expire_date || 'N/A'}) - Stock: ${l.stock_units} un.</option>`
+        ).join('');
+      } else if (prod.lotNumber && prod.lotNumber !== 'N/A') {
+        lotSelect.innerHTML = `
+          <option value="${escHtml(prod.lotNumber)}">Lote Activo: ${escHtml(prod.lotNumber)} (Vence: ${escHtml(prod.expireDate || '2028-12-31')})</option>
+        `;
+      } else {
+        lotSelect.innerHTML = `<option value="auto">-- Lote Automático / Nuevo Ingreso --</option>`;
+      }
     }
 
     this.updateAdjustmentPreview();
@@ -4231,6 +4349,7 @@ class WarehouseModule {
   async submitAdjustment(e) {
     if (e) e.preventDefault();
     const productId = parseInt(document.getElementById('adjProductId')?.value, 10);
+    const lotId = document.getElementById('adjLotId')?.value || null;
     const adjustmentType = document.getElementById('adjType')?.value;
     const quantity = parseInt(document.getElementById('adjQuantity')?.value, 10);
     const unitType = document.getElementById('adjUnitType')?.value;
@@ -4255,6 +4374,7 @@ class WarehouseModule {
       if (window.api) {
         const res = await window.api.adjustStock({
           productId,
+          lotId,
           adjustmentType,
           quantity,
           unitType,
