@@ -230,7 +230,7 @@ class CashModel {
         COALESCE(SUM(CASE WHEN invoice_type = 'ticket' THEN 1 ELSE 0 END), 0)::int as tickets_count,
         COALESCE(SUM(CASE WHEN invoice_type = 'boleta' THEN 1 ELSE 0 END), 0)::int as boletas_count,
         COALESCE(SUM(CASE WHEN invoice_type = 'factura' THEN 1 ELSE 0 END), 0)::int as facturas_count,
-        CAST(COALESCE(SUM(CASE WHEN payment_method = 'cash' THEN total ELSE 0 END), 0) AS FLOAT) as cash_total,
+        CAST(COALESCE(SUM(CASE WHEN payment_method = 'cash' THEN (amount_paid - change_given) ELSE 0 END), 0) AS FLOAT) as cash_total,
         CAST(COALESCE(SUM(CASE WHEN payment_method != 'cash' THEN total ELSE 0 END), 0) AS FLOAT) as digital_total,
         CAST(COALESCE(SUM(total), 0) AS FLOAT) as grand_total
       FROM ventas 

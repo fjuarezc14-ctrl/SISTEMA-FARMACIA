@@ -342,6 +342,10 @@ class SaleModel {
       params.push(filters.userId);
       conditions.push(`v.user_id = $${params.length}`);
     }
+    if (filters.turnoId) {
+      params.push(parseInt(filters.turnoId, 10));
+      conditions.push(`v.turno_id = $${params.length}`);
+    }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const isPaginated = filters && filters.page !== undefined;
@@ -362,6 +366,7 @@ class SaleModel {
     const rows = await queryFn(`
       SELECT 
         v.id,
+        v.turno_id AS "turnoId",
         v.invoice_series || '-' || LPAD(v.invoice_number::text, 6, '0') AS "invoiceNumberFormatted",
         v.invoice_series AS "series",
         v.invoice_number AS "number",

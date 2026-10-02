@@ -615,6 +615,9 @@
                     <small>Vuelto:</small>
                     <strong id="cashChangeDisplay">S/ 0.00</strong>
                   </div>
+                  <div id="bcrpRoundingNotice" style="display: none; grid-column: 1 / -1; margin-top: 6px; padding: 4px 8px; background: #fefce8; border: 1px dashed #ca8a04; border-radius: 4px; font-size: 11px; color: #854d0e; text-align: center; font-weight: 600;">
+                    <i class="bi bi-info-circle"></i> <span id="bcrpRoundingText">Redondeo Ley 29571 / BCRP: -S/ 0.00 (Efectivo a cobrar: S/ 0.00)</span>
+                  </div>
                 </div>
               </div>
 
@@ -737,6 +740,12 @@
               <button type="button" class="client-tab-btn" id="tabVoucherFilterTickets" onclick="counterApp.setVoucherFilter('ticket')">Tickets (<span id="countVouchersTickets">0</span>)</button>
               <button type="button" class="client-tab-btn" id="tabVoucherFilterCancelled" onclick="counterApp.setVoucherFilter('cancelled')" style="color: #dc2626;">Anulados (<span id="countVouchersCancelled">0</span>)</button>
             </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <select id="vouchersScopeSelect" class="form-input" style="width: auto; padding: 6px 12px; font-size: 12px; font-weight: 700; background: #fff;" onchange="counterApp.setVoucherScope(this.value)">
+                <option value="shift">Solo Turno Activo</option>
+                <option value="all">Histórico General</option>
+              </select>
+            </div>
           </div>
 
           <!-- Tabla SaaS de Comprobantes de Venta -->
@@ -764,6 +773,9 @@
               </tbody>
             </table>
           </div>
+
+          <!-- Barra de Paginación de Comprobantes -->
+          <div id="vouchersPaginationContainer" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;"></div>
 
         </div>
       </section>
@@ -867,21 +879,21 @@
                 <table class="audit-table">
                   <thead><tr><th>Billete</th><th>Cantidad</th><th>Total</th></tr></thead>
                   <tbody>
-                    <tr><td><strong>S/ 200</strong></td><td><input type="number" class="denom-field" data-val="200" value="3" min="0"></td><td class="denom-cell">S/ 600.00</td></tr>
-                    <tr><td><strong>S/ 100</strong></td><td><input type="number" class="denom-field" data-val="100" value="9" min="0"></td><td class="denom-cell">S/ 900.00</td></tr>
-                    <tr><td><strong>S/ 50</strong></td><td><input type="number" class="denom-field" data-val="50" value="6" min="0"></td><td class="denom-cell">S/ 300.00</td></tr>
-                    <tr><td><strong>S/ 20</strong></td><td><input type="number" class="denom-field" data-val="20" value="7" min="0"></td><td class="denom-cell">S/ 140.00</td></tr>
-                    <tr><td><strong>S/ 10</strong></td><td><input type="number" class="denom-field" data-val="10" value="5" min="0"></td><td class="denom-cell">S/ 50.00</td></tr>
+                    <tr><td><strong>S/ 200</strong></td><td><input type="number" class="denom-field" data-val="200" value="0" min="0"></td><td class="denom-cell">S/ 0.00</td></tr>
+                    <tr><td><strong>S/ 100</strong></td><td><input type="number" class="denom-field" data-val="100" value="0" min="0"></td><td class="denom-cell">S/ 0.00</td></tr>
+                    <tr><td><strong>S/ 50</strong></td><td><input type="number" class="denom-field" data-val="50" value="0" min="0"></td><td class="denom-cell">S/ 0.00</td></tr>
+                    <tr><td><strong>S/ 20</strong></td><td><input type="number" class="denom-field" data-val="20" value="0" min="0"></td><td class="denom-cell">S/ 0.00</td></tr>
+                    <tr><td><strong>S/ 10</strong></td><td><input type="number" class="denom-field" data-val="10" value="0" min="0"></td><td class="denom-cell">S/ 0.00</td></tr>
                   </tbody>
                 </table>
 
                 <table class="audit-table">
                   <thead><tr><th>Moneda</th><th>Cantidad</th><th>Total</th></tr></thead>
                   <tbody>
-                    <tr><td><strong>S/ 5.00</strong></td><td><input type="number" class="denom-field" data-val="5" value="2" min="0"></td><td class="denom-cell">S/ 10.00</td></tr>
-                    <tr><td><strong>S/ 2.00</strong></td><td><input type="number" class="denom-field" data-val="2" value="2" min="0"></td><td class="denom-cell">S/ 4.00</td></tr>
-                    <tr><td><strong>S/ 1.00</strong></td><td><input type="number" class="denom-field" data-val="1" value="1" min="0"></td><td class="denom-cell">S/ 1.00</td></tr>
-                    <tr><td><strong>S/ 0.50</strong></td><td><input type="number" class="denom-field" data-val="0.5" value="1" min="0"></td><td class="denom-cell">S/ 0.50</td></tr>
+                    <tr><td><strong>S/ 5.00</strong></td><td><input type="number" class="denom-field" data-val="5" value="0" min="0"></td><td class="denom-cell">S/ 0.00</td></tr>
+                    <tr><td><strong>S/ 2.00</strong></td><td><input type="number" class="denom-field" data-val="2" value="0" min="0"></td><td class="denom-cell">S/ 0.00</td></tr>
+                    <tr><td><strong>S/ 1.00</strong></td><td><input type="number" class="denom-field" data-val="1" value="0" min="0"></td><td class="denom-cell">S/ 0.00</td></tr>
+                    <tr><td><strong>S/ 0.50</strong></td><td><input type="number" class="denom-field" data-val="0.5" value="0" min="0"></td><td class="denom-cell">S/ 0.00</td></tr>
                     <tr><td><strong>S/ 0.20</strong></td><td><input type="number" class="denom-field" data-val="0.2" value="0" min="0"></td><td class="denom-cell">S/ 0.00</td></tr>
                     <tr><td><strong>S/ 0.10</strong></td><td><input type="number" class="denom-field" data-val="0.1" value="0" min="0"></td><td class="denom-cell">S/ 0.00</td></tr>
                   </tbody>
@@ -895,11 +907,11 @@
               
               <div class="verdict-row">
                 <span>Dinero que contaste en mano:</span>
-                <strong id="countedCashDisplay">S/ 2,005.50</strong>
+                <strong id="countedCashDisplay">S/ 0.00</strong>
               </div>
               <div class="verdict-row">
                 <span>Dinero que pide el sistema:</span>
-                <strong id="expectedAuditDisplay">S/ 2,005.50</strong>
+                <strong id="expectedAuditDisplay">S/ 0.00</strong>
               </div>
 
               <div class="cuadre-status-banner perfect" id="cuadreStatusBanner">

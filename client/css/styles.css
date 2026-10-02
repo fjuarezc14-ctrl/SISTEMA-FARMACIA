@@ -4377,32 +4377,46 @@ body.uw-highlight-links input[type="submit"] {
 }
 
 @media print {
-  body * {
-    visibility: hidden !important;
+  @page {
+    size: 80mm auto;
+    margin: 0;
   }
-  #receiptModal, #receiptModal *,
-  #zReportModal, #zReportModal * {
-    visibility: visible !important;
-  }
-  #receiptModal,
-  #zReportModal {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
+  html, body {
     width: 100% !important;
-    background: #ffffff !important;
-    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
     padding: 0 !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+  }
+  .app-sidebar, 
+  .app-header, 
+  .app-workspace-main, 
+  .toast-container,
+  .userway,
+  .modal-valetec:not(.active),
+  .modal-header-valetec,
+  .modal-footer-valetec {
+    display: none !important;
+  }
+  body > *:not(.modal-valetec) {
+    display: none !important;
+  }
+  .modal-valetec.active {
+    position: static !important;
+    display: block !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    box-shadow: none !important;
   }
   .modal-dialog-valetec {
     box-shadow: none !important;
     max-width: 100% !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     border-radius: 0 !important;
-  }
-  .modal-header-valetec,
-  .modal-footer-valetec {
-    display: none !important;
   }
   .modal-body-valetec {
     padding: 0 !important;
@@ -4413,9 +4427,17 @@ body.uw-highlight-links input[type="submit"] {
   .thermal-receipt {
     border: none !important;
     box-shadow: none !important;
-    padding: 0 !important;
-    width: 76mm !important;
+    padding: 4px !important;
+    width: 72mm !important;
     margin: 0 auto !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-weight: 700 !important;
+    color: #000000 !important;
+  }
+  .thermal-receipt * {
+    font-family: 'Courier New', Courier, monospace !important;
+    font-weight: 700 !important;
+    color: #000000 !important;
   }
 }
 

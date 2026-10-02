@@ -50,6 +50,197 @@ function getActiveStaffName(fallbackRole = 'cashier', defaultName = 'Cajero de T
 window.getActiveStaffName = getActiveStaffName;
 
 /**
+ * Impresión Térmica Aislada en Rollo de 80mm / 58mm (Evita las 8 páginas en blanco de SPA)
+ * Inyecta un iframe aislado con tipografía Courier New en negrita para máxima legibilidad.
+ */
+function printThermalElement(elementOrHtml, docTitle = 'Ticket_Valetec_Pharma') {
+  if (!elementOrHtml) {
+    window.print();
+    return;
+  }
+  const htmlContent = typeof elementOrHtml === 'string' ? elementOrHtml : elementOrHtml.outerHTML;
+
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.style.visibility = 'hidden';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow.document;
+  doc.open();
+  doc.write(`
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <title>${escHtml(docTitle)}</title>
+      <style>
+        @page {
+          size: 80mm auto;
+          margin: 0;
+        }
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+          font-family: 'Courier New', Courier, monospace !important;
+          font-weight: 700 !important;
+          color: #000000 !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        body {
+          width: 72mm;
+          margin: 0 auto;
+          padding: 6px 2px;
+          font-size: 11px !important;
+          line-height: 1.3 !important;
+          background: #ffffff !important;
+        }
+        .thermal-receipt {
+          width: 100% !important;
+          background: #ffffff !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+        .receipt-header {
+          text-align: center;
+          margin-bottom: 6px;
+        }
+        .receipt-logo-title {
+          font-size: 14px !important;
+          font-weight: 900 !important;
+          letter-spacing: 0.5px;
+          margin-bottom: 2px;
+        }
+        .receipt-meta-line {
+          font-size: 10px !important;
+        }
+        .receipt-dashed-line {
+          border-top: 1px dashed #000000 !important;
+          margin: 5px 0;
+        }
+        .receipt-doc-title {
+          font-size: 12px !important;
+          font-weight: 900 !important;
+          text-align: center;
+          margin-top: 2px;
+        }
+        .receipt-info-grid {
+          margin: 4px 0;
+          font-size: 10px !important;
+        }
+        .receipt-info-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 2px;
+        }
+        table.receipt-table {
+          width: 100% !important;
+          border-collapse: collapse;
+          margin: 4px 0;
+          font-size: 10px !important;
+        }
+        table.receipt-table th {
+          border-bottom: 1px solid #000000 !important;
+          padding: 3px 0;
+          text-align: left;
+          font-size: 10px !important;
+        }
+        table.receipt-table td {
+          padding: 3px 0;
+          vertical-align: top;
+        }
+        .text-right {
+          text-align: right !important;
+        }
+        .receipt-totals-box {
+          margin: 4px 0;
+          font-size: 11px !important;
+        }
+        .receipt-total-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 2px;
+        }
+        .receipt-total-row.grand-total {
+          font-size: 13px !important;
+          font-weight: 900 !important;
+          border-top: 1px dashed #000000 !important;
+          border-bottom: 1px dashed #000000 !important;
+          padding: 4px 0;
+          margin: 4px 0;
+        }
+        .receipt-hash-box {
+          font-size: 8.5px !important;
+          word-break: break-all;
+          text-align: center;
+          margin: 4px 0;
+        }
+        .receipt-qr-box {
+          text-align: center;
+          margin: 6px 0;
+        }
+        .receipt-qr-box img {
+          width: 110px !important;
+          height: 110px !important;
+          margin: 0 auto;
+          display: block;
+        }
+        .receipt-footer {
+          text-align: center;
+          font-size: 9px !important;
+          margin-top: 6px;
+        }
+      </style>
+    </head>
+    <body>
+      ${htmlContent}
+    </body>
+    </html>
+  `);
+  doc.close();
+
+  const triggerPrint = () => {
+    setTimeout(() => {
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      } catch (e) {
+        console.error("Error al imprimir ticket térmico:", e);
+      } finally {
+        setTimeout(() => {
+          if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        }, 3000);
+      }
+    }, 250);
+  };
+
+  const images = doc.images;
+  let loadedCount = 0;
+  if (!images || images.length === 0) {
+    triggerPrint();
+  } else {
+    for (let i = 0; i < images.length; i++) {
+      if (images[i].complete) {
+        loadedCount++;
+      } else {
+        images[i].onload = images[i].onerror = () => {
+          loadedCount++;
+          if (loadedCount >= images.length) triggerPrint();
+        };
+      }
+    }
+    if (loadedCount >= images.length) triggerPrint();
+  }
+}
+window.printThermalElement = printThermalElement;
+
+/**
  * =============================================================
  * LÓGICA OFICIAL DE FRACCIONAMIENTO DE INVENTARIO VALETEC PHARMA
  * =============================================================
@@ -1372,8 +1563,15 @@ class CounterModule {
     if (this.btnExact) {
       this.btnExact.addEventListener('click', () => {
         const total = this.calcTotal();
+        const isCash = this.currentPaymentMethod === 'cash';
+        let toPay = total;
+        if (isCash) {
+          const totalCents = Math.round(total * 100);
+          const rem = totalCents % 10;
+          if (rem > 0) toPay = Math.max(0, (totalCents - rem) / 100);
+        }
         if (this.cashInput) {
-          this.cashInput.value = total.toFixed(2);
+          this.cashInput.value = toPay.toFixed(2);
           this.recalcChange();
         }
       });
@@ -1400,10 +1598,10 @@ class CounterModule {
       this.btnCheckout.addEventListener('click', () => this.checkout());
     }
 
-    // Eventos del modal de comprobante térmico
+    // Eventos del modal de comprobante térmico (Impresión aislada 80mm)
     if (this.btnCloseReceipt) this.btnCloseReceipt.addEventListener('click', () => this.toggleReceiptModal(false));
     if (this.btnCloseReceiptBtn) this.btnCloseReceiptBtn.addEventListener('click', () => this.toggleReceiptModal(false));
-    if (this.btnPrintReceiptBtn) this.btnPrintReceiptBtn.addEventListener('click', () => window.print());
+    if (this.btnPrintReceiptBtn) this.btnPrintReceiptBtn.addEventListener('click', () => this.printThermalReceipt());
 
     // Eventos del botón de comprobantes del turno
     if (this.btnOpenSalesHistory) {
@@ -1888,11 +2086,32 @@ class CounterModule {
 
   recalcChange() {
     const total = this.calcTotal();
+    const isCash = this.currentPaymentMethod === 'cash';
+
+    // BCRP / Ley 29571 Art. 44 (redondeo hacia abajo a favor del consumidor en efectivo)
+    const totalCents = Math.round(total * 100);
+    const remCents = totalCents % 10;
+    const bcrpRounding = (isCash && remCents > 0) ? (remCents / 100) : 0;
+    const cashPayable = (isCash && remCents > 0) ? ((totalCents - remCents) / 100) : total;
+
     if (this.digitalExactBadge) {
       this.digitalExactBadge.innerText = `Monto Exacto: S/ ${total.toFixed(2)}`;
     }
+
+    const bcrpNotice = document.getElementById('bcrpRoundingNotice');
+    const bcrpText = document.getElementById('bcrpRoundingText');
+    if (bcrpNotice && bcrpText) {
+      if (isCash && bcrpRounding > 0) {
+        bcrpNotice.style.display = 'block';
+        bcrpText.innerText = `Redondeo Ley 29571 / BCRP: -S/ ${bcrpRounding.toFixed(2)} (Efectivo a cobrar: S/ ${cashPayable.toFixed(2)})`;
+      } else {
+        bcrpNotice.style.display = 'none';
+      }
+    }
+
     const rec = parseFloat(this.cashInput?.value || 0);
-    const diff = Math.max(0, rec - total);
+    const targetToPay = isCash ? cashPayable : total;
+    const diff = Math.max(0, Math.round((rec - targetToPay) * 100) / 100);
     if (this.changeEl) this.changeEl.innerText = `S/ ${diff.toFixed(2)}`;
   }
 
@@ -1965,6 +2184,15 @@ class CounterModule {
   toggleReceiptModal(open) {
     if (open) this.receiptModal?.classList.add('active');
     else this.receiptModal?.classList.remove('active');
+  }
+
+  printThermalReceipt() {
+    const receiptEl = document.getElementById('printableThermalReceipt');
+    if (!receiptEl) {
+      window.print();
+      return;
+    }
+    printThermalElement(receiptEl, 'Ticket_Venta_Valetec');
   }
 
   showReceiptModal(sale) {
@@ -2107,6 +2335,16 @@ class CounterModule {
             <span>TOTAL A PAGAR:</span>
             <span>S/ ${parseFloat(sale.total || 0).toFixed(2)}</span>
           </div>
+          ${(sale.paymentMethod === 'cash' && ((sale.bcrpRounding > 0) || ((Math.round(parseFloat(sale.total || 0) * 100) % 10) > 0))) ? `
+            <div class="receipt-total-row" style="color: #475569;">
+              <span>REDONDEO BCRP (LEY 29571):</span>
+              <span>-S/ ${parseFloat(sale.bcrpRounding !== undefined ? sale.bcrpRounding : ((Math.round(parseFloat(sale.total || 0) * 100) % 10) / 100)).toFixed(2)}</span>
+            </div>
+            <div class="receipt-total-row" style="font-weight: 800;">
+              <span>TOTAL EN EFECTIVO:</span>
+              <span>S/ ${parseFloat(sale.cashPayable !== undefined ? sale.cashPayable : (parseFloat(sale.total || 0) - ((Math.round(parseFloat(sale.total || 0) * 100) % 10) / 100))).toFixed(2)}</span>
+            </div>
+          ` : ''}
           <div class="receipt-total-row">
             <span>IMPORTE RECIBIDO:</span>
             <span>S/ ${parseFloat(sale.amountPaid || 0).toFixed(2)}</span>
@@ -2196,15 +2434,23 @@ class CounterModule {
     const paymentMethod = this.currentPaymentMethod || 'cash';
     let paymentReference = null;
     let amountPaid = total;
+    let cashPayable = total;
+    let bcrpRounding = 0;
 
     if (paymentMethod === 'cash') {
+      const totalCents = Math.round(total * 100);
+      const remCents = totalCents % 10;
+      if (remCents > 0) {
+        bcrpRounding = remCents / 100;
+        cashPayable = Math.max(0, (totalCents - remCents) / 100);
+      }
       const rec = parseFloat(this.cashInput?.value || 0);
-      if (rec > 0 && rec < total) {
+      if (rec > 0 && rec < cashPayable) {
         this._checkoutInProgress = false;
-        showValetecToast(`Dinero insuficiente. Total: S/ ${total.toFixed(2)}, Recibido: S/ ${rec.toFixed(2)}. Faltan S/ ${(total - rec).toFixed(2)}.`, "warning");
+        showValetecToast(`Dinero insuficiente. Total en efectivo: S/ ${cashPayable.toFixed(2)}, Recibido: S/ ${rec.toFixed(2)}. Faltan S/ ${(cashPayable - rec).toFixed(2)}.`, "warning");
         return;
       }
-      amountPaid = rec > 0 ? rec : total;
+      amountPaid = rec > 0 ? rec : cashPayable;
     } else {
       paymentReference = this.digitalRefInput ? this.digitalRefInput.value.trim() : null;
       amountPaid = total;
@@ -2317,7 +2563,7 @@ class CounterModule {
       // Actualizar Módulo de Caja (Efectivo y Auditoría)
       if (window.cashApp) {
         if (paymentMethod === 'cash') {
-          cashApp.cashSales = (cashApp.cashSales || 0) + total;
+          cashApp.cashSales = (cashApp.cashSales || 0) + cashPayable;
         } else {
           cashApp.digitalSales = (cashApp.digitalSales || 0) + total;
         }
@@ -2412,7 +2658,7 @@ class CounterModule {
     try {
       let sales = [];
       if (window.api && window.api.isConnected) {
-        const res = await window.api.getSales(100);
+        const res = await window.api.getSales(150);
         if (res && res.success) {
           sales = res.data || [];
         }
@@ -2421,8 +2667,16 @@ class CounterModule {
       this.cachedSalesList = sales;
       this.currentVoucherFilter = this.currentVoucherFilter || 'all';
       this.voucherSearchQuery = this.voucherSearchQuery || '';
+      this.voucherScope = this.voucherScope || 'shift';
+      this.voucherPage = 1;
+      this.voucherPageSize = 10;
 
-      this.updateVoucherKpis(sales);
+      // Sincronizar el select con el estado actual
+      const scopeSelect = document.getElementById('vouchersScopeSelect');
+      if (scopeSelect) {
+        scopeSelect.value = this.voucherScope;
+      }
+
       this.applyVoucherFilterAndRender();
     } catch (err) {
       if (tableBody) {
@@ -2436,6 +2690,12 @@ class CounterModule {
         `;
       }
     }
+  }
+
+  setVoucherScope(scope) {
+    this.voucherScope = scope || 'shift';
+    this.voucherPage = 1;
+    this.applyVoucherFilterAndRender();
   }
 
   updateVoucherKpis(sales = []) {
@@ -2472,6 +2732,7 @@ class CounterModule {
 
   setVoucherFilter(filterType) {
     this.currentVoucherFilter = filterType;
+    this.voucherPage = 1;
     document.querySelectorAll('.client-tabs .client-tab-btn').forEach(btn => {
       if (btn.id?.startsWith('tabVoucherFilter')) btn.classList.remove('active');
     });
@@ -2488,15 +2749,36 @@ class CounterModule {
   onVouchersSearchInput(e) {
     clearTimeout(this.voucherSearchTimeout);
     this.voucherSearchQuery = (e?.target?.value || '').trim().toLowerCase();
+    this.voucherPage = 1;
     this.voucherSearchTimeout = setTimeout(() => {
       this.applyVoucherFilterAndRender();
     }, 200);
   }
 
   applyVoucherFilterAndRender() {
-    let result = [...(this.cachedSalesList || [])];
+    let all = [...(this.cachedSalesList || [])];
 
-    // 1. Filtrado por tipo de pestaña
+    // Ámbito de comprobantes: Turno Activo vs Histórico General
+    const scopeSelect = document.getElementById('vouchersScopeSelect');
+    if (scopeSelect && scopeSelect.value) {
+      this.voucherScope = scopeSelect.value;
+    }
+    const currentShiftId = window.cashApp?.currentShift?.id ? parseInt(window.cashApp.currentShift.id, 10) : null;
+
+    let scoped = all;
+    if (this.voucherScope === 'shift' && currentShiftId) {
+      scoped = all.filter(s => {
+        const sShift = parseInt(s.turnoId || s.turno_id || 0, 10);
+        return sShift === currentShiftId;
+      });
+    }
+
+    // Actualizar KPIs de comprobantes según el ámbito activo
+    this.updateVoucherKpis(scoped);
+
+    let result = scoped;
+
+    // 1. Filtrado por tipo de comprobante / pestaña
     if (this.currentVoucherFilter === 'boleta') {
       result = result.filter(s => s.invoiceType === 'boleta');
     } else if (this.currentVoucherFilter === 'factura') {
@@ -2521,7 +2803,62 @@ class CounterModule {
       });
     }
 
-    this.renderVouchersTable(result);
+    // 3. Paginación SaaS
+    const totalItems = result.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / this.voucherPageSize));
+    if (this.voucherPage > totalPages) this.voucherPage = totalPages;
+    if (this.voucherPage < 1) this.voucherPage = 1;
+
+    const startIdx = (this.voucherPage - 1) * this.voucherPageSize;
+    const paged = result.slice(startIdx, startIdx + this.voucherPageSize);
+
+    this.renderVouchersTable(paged);
+    this.renderVouchersPagination(totalItems, totalPages);
+  }
+
+  changeVoucherPage(newPage) {
+    this.voucherPage = newPage;
+    this.applyVoucherFilterAndRender();
+  }
+
+  renderVouchersPagination(totalItems, totalPages) {
+    const container = document.getElementById('vouchersPaginationContainer');
+    if (!container) return;
+
+    if (totalItems === 0) {
+      container.innerHTML = `<div style="font-size: 12px; color: #94a3b8;">0 comprobantes registrados</div>`;
+      return;
+    }
+
+    const start = (this.voucherPage - 1) * this.voucherPageSize + 1;
+    const end = Math.min(this.voucherPage * this.voucherPageSize, totalItems);
+
+    container.innerHTML = `
+      <div style="font-size: 12px; color: #64748b;">
+        Mostrando <strong>${start}</strong> - <strong>${end}</strong> de <strong>${totalItems}</strong> comprobantes
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <button 
+          type="button" 
+          class="btn-action-outline" 
+          style="padding: 4px 12px; font-size: 12px; height: 32px; border-radius: 6px; ${this.voucherPage <= 1 ? 'opacity: 0.4; pointer-events: none;' : ''}" 
+          onclick="counterApp.changeVoucherPage(${this.voucherPage - 1})"
+        >
+          <i class="bi bi-chevron-left"></i> Anterior
+        </button>
+        <span style="font-size: 12px; font-weight: 700; color: #0a2540;">
+          Pág. ${this.voucherPage} / ${totalPages}
+        </span>
+        <button 
+          type="button" 
+          class="btn-action-outline" 
+          style="padding: 4px 12px; font-size: 12px; height: 32px; border-radius: 6px; ${this.voucherPage >= totalPages ? 'opacity: 0.4; pointer-events: none;' : ''}" 
+          onclick="counterApp.changeVoucherPage(${this.voucherPage + 1})"
+        >
+          Siguiente <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+    `;
   }
 
   renderVouchersTable(sales) {
@@ -2919,6 +3256,7 @@ class CashModule {
             });
             if (res && res.success) {
               this.toggleOpenShiftModal(false);
+              this.resetDenominations();
               await syncWithBackend();
               showValetecToast(`Turno de caja #${res.data.id} abierto exitosamente con fondo S/ ${val.toFixed(2)}.`, "success");
             } else {
@@ -3044,10 +3382,18 @@ class CashModule {
       this.btnConfirmZAction.addEventListener('click', () => this.finalizeZClose());
     }
 
-    // Eventos del modal de Reporte Z
     if (this.btnCloseZReportModal) this.btnCloseZReportModal.addEventListener('click', () => this.toggleZModal(false));
     if (this.btnCloseZReportBtn) this.btnCloseZReportBtn.addEventListener('click', () => this.toggleZModal(false));
-    if (this.btnPrintZReportBtn) this.btnPrintZReportBtn.addEventListener('click', () => window.print());
+    if (this.btnPrintZReportBtn) {
+      this.btnPrintZReportBtn.addEventListener('click', () => {
+        const target = this.zReportModalBody?.querySelector('.thermal-receipt') || document.getElementById('zPrintableContainer') || this.zReportModalBody;
+        if (target) {
+          printThermalElement(target, 'Reporte_Z_Cierre_Valetec');
+        } else {
+          window.print();
+        }
+      });
+    }
 
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.zReportModal?.classList.contains('active')) {
@@ -3324,6 +3670,9 @@ class CashModule {
         `;
       }
 
+      if (this.denomFields) {
+        this.denomFields.forEach(f => { f.value = 0; });
+      }
       this.movements = [];
       this.renderMovements([]);
       this.calculateAudit();

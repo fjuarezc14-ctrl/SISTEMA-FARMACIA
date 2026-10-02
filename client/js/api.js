@@ -394,8 +394,13 @@ class ValetecApiClient {
     });
   }
 
-  async getSales(limit = 50) {
-    return await this.request(`/sales?limit=${limit}`);
+  async getSales(limit = 50, params = {}) {
+    let q = `?limit=${limit}`;
+    if (params.page) q += `&page=${params.page}`;
+    if (params.turnoId) q += `&turnoId=${params.turnoId}`;
+    if (params.invoiceType) q += `&invoiceType=${encodeURIComponent(params.invoiceType)}`;
+    if (params.status) q += `&status=${encodeURIComponent(params.status)}`;
+    return await this.request(`/sales${q}`);
   }
 
   async getSaleById(id) {

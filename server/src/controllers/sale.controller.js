@@ -194,18 +194,27 @@ async function createSale(req, res, next) {
       const subtotalBase = Math.round((calculatedTotal / 1.18) * 100) / 100;
       const igvAmount = Math.round((calculatedTotal - subtotalBase) * 100) / 100;
 
-      // Cálculo de dinero recibido y vuelto
+      // Cálculo de dinero recibido y vuelto con Redondeo BCRP Ley N° 29571 Art. 44 (en efectivo)
       let paid = calculatedTotal;
       let changeGiven = 0;
+      let cashPayable = calculatedTotal;
+      let bcrpRounding = 0;
 
       if (paymentMethod === 'cash') {
-        paid = (amountPaid !== undefined && amountPaid !== null && amountPaid !== '') ? parseFloat(amountPaid) : calculatedTotal;
-        if (paid < calculatedTotal) {
-          const err = new Error(`Monto recibido (S/ ${paid.toFixed(2)}) es menor al total de la venta (S/ ${calculatedTotal.toFixed(2)}).`);
+        const totalCents = Math.round(calculatedTotal * 100);
+        const remCents = totalCents % 10;
+        if (remCents > 0) {
+          bcrpRounding = remCents / 100;
+          cashPayable = Math.max(0, (totalCents - remCents) / 100);
+        }
+
+        paid = (amountPaid !== undefined && amountPaid !== null && amountPaid !== '') ? parseFloat(amountPaid) : cashPayable;
+        if (paid < cashPayable) {
+          const err = new Error(`Monto recibido (S/ ${paid.toFixed(2)}) es menor al total de la venta en efectivo (S/ ${cashPayable.toFixed(2)}).`);
           err.statusCode = 400;
           throw err;
         }
-        changeGiven = Math.max(0, Math.round((paid - calculatedTotal) * 100) / 100);
+        changeGiven = Math.max(0, Math.round((paid - cashPayable) * 100) / 100);
       } else {
         paid = calculatedTotal;
         changeGiven = 0;
@@ -376,7 +385,8 @@ async function createSale(req, res, next) {
       }
 
       // 2.10 Acumular venta en el turno de caja abierto
-      await SaleModel.updateShiftSales(turnoId, calculatedTotal, paymentMethod, tx);
+      const netCashToShift = paymentMethod === 'cash' ? cashPayable : calculatedTotal;
+      await SaleModel.updateShiftSales(turnoId, netCashToShift, paymentMethod, tx);
 
       const totalInWords = cpeData ? cpeData.totalInWords : numberToLetters(calculatedTotal);
 
@@ -395,6 +405,8 @@ async function createSale(req, res, next) {
         subtotal: subtotalBase,
         igv: igvAmount,
         total: calculatedTotal,
+        cashPayable,
+        bcrpRounding,
         totalInWords,
         amountPaid: paid,
         changeGiven,
@@ -444,7 +456,7 @@ async function createSale(req, res, next) {
  */
 async function getSales(req, res, next) {
   try {
-    const { date, invoiceType, status, userId, limit = 50, page } = req.query;
+    const { date, invoiceType, status, userId, turnoId, limit = 50, page } = req.query;
     const isPaginated = page !== undefined;
 
     const result = await SaleModel.getSalesList({
@@ -452,6 +464,7 @@ async function getSales(req, res, next) {
       invoiceType,
       status,
       userId,
+      turnoId,
       limit,
       page
     });
@@ -595,7 +608,10 @@ async function cancelSale(req, res, next) {
 
       // 4. Revertir saldo en el turno de caja
       if (sale.turnoId) {
-        await SaleModel.revertShiftSales(sale.turnoId, sale.total, sale.paymentMethod, tx);
+        const netCashRevert = sale.paymentMethod === 'cash'
+          ? Math.max(0, Math.round(((parseFloat(sale.amountPaid) || parseFloat(sale.total)) - (parseFloat(sale.changeGiven) || 0)) * 100) / 100)
+          : parseFloat(sale.total);
+        await SaleModel.revertShiftSales(sale.turnoId, netCashRevert > 0 ? netCashRevert : sale.total, sale.paymentMethod, tx);
       }
 
       // 5. Revocar puntos acumulados por la venta cancelada
