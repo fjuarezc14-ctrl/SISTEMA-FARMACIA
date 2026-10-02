@@ -862,9 +862,9 @@ class NavigationController {
     if (roleKey === 'admin' || roleKey === 'qf') {
       profile.allowedViews = ["viewCounter", "viewVouchers", "viewCash", "viewWarehouse", "viewPurchases", "viewDigemid", "viewStaff", "viewManagement", "viewClients"];
     } else if (roleKey === 'cashier') {
-      profile.allowedViews = ["viewCounter", "viewCash", "viewWarehouse", "viewDigemid", "viewClients"];
+      profile.allowedViews = ["viewCounter", "viewVouchers", "viewCash", "viewWarehouse", "viewDigemid", "viewClients"];
     } else if (roleKey === 'tech') {
-      profile.allowedViews = ["viewCounter", "viewWarehouse", "viewDigemid", "viewClients"];
+      profile.allowedViews = ["viewCounter", "viewVouchers", "viewWarehouse", "viewDigemid", "viewClients"];
     }
 
     const avatarEl = document.getElementById('activeUserAvatar');
@@ -2172,7 +2172,12 @@ class CounterModule {
     // Validación estricta: Caja abierta requerida para registrar ventas
     if (window.cashApp && !window.cashApp.currentShift) {
       this._checkoutInProgress = false;
-      showValetecToast("Caja cerrada: No es posible emitir ventas sin un turno de caja abierto. Por favor, abre el turno de caja (F9) con el saldo inicial para iniciar la jornada.", "warning");
+      const canOpen = window.appNav ? window.appNav.canAccessView('viewCash') : false;
+      if (canOpen) {
+        showValetecToast("Caja cerrada: No es posible emitir ventas sin un turno de caja abierto. Por favor, abre el turno de caja (F9) con el saldo inicial para iniciar la jornada.", "warning");
+      } else {
+        showValetecToast("Caja cerrada: No es posible emitir ventas sin un turno de caja abierto. Solicite al Cajero o Administrador realizar la apertura de turno.", "warning");
+      }
       return;
     }
 
