@@ -16,11 +16,13 @@ const CashModel = require('../models/cash.model');
 async function getCurrentShift(req, res, next) {
   try {
     const activeUserId = (req.user && req.user.id) ? req.user.id : null;
+    const isAdmin = (req.user && (req.user.roleKey === 'admin' || req.user.role === 'admin'));
     const requestedShiftId = req.query.shiftId ? parseInt(req.query.shiftId, 10) : null;
 
     const shift = await CashModel.getOpenShift({
       shiftId: requestedShiftId,
-      userId: activeUserId
+      userId: activeUserId,
+      isAdmin
     });
 
     if (!shift) {

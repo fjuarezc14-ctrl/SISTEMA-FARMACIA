@@ -136,7 +136,7 @@ class CashModel {
     if (userId && !isAdmin && !adminUserId) {
       const validUserId = parseInt(userId, 10);
       if (!isNaN(validUserId) && validUserId > 0) {
-        return await getFn(`
+        const userShift = await getFn(`
           SELECT t.*, u.name as cashier_name, u.email as cashier_email 
           FROM caja_turnos t 
           LEFT JOIN usuarios u ON t.user_id = u.id 
@@ -144,8 +144,8 @@ class CashModel {
           ORDER BY t.id DESC 
           LIMIT 1;
         `, [validUserId]);
+        if (userShift) return userShift;
       }
-      return null;
     }
 
     if (isAdmin || adminUserId) {

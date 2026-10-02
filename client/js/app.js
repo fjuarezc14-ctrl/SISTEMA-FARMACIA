@@ -35,15 +35,15 @@ window.escapeHTML = escHtml;
  * @returns {string} - Nombre resuelto del usuario
  */
 function getActiveStaffName(fallbackRole = 'cashier', defaultName = 'Cajero de Turno') {
+  const role = window.appNav ? (window.appNav.currentRole || fallbackRole) : fallbackRole;
+  if (typeof mockStaffProfiles !== 'undefined' && mockStaffProfiles && mockStaffProfiles[role] && mockStaffProfiles[role].name) {
+    return mockStaffProfiles[role].name;
+  }
   if (window.authManager && window.authManager.currentUser && window.authManager.currentUser.name) {
     return window.authManager.currentUser.name;
   }
   if (window.currentUser && window.currentUser.name) {
     return window.currentUser.name;
-  }
-  const role = window.appNav ? (window.appNav.currentRole || fallbackRole) : fallbackRole;
-  if (typeof mockStaffProfiles !== 'undefined' && mockStaffProfiles && mockStaffProfiles[role] && mockStaffProfiles[role].name) {
-    return mockStaffProfiles[role].name;
   }
   return defaultName;
 }
