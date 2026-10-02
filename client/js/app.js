@@ -3256,8 +3256,8 @@ class CashModule {
             });
             if (res && res.success) {
               this.toggleOpenShiftModal(false);
-              this.resetDenominations();
               await syncWithBackend();
+              this.autoFillDenominations();
               showValetecToast(`Turno de caja #${res.data.id} abierto exitosamente con fondo S/ ${val.toFixed(2)}.`, "success");
             } else {
               throw new Error(res?.message || "Error al abrir turno");
@@ -3355,7 +3355,8 @@ class CashModule {
         this.zExpectedDisplay.innerText = `S/ ${expected.toFixed(2)}`;
       }
       if (this.zCountedInput) {
-        this.zCountedInput.value = physical.toFixed(2);
+        // Si el usuario ya contó en la tabla y es mayor a 0, usarlo; si no, sugerir el saldo esperado
+        this.zCountedInput.value = (physical > 0 ? physical : expected).toFixed(2);
       }
       if (this.zPrintableContainer) {
         this.zPrintableContainer.innerHTML = '';
@@ -3431,6 +3432,15 @@ class CashModule {
     }
 
     return { expected, counted, diff };
+  }
+
+  syncZCountedWithExpected() {
+    const expected = Math.max(0, Math.round(((this.openingBalance + this.cashSales) - this.expenses) * 100) / 100);
+    if (this.zCountedInput) {
+      this.zCountedInput.value = expected.toFixed(2);
+      this.updateZLiveDiff();
+    }
+    showValetecToast(`Saldo esperado de S/ ${expected.toFixed(2)} transferido a conteo de cierre.`, "info");
   }
 
   async finalizeZClose() {
@@ -3806,7 +3816,19 @@ class CashModule {
 
     const diff = Math.round((physical - expected) * 100) / 100;
     if (this.statusBanner) {
-      if (Math.abs(diff) < 0.1) {
+      if (physical === 0 && expected > 0) {
+        this.statusBanner.className = 'cuadre-status-banner';
+        this.statusBanner.style.backgroundColor = '#f8fafc';
+        this.statusBanner.style.borderColor = '#cbd5e1';
+        this.statusBanner.style.color = '#334155';
+        this.statusBanner.innerHTML = `
+          <i class="bi bi-clock-history text-teal" style="font-size: 20px;"></i>
+          <div>
+            <strong style="color: #0f172a;">TURNO EN OPERACIÓN • ARQUEO PENDIENTE</strong>
+            <p>Efectivo esperado: S/ ${expected.toFixed(2)}. Escribe el conteo de gaveta o haz clic en <a href="javascript:void(0)" onclick="cashApp.autoFillDenominations()" style="font-weight: 700; color: #0d9488; text-decoration: underline;">"Cuadre Rápido"</a>.</p>
+          </div>
+        `;
+      } else if (Math.abs(diff) < 0.1) {
         this.statusBanner.className = 'cuadre-status-banner cuadre-diff-exact';
         this.statusBanner.removeAttribute('style');
         this.statusBanner.innerHTML = `
@@ -3822,8 +3844,8 @@ class CashModule {
         this.statusBanner.innerHTML = `
           <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 18px;"></i>
           <div>
-            <strong class="text-danger">FALTANTE EN CAJA: -S/ ${Math.abs(diff).toFixed(2)}</strong>
-            <p>Alerta: Hay menos dinero en gaveta del registrado por el sistema.</p>
+            <strong class="text-danger">DIFERENCIA DE CONTEO: -S/ ${Math.abs(diff).toFixed(2)}</strong>
+            <p>Faltan monedas o billetes por registrar en la tabla. Usa <a href="javascript:void(0)" onclick="cashApp.autoFillDenominations()" style="font-weight: 700; color: #0d9488; text-decoration: underline;">"Cuadre Rápido"</a> para conciliar.</p>
           </div>
         `;
       } else {

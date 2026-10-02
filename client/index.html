@@ -2402,14 +2402,19 @@
                 Efectivo Esperado:
               </label>
               <div id="zExpectedCashDisplay" style="font-size: 15px; font-weight: 900; color: var(--valetec-navy); padding: 6px 10px; background: #f1f5f9; border-radius: 6px;">
-                S/ 2,005.50
+                S/ 0.00
               </div>
             </div>
             <div>
-              <label style="font-size: 11px; font-weight: 700; color: #64748b; display: block; margin-bottom: 2px;">
-                Efectivo Ingresado (Cajero):
-              </label>
-              <input type="number" id="zCountedCashInput" step="0.10" min="0" class="form-control" style="font-size: 15px; font-weight: 900; color: #0a2540;" value="2005.50">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                <label style="font-size: 11px; font-weight: 700; color: #64748b; margin: 0;">
+                  Efectivo Contado (Cajero):
+                </label>
+                <button type="button" class="btn-action-outline" style="padding: 1px 6px; font-size: 10px; font-weight: 700; height: auto; color: #0d9488; border-color: #0d9488;" onclick="cashApp.syncZCountedWithExpected()" title="Copiar saldo esperado">
+                  Copiar Esperado
+                </button>
+              </div>
+              <input type="number" id="zCountedCashInput" step="0.10" min="0" class="form-control" style="font-size: 15px; font-weight: 900; color: #0a2540;" value="0.00">
             </div>
           </div>
 
