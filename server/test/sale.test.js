@@ -212,10 +212,10 @@ async function runSaleTests() {
           paymentMethod: 'card',
           items: [
             {
-              productId: 3, // Farma-Naprox (tiene 64 pastillas, 2 blíst. = 16 pastillas)
+              productId: 3, // Farma-Naprox (precio blíster oficial: S/ 4.50)
               fractionType: 'blister',
               quantity: 2,
-              unitPrice: 59.00 // Total = 118.00
+              unitPrice: 4.50 // Total = 9.00
             }
           ]
         })
@@ -223,9 +223,36 @@ async function runSaleTests() {
 
       assert.strictEqual(res.status, 201);
       const data = await res.json();
-      assert.strictEqual(data.data.total, 118.00);
-      assert.strictEqual(data.data.subtotal, 100.00, 'Subtotal debe ser 100.00 exactos');
-      assert.strictEqual(data.data.igv, 18.00, 'IGV debe ser 18.00 exactos (18%)');
+      assert.strictEqual(data.data.total, 9.00);
+      assert.strictEqual(data.data.subtotal, 7.63, 'Subtotal debe ser 7.63 exactos');
+      assert.strictEqual(data.data.igv, 1.37, 'IGV debe ser 1.37 exactos (18%)');
+      assert.strictEqual(Math.round((data.data.subtotal + data.data.igv) * 100) / 100, 9.00);
+    });
+
+    // 6.1 Blindaje contra Price-Tampering (Alerta HTTP 400)
+    await test('Rechaza alteración maliciosa de precio / Price-Tampering (400 Bad Request)', async () => {
+      const res = await fetch(baseUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoiceType: 'boleta',
+          paymentMethod: 'cash',
+          amountPaid: 100.00,
+          items: [
+            {
+              productId: 1, // Valetec-Dol Forte (Precio caja oficial: S/ 28.00)
+              fractionType: 'box',
+              quantity: 1,
+              unitPrice: 0.05 // Intento malicioso de comprar caja a 5 centavos
+            }
+          ]
+        })
+      });
+
+      assert.strictEqual(res.status, 400);
+      const data = await res.json();
+      assert.strictEqual(data.success, false);
+      assert(data.message.includes('Price-Tampering'), 'Debe emitir la alerta de seguridad Price-Tampering');
     });
 
     // 7. Consulta de Comprobante por ID con Partidas

@@ -132,11 +132,23 @@ async function createSale(req, res, next) {
           throw err;
         }
 
-        let price = parseFloat(item.unitPrice);
-        if (isNaN(price) || price <= 0) {
-          price = officialPrice;
+        // =========================================================================
+        // 🛡️ BLINDAJE INTEGRAL CONTRA PRICE-TAMPERING (Defensa en Profundidad)
+        // =========================================================================
+        if (item.unitPrice !== undefined && item.unitPrice !== null && item.unitPrice !== '') {
+          const clientPrice = parseFloat(item.unitPrice);
+          if (!isNaN(clientPrice) && Math.abs(clientPrice - officialPrice) > 0.01) {
+            const err = new Error(
+              `Alerta de seguridad (Price-Tampering): Discrepancia detectada en el precio de "${prod.name}". ` +
+              `Precio recibido: S/ ${clientPrice.toFixed(2)}, Precio oficial de catálogo: S/ ${officialPrice.toFixed(2)}.`
+            );
+            err.statusCode = 400;
+            throw err;
+          }
         }
-        price = Math.round(price * 100) / 100;
+
+        // Asignación inmutable desde PostgreSQL
+        const price = Math.round(officialPrice * 100) / 100;
 
         const itemSubtotal = Math.round(price * qty * 100) / 100;
         calculatedTotal += itemSubtotal;
