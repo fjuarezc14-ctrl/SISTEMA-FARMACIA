@@ -284,8 +284,9 @@ class ProductModel {
               'lotNumber', l.lot_number,
               'expireDate', TO_CHAR(l.expire_date, 'YYYY-MM-DD'),
               'stockBoxes', FLOOR(l.stock_units / GREATEST(1, p.units_per_box)),
-              'stockBlisters', FLOOR(l.stock_units / GREATEST(1, p.units_per_blister)),
+              'stockBlisters', FLOOR((l.stock_units % GREATEST(1, p.units_per_box)) / GREATEST(1, p.units_per_blister)),
               'stockUnits', l.stock_units,
+              'looseUnits', (l.stock_units % GREATEST(1, p.units_per_box)) % GREATEST(1, p.units_per_blister),
               'fefoStatus', l.fefo_status
             ) ORDER BY l.expire_date ASC
           ) AS lots_json
@@ -313,6 +314,7 @@ class ProductModel {
       const boxes = Math.floor(totalUnits / uBox);
       const rem = totalUnits % uBox;
       const blisters = (uBli > 1 && uBli < uBox) ? Math.floor(rem / uBli) : 0;
+      const looseUnits = (uBli > 1 && uBli < uBox) ? (rem % uBli) : rem;
 
       return {
         id: p.id,
@@ -328,8 +330,9 @@ class ProductModel {
         unitsPerBox: p.unitsPerBox,
         unitsPerBlister: p.unitsPerBlister,
         stockBoxes: boxes,
-        stockBlisters: Math.floor(totalUnits / uBli),
+        stockBlisters: blisters,
         stockUnits: totalUnits,
+        looseUnits: looseUnits,
         prescriptionType: p.prescriptionType,
         sanitaryRegistry: p.sanitaryRegistry,
         status: p.status,
@@ -388,19 +391,23 @@ class ProductModel {
 
     if (!prod) return null;
 
+    const uBox = Math.max(1, parseInt(prod.units_per_box, 10) || 100);
+    const uBli = Math.max(1, parseInt(prod.units_per_blister, 10) || 10);
+
     const lots = await queryFn(`
       SELECT 
         id, 
         lot_number AS "lotNumber", 
         TO_CHAR(expire_date, 'YYYY-MM-DD') AS "expireDate", 
-        stock_boxes AS "stockBoxes", 
-        stock_blisters AS "stockBlisters", 
+        FLOOR(stock_units / GREATEST(1, $2))::int AS "stockBoxes", 
+        FLOOR((stock_units % GREATEST(1, $2)) / GREATEST(1, $3))::int AS "stockBlisters", 
         stock_units AS "stockUnits", 
+        ((stock_units % GREATEST(1, $2)) % GREATEST(1, $3))::int AS "looseUnits",
         fefo_status AS "fefoStatus"
       FROM lotes_fefo
       WHERE product_id = $1
       ORDER BY expire_date ASC;
-    `, [validId]);
+    `, [validId, uBox, uBli]);
 
     return { ...prod, lots };
   }
@@ -1059,7 +1066,7 @@ class ProductModel {
         INSERT INTO kardex (
           product_id, lot_id, movement_type, reference_type, reference_id,
           quantity, unit_type, previous_stock, new_stock, reason, user_name
-        ) VALUES ($1, $2, 'adjustment_in', 'LOTE_NUEVO', $3, $4, 'box', 0, $4, 'Alta de nuevo lote', 'Sistema')
+        ) VALUES ($1, $2, 'adjustment_in', 'LOTE_NUEVO', $3, $4, 'unit', 0, $4, 'Alta de nuevo lote', 'Sistema')
       `, [validId, newLot.id, `LOT-${newLot.id}`, units]);
     }
 
