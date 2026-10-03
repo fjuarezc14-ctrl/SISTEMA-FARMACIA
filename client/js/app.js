@@ -3817,15 +3817,13 @@ class CashModule {
     const diff = Math.round((physical - expected) * 100) / 100;
     if (this.statusBanner) {
       if (physical === 0 && expected > 0) {
-        this.statusBanner.className = 'cuadre-status-banner';
-        this.statusBanner.style.backgroundColor = '#f8fafc';
-        this.statusBanner.style.borderColor = '#cbd5e1';
-        this.statusBanner.style.color = '#334155';
+        this.statusBanner.className = 'cuadre-status-banner cuadre-diff-deficit';
+        this.statusBanner.removeAttribute('style');
         this.statusBanner.innerHTML = `
-          <i class="bi bi-clock-history text-teal" style="font-size: 20px;"></i>
+          <i class="bi bi-clock-history text-danger" style="font-size: 20px;"></i>
           <div>
-            <strong style="color: #0f172a;">TURNO EN OPERACIÓN • ARQUEO PENDIENTE</strong>
-            <p>Efectivo esperado: S/ ${expected.toFixed(2)}. Escribe el conteo de gaveta o haz clic en <a href="javascript:void(0)" onclick="cashApp.autoFillDenominations()" style="font-weight: 700; color: #0d9488; text-decoration: underline;">"Cuadre Rápido"</a>.</p>
+            <strong class="text-danger">TURNO EN OPERACIÓN • ARQUEO PENDIENTE</strong>
+            <p>Efectivo esperado: S/ ${expected.toFixed(2)}. Digita las monedas/billetes o presiona <a href="javascript:void(0)" onclick="cashApp.autoFillDenominations()" style="font-weight: 700; color: #dc2626; text-decoration: underline;">"Cuadre Rápido"</a>.</p>
           </div>
         `;
       } else if (Math.abs(diff) < 0.1) {
