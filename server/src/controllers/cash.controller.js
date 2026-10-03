@@ -277,9 +277,30 @@ async function openShift(req, res, next) {
   }
 }
 
+/**
+ * GET /api/cash/history
+ * Obtener historial de Cierres Z oficiales y turnos sellados
+ */
+async function getShiftHistory(req, res, next) {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const history = await CashModel.getShiftsHistory(limit);
+
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      count: history.length,
+      data: history
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getCurrentShift,
   addMovement,
   closeZ,
-  openShift
+  openShift,
+  getShiftHistory
 };

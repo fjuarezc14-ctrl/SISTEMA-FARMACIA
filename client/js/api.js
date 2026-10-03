@@ -314,6 +314,10 @@ class ValetecApiClient {
     });
   }
 
+  async getCashHistory(limit = 50) {
+    return await this.request(`/cash/history?limit=${limit}`);
+  }
+
   // 8. Métricas y Estadísticas Financieras en Tiempo Real
   async getDashboardStats() {
     return await this.request('/reports/dashboard');

@@ -16,4 +16,7 @@ router.post('/close-z', authenticateToken, requireRoles('cashier', 'admin'), cas
 // POST /api/cash/open - Abrir nuevo turno de caja
 router.post('/open', authenticateToken, requireRoles('cashier', 'admin'), cashController.openShift);
 
+// GET /api/cash/history - Obtener historial de cierres Z oficiales
+router.get('/history', authenticateToken, requireRoles('cashier', 'admin'), cashController.getShiftHistory);
+
 module.exports = router;

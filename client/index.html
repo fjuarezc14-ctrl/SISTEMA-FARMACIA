@@ -212,6 +212,10 @@
               <i class="bi bi-lock"></i>
               <span>Cierre Z</span>
             </button>
+            <button type="button" class="nav-sub-btn" data-action="openZHistory">
+              <i class="bi bi-clock-history"></i>
+              <span>Historial Z</span>
+            </button>
           </div>
         </div>
 
@@ -806,6 +810,9 @@
               </button>
               <button type="button" class="btn-action-outline" id="btnOpenExpenseModal">
                 <i class="bi bi-dash-circle"></i> <span>Registrar Gasto</span>
+              </button>
+              <button type="button" class="btn-action-outline" id="btnOpenZHistoryBtn" onclick="cashApp.openZHistoryModal()" title="Consultar historial de Cierres Z y turnos sellados">
+                <i class="bi bi-clock-history"></i> <span>Historial Z</span>
               </button>
               <button type="button" class="btn-action-outline" id="btnPrintAuditTicketBtn" onclick="cashApp.printAuditTicket()" title="Imprimir comprobante térmico de arqueo físico [80mm]">
                 <i class="bi bi-printer"></i> <span>Ticket Arqueo</span>
@@ -1929,7 +1936,8 @@
               <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                 <label style="font-size: 11.5px; font-weight: 700; color: #475569;">Mes Tributario:</label>
                 <select id="accountantPeriodSelect" class="form-select-valetec" style="height: 36px; font-size: 11.5px; font-weight: 700;" onchange="managementApp.onAccountantPeriodChange(this.value)">
-                  <option value="2026-09" selected>Septiembre 2026</option>
+                  <option value="2026-10" selected>Octubre 2026 (Mes Actual)</option>
+                  <option value="2026-09">Septiembre 2026</option>
                   <option value="2026-08">Agosto 2026</option>
                   <option value="2026-07">Julio 2026</option>
                   <option value="2026-06">Junio 2026</option>
@@ -2440,6 +2448,48 @@
         <button type="button" class="btn-action-solid" id="btnPrintZReportBtn">
           <i class="bi bi-printer"></i> <span>Imprimir Reporte Z (80mm)</span>
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5B: Historial Oficial de Cierres Z y Turnos Sellados -->
+  <div class="modal-backdrop-valetec" id="zHistoryModal">
+    <div class="modal-dialog-valetec" style="max-width: 860px; width: 95%;">
+      <div class="modal-header-valetec">
+        <h3><i class="bi bi-clock-history text-teal"></i> Historial Oficial de Cierres Z (Turnos Sellados)</h3>
+        <button type="button" class="btn-close-modal" id="btnCloseZHistoryModal" onclick="cashApp.toggleZHistoryModal(false)" title="Cerrar"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body-valetec">
+        <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <p style="margin: 0; font-size: 12.5px; color: #64748b;">
+            Auditoría de turnos cerrados en PostgreSQL, saldo inicial, ventas en efectivo y comprobantes de arqueo en gaveta.
+          </p>
+          <button type="button" class="btn-action-outline" style="padding: 4px 10px; font-size: 11.5px;" onclick="cashApp.loadZHistory()">
+            <i class="bi bi-arrow-clockwise"></i> <span>Actualizar</span>
+          </button>
+        </div>
+        <div class="table-responsive-valetec" style="max-height: 420px; overflow-y: auto;">
+          <table class="table-valetec">
+            <thead>
+              <tr>
+                <th>TURNO</th>
+                <th>FECHA CIERRE</th>
+                <th>CAJERO / TERMINAL</th>
+                <th style="text-align: right;">INICIO</th>
+                <th style="text-align: right;">VTAS. EFECTIVO</th>
+                <th style="text-align: right;">RECONTADO</th>
+                <th style="text-align: center;">CUADRE</th>
+                <th style="text-align: center;">ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody id="zHistoryTableBody">
+              <!-- Cargado dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer-valetec" style="justify-content: flex-end;">
+        <button type="button" class="btn-action-outline" onclick="cashApp.toggleZHistoryModal(false)">Cerrar [Esc]</button>
       </div>
     </div>
   </div>

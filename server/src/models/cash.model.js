@@ -387,6 +387,37 @@ class CashModel {
       RETURNING *;
     `, [counted, difference, validShiftId]);
   }
+
+  /**
+   * Obtener historial de turnos cerrados con Cierre Z oficial
+   * @param {number} limit - Límite de registros (por defecto 50).
+   * @param {Object} dbClient - Cliente de base de datos opcional.
+   * @returns {Promise<Array>} Lista de turnos cerrados ordenados descendentemente.
+   */
+  static async getShiftsHistory(limit = 50, dbClient) {
+    const queryFn = (dbClient && dbClient.query) ? dbClient.query.bind(dbClient) : query;
+    return await queryFn(`
+      SELECT 
+        ct.id,
+        ct.terminal,
+        CAST(ct.opening_balance AS FLOAT) AS "openingBalance",
+        CAST(ct.cash_sales AS FLOAT) AS "cashSales",
+        CAST(ct.digital_sales AS FLOAT) AS "digitalSales",
+        CAST(ct.expenses AS FLOAT) AS "expenses",
+        CAST(ct.expected_balance AS FLOAT) AS "expectedBalance",
+        CAST(ct.counted_balance AS FLOAT) AS "countedBalance",
+        CAST(ct.difference AS FLOAT) AS "difference",
+        ct.status,
+        TO_CHAR(ct.opened_at AT TIME ZONE 'America/Lima', 'YYYY-MM-DD HH24:MI:SS') AS "openedAt",
+        TO_CHAR(ct.closed_at AT TIME ZONE 'America/Lima', 'YYYY-MM-DD HH24:MI:SS') AS "closedAt",
+        COALESCE(u.name, 'Cajero de Turno') AS "cashierName"
+      FROM caja_turnos ct
+      LEFT JOIN usuarios u ON ct.user_id = u.id
+      WHERE ct.status = 'closed_z'
+      ORDER BY ct.id DESC
+      LIMIT $1;
+    `, [limit]);
+  }
 }
 
 module.exports = CashModel;

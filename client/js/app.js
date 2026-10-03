@@ -1123,8 +1123,18 @@ class NavigationController {
         break;
       case 'triggerZClose':
         this.navigateTo('viewCash');
+        if (!window.cashApp || !window.cashApp.currentShift) {
+          showValetecToast("No hay ningún turno de caja abierto para realizar el Cierre Z.", "warning");
+          break;
+        }
         setTimeout(() => {
           document.getElementById('btnTriggerZClose')?.click();
+        }, 150);
+        break;
+      case 'openZHistory':
+        this.navigateTo('viewCash');
+        setTimeout(() => {
+          window.cashApp?.openZHistoryModal();
         }, 150);
         break;
       case 'openClientsDirectory':
@@ -2877,10 +2887,9 @@ class CounterModule {
       `;
       return;
     }
-
     tableBody.innerHTML = sales.map(s => {
       const isCompleted = s.status === 'completed';
-      const correlativeStr = s.correlative || `${s.invoiceSeries || (s.invoiceType === 'factura' ? 'F001' : (s.invoiceType === 'boleta' ? 'B001' : 'T001'))}-${String(s.invoiceNumber || 1).padStart(6, '0')}`;
+      const correlativeStr = s.correlative || s.invoiceNumberFormatted || `${s.invoiceSeries || s.series || (s.invoiceType === 'factura' ? 'F001' : (s.invoiceType === 'boleta' ? 'B001' : 'T001'))}-${String(s.invoiceNumber || s.number || 1).padStart(6, '0')}`;
 
       let typeBadge = '<span class="badge" style="background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155; font-size: 11px;">TICKET</span>';
       if (s.invoiceType === 'boleta') {
@@ -3348,6 +3357,10 @@ class CashModule {
 
     // Botón de Cierre Z Oficial (v4.1 - Auditoría Interactiva)
     document.getElementById('btnTriggerZClose')?.addEventListener('click', () => {
+      if (!this.currentShift) {
+        showValetecToast("No es posible emitir un Cierre Z: No hay un turno de caja abierto actualmente.", "warning");
+        return;
+      }
       const physical = this.calcPhysicalTotal();
       const expected = (this.openingBalance + this.cashSales) - this.expenses;
 
@@ -3365,6 +3378,7 @@ class CashModule {
         this.zAuditBox.style.display = 'block';
       }
       if (this.btnConfirmZAction) {
+        this.btnConfirmZAction.style.display = 'inline-flex';
         this.btnConfirmZAction.disabled = false;
         this.btnConfirmZAction.innerHTML = `<i class="bi bi-shield-lock"></i> <span>Sellar Turno y Emitir Reporte Z</span>`;
       }
@@ -3540,6 +3554,154 @@ class CashModule {
   toggleZModal(open) {
     if (open) this.zReportModal?.classList.add('active');
     else this.zReportModal?.classList.remove('active');
+  }
+
+  toggleZHistoryModal(open) {
+    const modal = document.getElementById('zHistoryModal');
+    if (modal) {
+      if (open) modal.classList.add('active');
+      else modal.classList.remove('active');
+    }
+  }
+
+  async openZHistoryModal() {
+    this.toggleZHistoryModal(true);
+    await this.loadZHistory();
+  }
+
+  async loadZHistory() {
+    const tableBody = document.getElementById('zHistoryTableBody');
+    if (tableBody) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 28px; color: #64748b;">
+            <span class="spinner-border spinner-border-sm" role="status"></span>
+            <span style="margin-left: 8px;">Consultando historial oficial de Cierres Z en PostgreSQL...</span>
+          </td>
+        </tr>
+      `;
+    }
+
+    try {
+      let history = [];
+      if (window.api && window.api.isConnected) {
+        const res = await window.api.getCashHistory(50);
+        if (res && res.success && Array.isArray(res.data)) {
+          history = res.data;
+        }
+      }
+
+      this.cachedZHistory = history;
+
+      if (!history || history.length === 0) {
+        if (tableBody) {
+          tableBody.innerHTML = `
+            <tr>
+              <td colspan="8" style="text-align: center; padding: 32px; color: #64748b;">
+                <i class="bi bi-clock-history" style="font-size: 28px; display: block; margin-bottom: 6px; color: #cbd5e1;"></i>
+                <strong>No se registran Cierres Z previos en el sistema.</strong>
+                <p style="font-size: 12px; margin: 4px 0 0;">Los turnos cerrados con arqueo oficial aparecerán listados aquí.</p>
+              </td>
+            </tr>
+          `;
+        }
+        return;
+      }
+
+      if (tableBody) {
+        tableBody.innerHTML = history.map(item => {
+          const diff = parseFloat(item.difference || 0);
+          const isExact = Math.abs(diff) < 0.1;
+          const isDeficit = diff < 0;
+
+          let diffBadge = `<span class="badge" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; font-weight: 700; font-size: 11px;">S/ 0.00 Exacto</span>`;
+          if (isDeficit) {
+            diffBadge = `<span class="badge" style="background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-weight: 700; font-size: 11px;">-S/ ${Math.abs(diff).toFixed(2)}</span>`;
+          } else if (diff > 0) {
+            diffBadge = `<span class="badge" style="background: #fffbeb; border: 1px solid #fde68a; color: #b45309; font-weight: 700; font-size: 11px;">+S/ ${diff.toFixed(2)}</span>`;
+          }
+
+          const closeTimeStr = item.closedAt ? item.closedAt.slice(0, 16) : 'Reciente';
+
+          return `
+            <tr>
+              <td>
+                <span class="badge" style="background: #f1f5f9; border: 1px solid #cbd5e1; color: #1e293b; font-weight: 800; font-family: monospace;">
+                  #${item.id}
+                </span>
+              </td>
+              <td style="font-size: 12px; font-weight: 600; color: #334155;">${closeTimeStr}</td>
+              <td>
+                <strong style="font-size: 12.5px; color: #0f172a; display: block;">${escHtml(item.cashierName || 'Cajero de Turno')}</strong>
+                <small style="color: #64748b; font-size: 11px;">${escHtml(item.terminal || 'Caja 01')}</small>
+              </td>
+              <td style="text-align: right; font-family: monospace; font-size: 12px;">S/ ${parseFloat(item.openingBalance || 0).toFixed(2)}</td>
+              <td style="text-align: right; font-family: monospace; font-size: 12px; font-weight: 700; color: #0d9488;">S/ ${parseFloat(item.cashSales || 0).toFixed(2)}</td>
+              <td style="text-align: right; font-family: monospace; font-size: 12px; font-weight: 700; color: #0f172a;">S/ ${parseFloat(item.countedBalance || 0).toFixed(2)}</td>
+              <td style="text-align: center;">${diffBadge}</td>
+              <td style="text-align: center;">
+                <button type="button" class="btn-action-outline" style="padding: 3px 8px; font-size: 11px;" onclick="cashApp.viewHistoricalZReport(${item.id})" title="Ver comprobante oficial de Cierre Z">
+                  <i class="bi bi-printer"></i> Ticket Z
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    } catch (err) {
+      if (tableBody) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align: center; padding: 24px; color: #dc2626;">
+              <i class="bi bi-exclamation-triangle"></i> Error al consultar historial de Cierre Z: ${err.message}
+            </td>
+          </tr>
+        `;
+      }
+    }
+  }
+
+  viewHistoricalZReport(shiftId) {
+    const item = (this.cachedZHistory || []).find(h => h.id === shiftId);
+    if (!item) {
+      showValetecToast("No se encontró el detalle del turno seleccionado.", "warning");
+      return;
+    }
+
+    const report = {
+      turnoId: item.id,
+      terminal: item.terminal || 'Caja 01',
+      cashierName: item.cashierName || 'Cajero de Turno',
+      openedAt: item.openedAt,
+      closedAt: item.closedAt,
+      openingBalance: item.openingBalance,
+      cashSales: item.cashSales,
+      digitalSales: item.digitalSales || 0,
+      expenses: item.expenses || 0,
+      expectedBalance: item.expectedBalance,
+      countedBalance: item.countedBalance,
+      difference: item.difference,
+      auditStatus: Math.abs(item.difference) < 0.1 ? 'exacto' : (item.difference > 0 ? 'sobrante' : 'faltante'),
+      vouchers: {
+        total: 0,
+        tickets: 0,
+        boletas: 0,
+        facturas: 0,
+        taxableBase: Math.round(((item.cashSales || 0) / 1.18) * 100) / 100,
+        totalIgv: Math.round(((item.cashSales || 0) - ((item.cashSales || 0) / 1.18)) * 100) / 100,
+        grandTotal: item.cashSales || 0
+      }
+    };
+
+    if (this.zAuditBox) {
+      this.zAuditBox.style.display = 'none';
+    }
+    if (this.btnConfirmZAction) {
+      this.btnConfirmZAction.style.display = 'none';
+    }
+
+    this.showZReportModal(report);
+    this.toggleZModal(true);
   }
 
   resetDenominations() {
@@ -9001,7 +9163,7 @@ class ManagementDashboardModule {
     this.salesMode = 'daily';
 
     // Estado del Reporte Contable SUNAT 14.1
-    this.accountantPeriod = '2026-09';
+    this.accountantPeriod = '2026-10';
     this.accountantVoucherType = 'all';
     this.accountantSales = [];
 
@@ -9117,26 +9279,40 @@ class ManagementDashboardModule {
         { id: '120', date: '2026-09-01 11:00', invoiceType: 'boleta', series: 'B001', number: '0004302', clientDocType: '1', clientDoc: '07192834', clientName: 'Esteban Coronado Ruiz', total: 95.00, status: 'completed', sunatStatus: 'Aceptado' }
       ];
 
-      // Combinar comprobantes de PostgreSQL respetando el formato unificado SUNAT
-      const mappedRemote = remoteSales.map(s => {
-        const invType = (s.invoiceType || '').toLowerCase().includes('fact') ? 'factura' : 'boleta';
-        const isFactura = invType === 'factura';
+      // Filtrar y mapear comprobantes tributarios de PostgreSQL (Boletas y Facturas para SUNAT 14.1)
+      const fiscalSales = remoteSales.filter(s => {
+        const type = (s.invoiceType || '').toLowerCase();
+        return type === 'boleta' || type === 'factura';
+      });
+
+      const mappedRemote = fiscalSales.map(s => {
+        const isFactura = (s.invoiceType || '').toLowerCase() === 'factura';
+        let formattedDate = '2026-10-02 12:00';
+        if (s.createdAt) {
+          try {
+            const raw = String(s.createdAt).trim();
+            const d = raw.includes('T') ? new Date(raw) : new Date(raw.replace(' ', 'T') + '-05:00');
+            if (!isNaN(d.getTime())) {
+              formattedDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            }
+          } catch (e) {}
+        }
         return {
           id: s.id || `RS-${Math.random()}`,
-          date: s.createdAt ? new Date(s.createdAt).toISOString().slice(0, 16).replace('T', ' ') : '2026-09-23 12:00',
-          invoiceType: invType,
-          series: s.series || (isFactura ? 'F001' : 'B001'),
-          number: s.number || String(s.invoiceNumber || '0001000').padStart(7, '0'),
+          date: formattedDate,
+          invoiceType: isFactura ? 'factura' : 'boleta',
+          series: s.series || s.invoiceSeries || (isFactura ? 'F001' : 'B001'),
+          number: String(s.number || s.invoiceNumber || 1).padStart(7, '0'),
           clientDocType: isFactura ? '6' : '1',
-          clientDoc: s.clientDoc || (isFactura ? '20601234567' : '00000000'),
-          clientName: s.clientName || 'Cliente Mostrador',
+          clientDoc: s.customerDoc || s.clientDoc || (isFactura ? '20601234567' : '00000000'),
+          clientName: s.customerName || s.clientName || 'Cliente Mostrador',
           total: parseFloat(s.total || 0),
           status: s.status || 'completed',
           sunatStatus: s.sunatStatus || 'Aceptado'
         };
       });
 
-      this.accountantSales = [...seedSales, ...mappedRemote];
+      this.accountantSales = [...mappedRemote, ...seedSales];
       this.renderAccountantTable();
     } catch (err) {
       if (tableBody) {
