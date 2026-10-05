@@ -3413,6 +3413,12 @@
 
     <form id="stockAdjustmentForm" onsubmit="warehouseApp.submitAdjustment(event)" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
       <div class="drawer-body">
+        <!-- Auditor Sanitario / Responsable del Ajuste (DIGEMID RBAC) -->
+        <div id="adjOperatorNotice" style="display: flex; align-items: center; justify-content: space-between; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 7px 12px; margin-bottom: 12px; font-size: 11.5px;">
+          <span style="color: #166534;"><i class="bi bi-shield-check"></i> <strong id="adjOperatorRoleTitle">Firma Sanitaria Habilitada:</strong></span>
+          <strong id="adjOperatorName" style="color: #0f172a;">Q.F. Regente Farmacéutico</strong>
+        </div>
+
         <!-- Selección de Medicamento -->
         <div class="form-group-valetec" style="margin-bottom: 14px;">
           <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px; text-transform: uppercase;">
@@ -3442,7 +3448,7 @@
             <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px; text-transform: uppercase;">
               Lote Afectado:
             </label>
-            <select id="adjLotId" class="form-select" required>
+            <select id="adjLotId" class="form-select" required onchange="warehouseApp.updateAdjustmentPreview()">
               <option value="">-- Primer Lote Disponible --</option>
             </select>
           </div>

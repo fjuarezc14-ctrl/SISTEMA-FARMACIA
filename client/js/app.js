@@ -2156,6 +2156,9 @@ class CounterModule {
       showValetecToast("Carrito libre: Agregue medicinas con [F2] antes de navegar el carrito.", "info");
       return;
     }
+    if (document.activeElement && typeof document.activeElement.blur === 'function') {
+      document.activeElement.blur();
+    }
     if (this.selectedCartIndex < 0 || this.selectedCartIndex >= this.order.length) {
       this.selectedCartIndex = 0;
     }
@@ -5030,6 +5033,15 @@ class WarehouseModule {
                 stock_units: totalUnits,
                 fefo_status: 'good'
               }] : [],
+              lots: payload.lotNumber ? [{
+                id: res.data?.lotId || 1,
+                lotNumber: payload.lotNumber,
+                expireDate: payload.expireDate,
+                stockBoxes: stockCalc.boxes,
+                stockBlisters: stockCalc.blisters,
+                stockUnits: totalUnits,
+                fefoStatus: 'good'
+              }] : [],
               fefoStatus: 'good'
             }, res.data, payload));
           }
@@ -5153,6 +5165,33 @@ class WarehouseModule {
     if (!this.adjModal) this.adjModal = document.getElementById('stockAdjustmentModal');
     if (this.adjModal) this.adjModal.classList.add('active');
 
+    // Identificación y firma sanitaria oficial (DIGEMID RBAC)
+    const user = window.api?.currentUser || window.authManager?.currentUser || window.currentUser;
+    const roleKey = user?.roleKey || window.authManager?.currentRole || 'admin';
+    const opNotice = document.getElementById('adjOperatorNotice');
+    const opName = document.getElementById('adjOperatorName');
+    const opTitle = document.getElementById('adjOperatorRoleTitle');
+    const btnSubmit = document.getElementById('btnSubmitAdjustment');
+
+    if (opName) {
+      const roleLabel = (roleKey === 'qf') ? 'Químico Farmacéutico (Regente)' : (roleKey === 'admin') ? 'Administrador / Gerente' : (roleKey === 'tech') ? 'Técnico de Mostrador' : 'Cajero';
+      opName.innerText = user?.name ? `${user.name} • ${roleLabel}` : `Q.F. Regente Farmacéutico`;
+    }
+
+    if (opNotice) {
+      if (roleKey !== 'qf' && roleKey !== 'admin') {
+        opNotice.style.background = '#fffbeb';
+        opNotice.style.borderColor = '#fde68a';
+        opNotice.innerHTML = `<span style="color: #b45309; font-weight: 700;"><i class="bi bi-exclamation-triangle-fill"></i> Aviso Sanitario: La baja en Kardex requiere perfil Químico Farmacéutico (Q.F.) o Administrador conforme a DIGEMID.</span>`;
+        if (btnSubmit) btnSubmit.title = 'Requiere autorización de Químico Farmacéutico o Administrador';
+      } else {
+        opNotice.style.background = '#f0fdf4';
+        opNotice.style.borderColor = '#bbf7d0';
+        opNotice.innerHTML = `<span style="color: #166534;"><i class="bi bi-shield-check"></i> <strong>Firma Sanitaria Habilitada:</strong> Auditoría oficial DIGEMID en Kardex.</span><strong id="adjOperatorName" style="color: #0f172a;">${user?.name ? escHtml(user.name) : 'Q.F. Regente Farmacéutico'}</strong>`;
+        if (btnSubmit) btnSubmit.title = '';
+      }
+    }
+
     const select = document.getElementById('adjProductId');
     const prods = (Array.isArray(this.catalog) && this.catalog.length > 0) ? this.catalog : testPharmacyCatalog;
     if (select && prods) {
@@ -5235,15 +5274,26 @@ class WarehouseModule {
       unitSelect.innerHTML = options.join('');
     }
 
-    // 2. Cargar lotes FEFO disponibles
+    // 2. Cargar lotes FEFO disponibles (Soporte PostgreSQL camelCase y snake_case)
     if (lotSelect) {
-      if (Array.isArray(prod.lotes_fefo) && prod.lotes_fefo.length > 0) {
-        lotSelect.innerHTML = prod.lotes_fefo.map(l =>
-          `<option value="${l.id || l.lot_number}">Lote: ${escHtml(l.lot_number)} (Vence: ${l.expire_date || 'N/A'}) - Stock: ${l.stock_units} un.</option>`
-        ).join('');
+      const availableLots = (Array.isArray(prod.lots) && prod.lots.length > 0)
+        ? prod.lots
+        : (Array.isArray(prod.lotes_fefo) && prod.lotes_fefo.length > 0)
+          ? prod.lotes_fefo
+          : null;
+
+      if (availableLots && availableLots.length > 0) {
+        lotSelect.innerHTML = availableLots.map(l => {
+          const lotId = l.id || l.lotNumber || l.lot_number;
+          const lotNum = l.lotNumber || l.lot_number || 'L-GENERAL';
+          const expDate = l.expireDate || l.expire_date || 'N/A';
+          const units = (l.stockUnits !== undefined) ? l.stockUnits : ((l.stock_units !== undefined) ? l.stock_units : 0);
+          return `<option value="${lotId}">Lote: ${escHtml(lotNum)} (Vence: ${escHtml(expDate)}) - Stock: ${units} un.</option>`;
+        }).join('');
       } else if (prod.lotNumber && prod.lotNumber !== 'N/A') {
+        const lotVal = prod.lotId || prod.lotNumber;
         lotSelect.innerHTML = `
-          <option value="${escHtml(prod.lotNumber)}">Lote Activo: ${escHtml(prod.lotNumber)} (Vence: ${escHtml(prod.expireDate || '2028-12-31')})</option>
+          <option value="${escHtml(lotVal)}">Lote Activo: ${escHtml(prod.lotNumber)} (Vence: ${escHtml(prod.expireDate || '2028-12-31')}) - Stock: ${prod.stockUnits || 0} un.</option>
         `;
       } else {
         lotSelect.innerHTML = `<option value="auto">-- Lote Automático / Nuevo Ingreso --</option>`;
@@ -5267,7 +5317,21 @@ class WarehouseModule {
     const prod = prods.find(p => p.id === pId);
     if (!prod) return;
 
-    const currentUnits = prod.stockUnits || 0;
+    const availableLots = (Array.isArray(prod.lots) && prod.lots.length > 0)
+      ? prod.lots
+      : (Array.isArray(prod.lotes_fefo) && prod.lotes_fefo.length > 0)
+        ? prod.lotes_fefo
+        : null;
+
+    let targetUnits = prod.stockUnits || 0;
+    const selectedLotVal = document.getElementById('adjLotId')?.value;
+    if (selectedLotVal && selectedLotVal !== 'auto' && availableLots) {
+      const foundLot = availableLots.find(l => String(l.id || l.lotNumber || l.lot_number) === String(selectedLotVal));
+      if (foundLot) {
+        targetUnits = (foundLot.stockUnits !== undefined) ? foundLot.stockUnits : ((foundLot.stock_units !== undefined) ? foundLot.stock_units : targetUnits);
+      }
+    }
+
     const adjType = document.getElementById('adjType')?.value || 'spoilage';
     const quantity = parseInt(document.getElementById('adjQuantity')?.value || '1', 10);
     const unitType = document.getElementById('adjUnitType')?.value || 'unit';
@@ -5278,13 +5342,13 @@ class WarehouseModule {
     const changeUnits = (quantity || 0) * factor;
 
     const isAddition = ['diff_in', 'return_customer'].includes(adjType);
-    const projectedUnits = isAddition ? (currentUnits + changeUnits) : (currentUnits - changeUnits);
+    const projectedUnits = isAddition ? (targetUnits + changeUnits) : (targetUnits - changeUnits);
 
     if (projectedUnits < 0) {
-      previewEl.innerHTML = `<span style="color: #dc2626; font-weight: 800;">${currentUnits} - ${changeUnits} = ${projectedUnits} un. (⚠️ Stock insuficiente)</span>`;
+      previewEl.innerHTML = `<span style="color: #dc2626; font-weight: 800;">${targetUnits} - ${changeUnits} = ${projectedUnits} un. (⚠️ Stock insuficiente en lote)</span>`;
     } else {
       const sign = isAddition ? '+' : '-';
-      previewEl.innerHTML = `<span style="color: #0d9488; font-weight: 800;">${currentUnits} ${sign} ${changeUnits} un. = ${projectedUnits} un. en Kardex</span>`;
+      previewEl.innerHTML = `<span style="color: #0d9488; font-weight: 800;">${targetUnits} ${sign} ${changeUnits} un. = ${projectedUnits} un. en Kardex</span>`;
     }
   }
 
@@ -5312,6 +5376,12 @@ class WarehouseModule {
       return;
     }
 
+    // Identificar operador o químico regente responsable
+    const user = window.api?.currentUser || window.authManager?.currentUser || window.currentUser;
+    const roleKey = user?.roleKey || window.authManager?.currentRole || 'admin';
+    const roleLabel = (roleKey === 'qf') ? 'Q.F. Regente' : (roleKey === 'admin') ? 'Administrador' : (roleKey === 'tech') ? 'Técnico' : 'Cajero';
+    const operatorName = user?.name ? `${user.name} (${roleLabel})` : 'Regente Farmacéutico';
+
     try {
       if (window.api) {
         const res = await window.api.adjustStock({
@@ -5321,7 +5391,7 @@ class WarehouseModule {
           quantity,
           unitType,
           reason,
-          userName: (window.api.currentUser && window.api.currentUser.name) ? window.api.currentUser.name : 'Operador Almacén'
+          userName: operatorName
         });
         showValetecToast(res.message || "Ajuste de stock registrado exitosamente en Kardex.", "success");
         this.closeAdjustmentModal();
