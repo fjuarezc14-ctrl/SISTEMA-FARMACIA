@@ -316,6 +316,32 @@ function formatFractionalStock(stockUnits, unitsPerBox = 100, unitsPerBlister = 
 }
 window.formatFractionalStock = formatFractionalStock;
 
+/**
+ * Abreviación ejecutiva de ubicaciones farmacéuticas para tarjetas de mostrador
+ * Asegura que badges de receta y descuentos genéricos nunca sufran solapamiento
+ */
+function formatPharmacyLocation(loc) {
+  if (!loc || !String(loc).trim()) return 'Mostrador';
+  let s = String(loc).trim();
+  s = s.replace(/Zona Refrigerada/gi, 'Refrig.')
+       .replace(/Refrigerador/gi, 'Refrig.')
+       .replace(/Pasillo\s*/gi, 'Pas. ')
+       .replace(/Anaquel\s*/gi, '')
+       .replace(/Gaveta\s*/gi, '')
+       .replace(/Caja Fuerte.*/gi, 'Caja Fuerte')
+       .replace(/Almacén Principal/gi, 'Almacén')
+       .replace(/Góndola Principal/gi, 'Góndola')
+       .replace(/\s+[-•]\s+|\s*•\s*/g, ' • ')
+       .replace(/\s+/g, ' ')
+       .trim();
+  if (!s) return 'Mostrador';
+  if (s.length > 16) {
+    s = s.slice(0, 15) + '…';
+  }
+  return s;
+}
+window.formatPharmacyLocation = formatPharmacyLocation;
+
 // 1. DATASET DE PRUEBA: MEDICAMENTOS CON EQUIVALENCIAS DCI
 // =============================================================
 let testPharmacyCatalog = [
@@ -929,17 +955,11 @@ class NavigationController {
       });
     }
 
-    const btnMobile = document.getElementById('btnMobileMenuToggle');
     const btnSidebarClose = document.getElementById('btnSidebarClose');
     const navBar = document.getElementById('appNavBar');
     const backdrop = document.getElementById('sidebarBackdrop');
 
     const toggleSidebar = (open) => {
-      if (window.innerWidth > 1024) {
-        this.toggleSidebarDesktop();
-        return;
-      }
-
       if (!navBar) return;
       if (typeof open === 'boolean') {
         if (open) {
@@ -955,11 +975,6 @@ class NavigationController {
         else backdrop?.classList.remove('active');
       }
     };
-
-    if (btnMobile) btnMobile.addEventListener('click', (e) => {
-      if (e && e.preventDefault) e.preventDefault();
-      toggleSidebar();
-    });
     if (btnSidebarClose) btnSidebarClose.addEventListener('click', (e) => {
       if (e && e.preventDefault) e.preventDefault();
       toggleSidebar(false);
@@ -987,16 +1002,33 @@ class NavigationController {
       }
       if (e.key === 'F3') {
         e.preventDefault();
-        if (this.canAccessView('viewWarehouse')) {
-          this.navigateTo('viewWarehouse');
+        if (this.currentViewId === 'viewCounter') {
+          if (typeof counterApp !== 'undefined' && counterApp) {
+            counterApp.focusCart();
+          }
         } else {
-          showValetecToast("Tu rol actual no tiene permiso para ingresar a Almacén.", "warning");
+          if (this.canAccessView('viewWarehouse')) {
+            this.navigateTo('viewWarehouse');
+          } else {
+            showValetecToast("Tu rol actual no tiene permiso para ingresar a Almacén.", "warning");
+          }
         }
       }
       if (e.key === 'F4') {
         e.preventDefault();
         if (this.currentViewId === 'viewCounter') {
-          document.getElementById('btnCheckoutOrder')?.click();
+          const chkModal = document.getElementById('posCheckoutModal');
+          if (chkModal && chkModal.classList.contains('active')) {
+            if (typeof counterApp !== 'undefined' && counterApp) {
+              counterApp.confirmFinalCheckout();
+            }
+          } else {
+            if (typeof counterApp !== 'undefined' && counterApp) {
+              counterApp.openCheckoutModal();
+            } else {
+              document.getElementById('btnCheckoutOrder')?.click();
+            }
+          }
         } else if (this.canAccessView('viewDigemid')) {
           this.navigateTo('viewDigemid');
         } else {
@@ -1035,7 +1067,7 @@ class NavigationController {
     });
 
     document.getElementById('btnOpenShortcuts')?.addEventListener('click', () => {
-      showValetecToast("⌨️ Atajos: [F1] Ayuda | [F2] Mostrador | [F3] Almacén | [F4] Cobrar / DIGEMID | [F6] Torre Control | [F7] Ventas / Personal | [F8] Limpiar Pedido | [F9] Caja", "info");
+      showValetecToast("⌨️ Atajos: [F1] Ayuda | [F2] Buscar Medicina | [F3] Carrito / Almacén | [F4] Cobrar / DIGEMID | [F6] Torre Control | [F7] Comprobantes | [F8] Vaciar Carrito | [F9] Caja", "info");
     });
   }
 
@@ -1381,6 +1413,7 @@ class NavigationController {
 class CounterModule {
   constructor() {
     this.order = [];
+    this.selectedCartIndex = -1;
     this.currentCat = 'all';
     this.searchQuery = '';
     this.currentPaymentMethod = 'cash';
@@ -1449,12 +1482,26 @@ class CounterModule {
 
     this.rxAlert = document.getElementById('prescriptionAlertBox');
     this.docCmpInput = document.getElementById('orderDoctorCmp');
+    this.docFolioInput = document.getElementById('orderRecipeFolio');
+    this.prescriptionInputRow = document.getElementById('prescriptionInputRow');
+    this.prescriptionVerifiedView = document.getElementById('prescriptionVerifiedView');
+    this.lblVerifiedCmp = document.getElementById('lblVerifiedCmp');
+    this.lblVerifiedFolio = document.getElementById('lblVerifiedFolio');
 
     this.cashInput = document.getElementById('cashReceivedInput');
     this.changeEl = document.getElementById('cashChangeDisplay');
     this.btnExact = document.getElementById('btnCashExact');
     this.btnCancel = document.getElementById('btnCancelOrder');
     this.btnCheckout = document.getElementById('btnCheckoutOrder');
+
+    // Modal de pasarela de cobro rápido y enfocado [F4]
+    this.posCheckoutModal = document.getElementById('posCheckoutModal');
+    this.posCheckoutModalBackdrop = document.getElementById('posCheckoutModalBackdrop');
+    this.btnConfirmCheckout = document.getElementById('btnConfirmCheckout');
+    this.btnCloseCheckout = document.getElementById('btnCloseCheckoutModal');
+    this.checkoutModalTotalDisplay = document.getElementById('checkoutModalTotalDisplay');
+    this.checkoutModalItemsBadge = document.getElementById('checkoutModalItemsBadge');
+    this.checkoutModalClientBadge = document.getElementById('checkoutModalClientBadge');
 
     // Selector táctil de medios de pago
     this.btnPayCash = document.getElementById('btnPayCash');
@@ -1519,6 +1566,13 @@ class CounterModule {
               this.autocomplete.classList.remove('active');
             }
           }
+        }
+      });
+
+      this.searchInput.addEventListener('focus', () => {
+        if (this.selectedCartIndex >= 0) {
+          this.selectedCartIndex = -1;
+          this.highlightCartItem();
         }
       });
 
@@ -1598,6 +1652,8 @@ class CounterModule {
           this.order = [];
           this.redeemedDiscount = 0;
           this.updatePointsRedeemBox();
+          if (this.docCmpInput) this.docCmpInput.value = '';
+          if (this.docFolioInput) this.docFolioInput.value = '';
           this.updateUi();
           showValetecToast("Orden cancelada.", "info");
         }
@@ -1605,7 +1661,13 @@ class CounterModule {
     }
 
     if (this.btnCheckout) {
-      this.btnCheckout.addEventListener('click', () => this.checkout());
+      this.btnCheckout.addEventListener('click', () => this.openCheckoutModal());
+    }
+    if (this.btnConfirmCheckout) {
+      this.btnConfirmCheckout.addEventListener('click', () => this.confirmFinalCheckout());
+    }
+    if (this.btnCloseCheckout) {
+      this.btnCloseCheckout.addEventListener('click', () => this.closeCheckoutModal());
     }
 
     // Eventos del modal de comprobante térmico (Impresión aislada 80mm)
@@ -1651,6 +1713,14 @@ class CounterModule {
 
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
+        if (this.selectedCartIndex >= 0) {
+          this.selectedCartIndex = -1;
+          this.highlightCartItem();
+        }
+        if (this.posCheckoutModal?.classList.contains('active')) {
+          this.closeCheckoutModal();
+          return;
+        }
         if (this.receiptModal?.classList.contains('active')) {
           this.toggleReceiptModal(false);
         }
@@ -1662,6 +1732,66 @@ class CounterModule {
         }
         if (window.clientsApp?.directoryModal?.classList.contains('active')) {
           window.clientsApp.closeDirectoryModal();
+        }
+      }
+      if (e.key === 'Enter') {
+        if (this.posCheckoutModal?.classList.contains('active')) {
+          const activeEl = document.activeElement;
+          if (activeEl && !activeEl.classList.contains('btn-cancel-checkout') && !activeEl.classList.contains('btn-close-checkout')) {
+            e.preventDefault();
+            this.confirmFinalCheckout();
+            return;
+          }
+        }
+      }
+
+      // Atajos de navegación y edición rápida de Carrito con Teclado [F3]
+      if (window.appNav && window.appNav.currentViewId === 'viewCounter' && this.selectedCartIndex >= 0) {
+        const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+        const isTyping = (activeTag === 'input' || activeTag === 'textarea');
+
+        if (!isTyping) {
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (this.order.length > 0) {
+              this.selectedCartIndex = (this.selectedCartIndex + 1) % this.order.length;
+              this.highlightCartItem();
+            }
+            return;
+          }
+          if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (this.order.length > 0) {
+              this.selectedCartIndex = (this.selectedCartIndex - 1 + this.order.length) % this.order.length;
+              this.highlightCartItem();
+            }
+            return;
+          }
+          if (e.key === '+' || e.key === '=') {
+            e.preventDefault();
+            if (this.selectedCartIndex >= 0 && this.selectedCartIndex < this.order.length) {
+              this.updateQty(this.selectedCartIndex, 1);
+            }
+            return;
+          }
+          if (e.key === '-' || e.key === '_') {
+            e.preventDefault();
+            if (this.selectedCartIndex >= 0 && this.selectedCartIndex < this.order.length) {
+              this.updateQty(this.selectedCartIndex, -1);
+            }
+            return;
+          }
+          if (e.key === 'Delete' || e.key === 'Supr') {
+            e.preventDefault();
+            if (this.selectedCartIndex >= 0 && this.selectedCartIndex < this.order.length) {
+              const idxToRemove = this.selectedCartIndex;
+              if (this.selectedCartIndex >= this.order.length - 1) {
+                this.selectedCartIndex = Math.max(0, this.order.length - 2);
+              }
+              this.removeItem(idxToRemove);
+            }
+            return;
+          }
         }
       }
     });
@@ -1747,9 +1877,16 @@ class CounterModule {
       const isUnitOnly = (p.unitsPerBox <= 1) || (!hasBox && !hasBlister);
       const unitBtnLabel = isUnitOnly ? 'Unid' : 'Past';
 
-      let defaultFrac = 'box';
-      if (!hasBox && hasBlister) defaultFrac = 'blister';
-      else if (!hasBox && !hasBlister) defaultFrac = 'unit';
+      const canBox = hasBox && (p.stockUnits >= (p.unitsPerBox || 100));
+      const canBlister = hasBlister && (p.stockUnits >= (p.unitsPerBlister || 10));
+      const canUnit = hasUnit && (p.stockUnits >= 1);
+
+      let defaultFrac = 'unit';
+      if (canBox) defaultFrac = 'box';
+      else if (canBlister) defaultFrac = 'blister';
+      else if (canUnit) defaultFrac = 'unit';
+      else if (hasBox) defaultFrac = 'box';
+      else if (hasBlister) defaultFrac = 'blister';
 
       let defaultPrice = 0;
       if (defaultFrac === 'box') defaultPrice = Number(p.boxPrice) || 0;
@@ -1759,40 +1896,40 @@ class CounterModule {
       return `
         <article class="product-staff-card ${isOut ? 'out-stock' : ''}" data-id="${p.id}">
           <div class="card-header-compact">
-            <span class="shelf-tag"><i class="bi bi-geo-alt-fill"></i> ${escHtml(p.location)}</span>
+            <span class="shelf-tag" title="Ubicación: ${escHtml(p.location)}"><i class="bi bi-geo-alt-fill"></i> ${escHtml(formatPharmacyLocation(p.location))}</span>
             <div class="card-pills-wrap">
               ${p.genericAlt ? `
                 <button type="button" class="chip-generic-pill" onclick="counterApp.suggestAlt(${p.id})" title="Alternativa Genérica: ${escHtml(p.genericAlt.name)} (-${p.genericAlt.savingPercent}%)">
-                  <i class="bi bi-lightbulb-fill"></i> Genérico -${p.genericAlt.savingPercent}%
+                  <i class="bi bi-lightbulb-fill"></i> -${p.genericAlt.savingPercent}%
                 </button>
               ` : ''}
               ${rxPill}
-              ${p.bonusPoints && p.bonusPoints > 0 ? `<span class="badge" style="background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; font-weight: 800; font-size: 10px; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;"><i class="bi bi-gift-fill"></i> +${p.bonusPoints} Pts</span>` : ''}
+              ${p.bonusPoints && p.bonusPoints > 0 ? `<span class="badge" style="background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; font-weight: 800; font-size: 10px; padding: 2px 5px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px;"><i class="bi bi-gift-fill"></i> +${p.bonusPoints}p</span>` : ''}
             </div>
           </div>
 
           <div class="card-body-compact">
             <div class="prod-name" title="${escHtml(p.name)}">${escHtml(p.name)}</div>
-            <div class="prod-dci" title="DCI: ${escHtml(p.genericDci)}">DCI: ${escHtml(p.genericDci)}</div>
+            <div class="prod-subtitle-wrap">
+              <div class="prod-dci" title="Principio Activo DCI: ${escHtml(p.genericDci)}"><i class="bi bi-capsule"></i> ${escHtml(p.genericDci)}</div>
+              <div class="prod-lab" title="Laboratorio: ${escHtml(p.laboratory)}"><i class="bi bi-building"></i> ${escHtml(p.laboratory || 'Genérico')}</div>
+            </div>
           </div>
 
-          <div class="stock-fraction-unified-row">
-            <div class="prod-compact-stock" title="${stockInfo.summaryText}">
-              ${stockInfo.boxes > 0 ? `<span class="stock-num">${stockInfo.boxes}</span><span class="stock-unit"> cj</span>` : ''}
-              ${stockInfo.boxes > 0 && (stockInfo.blisters > 0 || stockInfo.looseUnits > 0) ? `<span class="stock-sep">•</span>` : ''}
-              ${stockInfo.blisters > 0 ? `<span class="stock-num">${stockInfo.blisters}</span><span class="stock-unit"> bl</span>` : ''}
-              ${stockInfo.looseUnits > 0 ? `<span class="stock-sub">+${stockInfo.looseUnits}u</span>` : ''}
-              <small style="color: var(--text-muted); font-size: 10px; margin-left: 2px;">(${p.stockUnits}u)</small>
+          <div class="stock-pill-row">
+            <div class="stock-pill-tag" title="${stockInfo.summaryText}">
+              <span><i class="bi bi-box-seam"></i> Stock: ${stockInfo.boxes > 0 ? `${stockInfo.boxes} cj` : ''}${stockInfo.boxes > 0 && (stockInfo.blisters > 0 || stockInfo.looseUnits > 0) ? ' • ' : ''}${stockInfo.blisters > 0 ? `${stockInfo.blisters} bl` : ''}${stockInfo.looseUnits > 0 ? ` +${stockInfo.looseUnits}u` : ''}${stockInfo.boxes === 0 && stockInfo.blisters === 0 && stockInfo.looseUnits === 0 ? 'Agotado' : ''}</span>
+              <small>(${p.stockUnits} un.)</small>
             </div>
-            <div class="fraction-segmented-control">
-              ${hasBox ? `<button type="button" class="btn-frac-pick ${defaultFrac === 'box' ? 'active' : ''}" data-frac="box" data-id="${p.id}">Caja</button>` : ''}
-              ${hasBlister ? `<button type="button" class="btn-frac-pick ${defaultFrac === 'blister' ? 'active' : ''}" data-frac="blister" data-id="${p.id}">Blíst</button>` : ''}
-              ${hasUnit ? `<button type="button" class="btn-frac-pick ${defaultFrac === 'unit' ? 'active' : ''}" data-frac="unit" data-id="${p.id}">${unitBtnLabel}</button>` : ''}
-            </div>
+          </div>
+
+          <div class="fraction-segmented-grid">
+            ${hasBox ? `<button type="button" class="btn-frac-pick ${defaultFrac === 'box' ? 'active' : ''} ${!canBox ? 'dimmed' : ''}" data-frac="box" data-id="${p.id}" ${!canBox ? 'title="Sin cajas completas en stock"' : ''}>Caja S/${Number(p.boxPrice).toFixed(2)}</button>` : ''}
+            ${hasBlister ? `<button type="button" class="btn-frac-pick ${defaultFrac === 'blister' ? 'active' : ''} ${!canBlister ? 'dimmed' : ''}" data-frac="blister" data-id="${p.id}" ${!canBlister ? 'title="Sin blísters completos en stock"' : ''}>Blíst S/${Number(p.blisterPrice).toFixed(2)}</button>` : ''}
+            ${hasUnit ? `<button type="button" class="btn-frac-pick ${defaultFrac === 'unit' ? 'active' : ''} ${!canUnit ? 'dimmed' : ''}" data-frac="unit" data-id="${p.id}">${unitBtnLabel} S/${Number(p.unitPrice).toFixed(2)}</button>` : ''}
           </div>
 
           <div class="card-action-footer">
-            <span class="price-tag" id="prodPriceDisplay_${p.id}">S/ ${defaultPrice.toFixed(2)}</span>
             <button 
               type="button" 
               class="btn-dispense" 
@@ -1800,8 +1937,8 @@ class CounterModule {
               ${isOut ? 'disabled' : ''}
               title="${isOut ? 'Sin existencias' : 'Agregar al carrito'}"
             >
-              <i class="bi ${isOut ? 'bi-x-circle' : 'bi-plus-lg'}"></i>
-              <span>${isOut ? 'Sin Stock' : 'Agregar'}</span>
+              <span class="price-val" id="prodPriceDisplay_${p.id}">S/ ${defaultPrice.toFixed(2)}</span>
+              <span class="btn-dispense-lbl"><i class="bi ${isOut ? 'bi-x-circle' : 'bi-plus-circle-fill'}"></i> ${isOut ? 'Agotado' : 'Agregar'}</span>
             </button>
           </div>
         </article>
@@ -1996,6 +2133,101 @@ class CounterModule {
     this.updateUi();
   }
 
+  removeItem(index) {
+    if (!this.order[index]) return;
+    const removedItem = this.order[index];
+    this.order.splice(index, 1);
+    if (this.selectedCartIndex >= this.order.length) {
+      this.selectedCartIndex = Math.max(-1, this.order.length - 1);
+    }
+    this.updateUi();
+    this.highlightCartItem();
+    showValetecToast(`Se retiró "${removedItem.product.name}" del carrito.`, "info");
+  }
+
+  selectCartItem(index) {
+    if (index < 0 || index >= this.order.length) return;
+    this.selectedCartIndex = index;
+    this.highlightCartItem();
+  }
+
+  focusCart() {
+    if (this.order.length === 0) {
+      showValetecToast("Carrito libre: Agregue medicinas con [F2] antes de navegar el carrito.", "info");
+      return;
+    }
+    if (this.selectedCartIndex < 0 || this.selectedCartIndex >= this.order.length) {
+      this.selectedCartIndex = 0;
+    }
+    this.highlightCartItem();
+    showValetecToast("Carrito [F3]: [↑]/[↓] elegir • [+] sumar • [-] restar • [Supr] quitar", "info");
+  }
+
+  highlightCartItem() {
+    if (!this.itemsScroll) return;
+    const rows = this.itemsScroll.querySelectorAll('.ticket-item-row');
+    rows.forEach((r, idx) => {
+      if (idx === this.selectedCartIndex) {
+        r.classList.add('selected');
+        r.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      } else {
+        r.classList.remove('selected');
+      }
+    });
+  }
+
+  verifyDoctorCmp() {
+    if (!this.docCmpInput) return;
+    const cmp = this.docCmpInput.value.trim();
+    const folio = this.docFolioInput ? this.docFolioInput.value.trim() : '';
+
+    if (!cmp || cmp.length < 4) {
+      showValetecToast("Ingrese una colegiatura médica CMP válida (mínimo 4 dígitos).", "warning");
+      this.docCmpInput.focus();
+      return;
+    }
+
+    const hasRetained = this.order.some(i => i.product.prescriptionType === 'retained');
+    if (hasRetained && !folio) {
+      showValetecToast("Medicamento psicotrópico retenido: Ingrese obligatoriamente el Folio de Receta médica.", "warning");
+      if (this.docFolioInput) this.docFolioInput.focus();
+      return;
+    }
+
+    if (this.rxAlert) {
+      this.rxAlert.classList.add('verified');
+    }
+    if (this.prescriptionInputRow) {
+      this.prescriptionInputRow.classList.add('d-none');
+    }
+    if (this.prescriptionVerifiedView) {
+      this.prescriptionVerifiedView.classList.remove('d-none');
+    }
+    if (this.lblVerifiedCmp) {
+      this.lblVerifiedCmp.textContent = cmp;
+    }
+    if (this.lblVerifiedFolio) {
+      this.lblVerifiedFolio.textContent = folio || 'N/A';
+    }
+
+    showValetecToast(`Receta y Colegiatura CMP ${cmp} verificadas conforme a normativa DIGEMID.`, "success");
+  }
+
+  editDoctorCmp() {
+    if (this.rxAlert) {
+      this.rxAlert.classList.remove('verified');
+    }
+    if (this.prescriptionInputRow) {
+      this.prescriptionInputRow.classList.remove('d-none');
+    }
+    if (this.prescriptionVerifiedView) {
+      this.prescriptionVerifiedView.classList.add('d-none');
+    }
+    if (this.docCmpInput) {
+      this.docCmpInput.focus();
+    }
+  }
+
 
   updatePointsRedeemBox() {
     if (!this.patientPointsBox) this.patientPointsBox = document.getElementById('patientPointsRedeemBox');
@@ -2142,23 +2374,24 @@ class CounterModule {
         <div class="empty-ticket-view">
           <div class="empty-cart-icon"><i class="bi bi-cart3"></i></div>
           <p class="empty-cart-title">Carrito libre</p>
-          <small class="empty-cart-hint">Selecciona una medicina o presiona <kbd>F2</kbd></small>
+          <small class="empty-cart-hint">Selecciona una medicina con <kbd>F2</kbd> • Carrito <kbd>F3</kbd></small>
         </div>
       `;
       if (this.changeEl) this.changeEl.innerText = "S/ 0.00";
     } else {
       this.itemsScroll.innerHTML = this.order.map((item, index) => `
-        <div class="ticket-item-row">
+        <div class="ticket-item-row ${index === this.selectedCartIndex ? 'selected' : ''}" data-index="${index}" onclick="counterApp.selectCartItem(${index})">
           <div class="item-left-desc">
-            <div class="i-name">${escHtml(item.product.name)}</div>
+            <div class="i-name" title="${escHtml(item.product.name)}">${escHtml(item.product.name)}</div>
             <div class="i-sub">${escHtml(item.label)} • S/ ${item.price.toFixed(2)}</div>
           </div>
-          <div class="item-qty-wrap">
+          <div class="item-qty-wrap" onclick="event.stopPropagation()">
             <button type="button" class="btn-item-qty" onclick="counterApp.updateQty(${index}, -1)" title="Disminuir"><i class="bi bi-dash"></i></button>
             <span class="item-qty-val">${item.qty}</span>
             <button type="button" class="btn-item-qty" onclick="counterApp.updateQty(${index}, 1)" title="Aumentar"><i class="bi bi-plus"></i></button>
           </div>
           <div class="item-subtotal-val">S/ ${(item.price * item.qty).toFixed(2)}</div>
+          <button type="button" class="btn-item-del" onclick="event.stopPropagation(); counterApp.removeItem(${index})" title="Quitar medicina del carrito"><i class="bi bi-trash3"></i></button>
         </div>
       `).join('');
     }
@@ -2182,10 +2415,37 @@ class CounterModule {
     if (this.igvEl) this.igvEl.innerText = `S/ ${igv.toFixed(2)}`;
     if (this.totalEl) this.totalEl.innerText = `S/ ${total.toFixed(2)}`;
 
-    const needsRx = this.order.some(i => i.product.prescriptionType !== 'free');
+    const hasRetained = this.order.some(i => i.product.prescriptionType === 'retained');
+    const hasRequired = this.order.some(i => i.product.prescriptionType === 'required');
+    const needsRx = hasRetained || hasRequired;
+
     if (this.rxAlert) {
-      if (needsRx) this.rxAlert.classList.remove('d-none');
-      else this.rxAlert.classList.add('d-none');
+      if (needsRx) {
+        this.rxAlert.classList.remove('d-none');
+        const titleEl = document.getElementById('prescriptionAlertTitle');
+        const tagEl = document.getElementById('prescriptionRxTag');
+        const msgEl = document.getElementById('prescriptionAlertMsg');
+        if (hasRetained) {
+          if (titleEl) titleEl.innerText = 'Fármaco Psicotrópico Controlado:';
+          if (tagEl) {
+            tagEl.innerText = 'Lista IV - Retenida';
+            tagEl.className = 'badge-rx-tag bg-danger text-white';
+          }
+          if (msgEl) msgEl.innerText = 'DIGEMID exige registrar obligatoriamente el CMP del médico y el Folio de Receta.';
+        } else {
+          if (titleEl) titleEl.innerText = 'Requiere Receta Médica DIGEMID:';
+          if (tagEl) {
+            tagEl.innerText = 'Receta Médica';
+            tagEl.className = 'badge-rx-tag';
+          }
+          if (msgEl) msgEl.innerText = 'Indique el CMP del médico tratante para trazabilidad clínica:';
+        }
+      } else {
+        this.rxAlert.classList.add('d-none');
+        this.rxAlert.classList.remove('verified');
+        if (this.prescriptionInputRow) this.prescriptionInputRow.classList.remove('d-none');
+        if (this.prescriptionVerifiedView) this.prescriptionVerifiedView.classList.add('d-none');
+      }
     }
 
     this.recalcChange();
@@ -2403,6 +2663,106 @@ class CounterModule {
     this.toggleReceiptModal(true);
   }
 
+  openCheckoutModal() {
+    if (this.order.length === 0) {
+      showValetecToast("El carrito está vacío. Agrega medicinas antes de cobrar.", "warning");
+      return;
+    }
+
+    // Validación estricta: Caja abierta requerida para registrar ventas
+    if (window.cashApp && !window.cashApp.currentShift) {
+      const canOpen = window.appNav ? window.appNav.canAccessView('viewCash') : false;
+      if (canOpen) {
+        showValetecToast("Caja cerrada: No es posible emitir ventas sin un turno de caja abierto. Por favor, abre el turno de caja (F9) con el saldo inicial para iniciar la jornada.", "warning");
+      } else {
+        showValetecToast("Caja cerrada: No es posible emitir ventas sin un turno de caja abierto. Solicite al Cajero o Administrador realizar la apertura de turno.", "warning");
+      }
+      return;
+    }
+
+    const hasRetained = this.order.some(i => i.product.prescriptionType === 'retained');
+    const hasRequired = this.order.some(i => i.product.prescriptionType === 'required');
+    if (hasRetained || hasRequired) {
+      const cmp = this.docCmpInput?.value.trim();
+      if (!cmp) {
+        showValetecToast("ATENCIÓN DIGEMID: Esta orden contiene medicamentos bajo receta. Ingrese el CMP del médico tratante.", "warning");
+        this.docCmpInput?.focus();
+        return;
+      }
+      if (hasRetained) {
+        const folio = this.docFolioInput?.value.trim();
+        if (!folio) {
+          showValetecToast("DIGEMID OBLIGATORIO: Los psicotrópicos controlados (Lista IV) exigen el Folio de Receta Retenida.", "warning");
+          this.docFolioInput?.focus();
+          return;
+        }
+      }
+    }
+
+    const total = this.calcTotal();
+    const itemsCount = this.order.reduce((sum, item) => sum + item.qty, 0);
+
+    if (this.checkoutModalTotalDisplay) {
+      this.checkoutModalTotalDisplay.textContent = `S/ ${total.toFixed(2)}`;
+    }
+    if (this.checkoutModalItemsBadge) {
+      this.checkoutModalItemsBadge.textContent = `${this.order.length} prod. (${itemsCount} un.)`;
+    }
+    if (this.checkoutModalClientBadge) {
+      const pNameEl = this.patientStatus?.querySelector('.p-name');
+      let cName = 'Cliente General';
+      if (pNameEl && pNameEl.innerText && !pNameEl.innerText.includes('Cliente General')) {
+        cName = pNameEl.innerText.replace(/^[^\w\u00C0-\u017F]+/, '').trim();
+      }
+      this.checkoutModalClientBadge.textContent = cName;
+    }
+
+    // Recalcular vuelto y redondeo BCRP
+    this.recalcChange();
+
+    if (this.posCheckoutModal) this.posCheckoutModal.classList.add('active');
+    if (this.posCheckoutModalBackdrop) this.posCheckoutModalBackdrop.classList.add('active');
+
+    setTimeout(() => {
+      if (this.currentPaymentMethod === 'cash') {
+        if (this.cashInput) {
+          this.cashInput.focus();
+          this.cashInput.select();
+        }
+      } else {
+        if (this.digitalRefInput) {
+          this.digitalRefInput.focus();
+        }
+      }
+    }, 120);
+  }
+
+  closeCheckoutModal() {
+    if (this.posCheckoutModal) this.posCheckoutModal.classList.remove('active');
+    if (this.posCheckoutModalBackdrop) this.posCheckoutModalBackdrop.classList.remove('active');
+    setTimeout(() => {
+      document.getElementById('fastProductSearch')?.focus();
+    }, 100);
+  }
+
+  confirmFinalCheckout() {
+    // Validar tipo de comprobante Factura con RUC de 11 dígitos
+    const invoiceType = document.querySelector('input[name="orderVoucherType"]:checked')?.value || 'ticket';
+    if (invoiceType === 'factura') {
+      const customerDoc = this.patientInput?.value.trim() || '';
+      if (!customerDoc || customerDoc.length !== 11 || !/^\d{11}$/.test(customerDoc)) {
+        showValetecToast("Para emitir Factura es obligatorio que el cliente tenga un RUC válido de 11 dígitos.", "warning");
+        this.closeCheckoutModal();
+        setTimeout(() => {
+          this.patientInput?.focus();
+        }, 150);
+        return;
+      }
+    }
+
+    this.checkout();
+  }
+
   async checkout() {
     // Hotfix V-02: Guard inmediato contra Double Submission (race condition con múltiples clics rápidos)
     if (this._checkoutInProgress) {
@@ -2429,14 +2789,24 @@ class CounterModule {
       return;
     }
 
-    const needsRx = this.order.some(i => i.product.prescriptionType !== 'free');
-    if (needsRx) {
+    const hasRetained = this.order.some(i => i.product.prescriptionType === 'retained');
+    const hasRequired = this.order.some(i => i.product.prescriptionType === 'required');
+    if (hasRetained || hasRequired) {
       const cmp = this.docCmpInput?.value.trim();
       if (!cmp) {
         this._checkoutInProgress = false;
-        showValetecToast("ATENCIÓN: Esta orden contiene medicamentos bajo receta. Escribe el CMP médico.", "warning");
+        showValetecToast("ATENCIÓN DIGEMID: Esta orden contiene medicamentos bajo receta. Ingrese el CMP médico.", "warning");
         this.docCmpInput?.focus();
         return;
+      }
+      if (hasRetained) {
+        const folio = this.docFolioInput?.value.trim();
+        if (!folio) {
+          this._checkoutInProgress = false;
+          showValetecToast("DIGEMID OBLIGATORIO: Los medicamentos psicotrópicos controlados exigen el Folio de Receta Retenida.", "warning");
+          this.docFolioInput?.focus();
+          return;
+        }
       }
     }
 
@@ -2482,10 +2852,12 @@ class CounterModule {
       unitPrice: i.price
     }));
 
-    const btn = this.btnCheckout;
-    const origHtml = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Descontando stock en PostgreSQL...`;
+    const btn = this.btnConfirmCheckout || this.btnCheckout;
+    const origHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Descontando stock en PostgreSQL...`;
+    }
 
     try {
       let saleData;
@@ -2499,7 +2871,9 @@ class CounterModule {
           customerName,
           paymentMethod,
           paymentReference,
-          amountPaid
+          amountPaid,
+          doctorCmp: this.docCmpInput?.value.trim() || undefined,
+          recipeFolio: this.docFolioInput?.value.trim() || undefined
         });
 
         if (!res || !res.success) {
@@ -2522,6 +2896,8 @@ class CounterModule {
           invoiceType,
           customerDoc,
           customerName,
+          doctorCmp: this.docCmpInput?.value.trim() || null,
+          recipeFolio: this.docFolioInput?.value.trim() || null,
           paymentMethod,
           paymentReference,
           subtotal,
@@ -2585,6 +2961,9 @@ class CounterModule {
         window.managementApp.registerLocalSale(saleData);
       }
 
+      // 0. Cerrar pasarela modal de cobro
+      this.closeCheckoutModal();
+
       // 1. Mostrar comprobante térmico en pantalla
       this.showReceiptModal(saleData);
 
@@ -2620,6 +2999,12 @@ class CounterModule {
       if (this.cashInput) this.cashInput.value = '';
       if (this.digitalRefInput) this.digitalRefInput.value = '';
       if (this.docCmpInput) this.docCmpInput.value = '';
+      if (this.docFolioInput) this.docFolioInput.value = '';
+      if (this.rxAlert) {
+        this.rxAlert.classList.remove('verified');
+        if (this.prescriptionInputRow) this.prescriptionInputRow.classList.remove('d-none');
+        if (this.prescriptionVerifiedView) this.prescriptionVerifiedView.classList.add('d-none');
+      }
       if (this.patientInput) this.patientInput.value = '';
       if (this.patientStatus) {
         this.patientStatus.innerHTML = `
@@ -2646,8 +3031,10 @@ class CounterModule {
     } finally {
       // Hotfix V-02: Liberar el flag de protección contra double-submit
       this._checkoutInProgress = false;
-      btn.disabled = false;
-      btn.innerHTML = origHtml;
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+      }
     }
   }
 
@@ -5708,9 +6095,16 @@ class DigemidModule {
             if (cmpInput) {
               cmpInput.value = r.doctorCmp;
             }
+            const folioInput = document.getElementById('orderRecipeFolio');
+            if (folioInput && (r.folio || r.folioNumber || r.recipeFolio)) {
+              folioInput.value = r.folio || r.folioNumber || r.recipeFolio;
+            }
             const rxAlertBox = document.getElementById('prescriptionAlertBox');
             if (rxAlertBox) {
               rxAlertBox.classList.remove('d-none');
+            }
+            if (typeof counterApp !== 'undefined' && counterApp && counterApp.verifyDoctorCmp) {
+              counterApp.verifyDoctorCmp();
             }
 
             // 3. Cargar el medicamento recetado al carrito

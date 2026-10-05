@@ -400,11 +400,6 @@
       <!-- Header Superior Compacto & Ejecutivo -->
       <header class="app-top-bar">
         <div class="top-bar-left">
-          <!-- Botón Menú Hamburguesa para Móvil/Tablet -->
-          <button type="button" class="btn-mobile-menu" id="btnMobileMenuToggle" aria-label="Abrir menú lateral">
-            <i class="bi bi-list"></i>
-          </button>
-          
           <!-- Indicador de Comunicación en Vivo (Frontend ↔ Backend ↔ PostgreSQL) -->
           <div id="liveApiStatusBadge" class="valetec-live-badge online">
             <span class="dot"></span>
@@ -494,7 +489,7 @@
             
             <div class="ticket-header-card">
               <div class="ticket-title-row">
-                <span class="ticket-title"><i class="bi bi-cart3"></i> Carrito de Venta</span>
+                <span class="ticket-title" title="Atajo rápido: Presiona [F3] para seleccionar y ajustar medicinas con teclado"><i class="bi bi-cart3"></i> Carrito de Venta <kbd style="font-size: 10px; font-weight: 700; background: #e2e8f0; color: #475569; padding: 1px 5px; border-radius: 4px; border: 1px solid #cbd5e1; margin-left: 4px;">F3</kbd></span>
                 <div style="display: flex; gap: 6px; align-items: center;">
                   <button type="button" class="btn-history-trigger" id="btnOpenClientsDirectory" onclick="clientsApp.openDirectoryModal()" title="Directorio de Clientes [F4]" style="background: #f0fdf4; color: #166534; border-color: #bbf7d0;">
                     <i class="bi bi-people-fill"></i> <span>Clientes</span>
@@ -508,13 +503,15 @@
 
               <div class="patient-lookup-box">
                 <div class="input-doc-wrap">
-                  <i class="bi bi-person-vcard"></i>
-                  <input type="text" id="patientDocInput" placeholder="DNI o RUC del cliente..." maxlength="11" onkeydown="if(event.key==='Enter'){event.preventDefault(); counterApp.lookupPatient();}">
-                  <button type="button" id="btnQueryPatient" onclick="counterApp.lookupPatient()" title="Buscar cliente en el sistema">
-                    <span><i class="bi bi-search"></i> Buscar</span>
+                  <div class="input-doc-field">
+                    <i class="bi bi-person-vcard"></i>
+                    <input type="text" id="patientDocInput" placeholder="DNI o RUC del cliente..." maxlength="11" onkeydown="if(event.key==='Enter'){event.preventDefault(); counterApp.lookupPatient();}">
+                  </div>
+                  <button type="button" class="btn-search-doc" id="btnQueryPatient" onclick="counterApp.lookupPatient()" title="Buscar cliente en el sistema [Enter]">
+                    <i class="bi bi-search"></i> <span>Buscar</span>
                   </button>
-                  <button type="button" id="btnQuickAddClient" onclick="clientsApp.openQuickModal(document.getElementById('patientDocInput')?.value)" title="Registrar nuevo cliente rápido" style="background: #0d9488; color: white; border: none; border-radius: 6px; padding: 0 10px; font-weight: 700; font-size: 11.5px; cursor: pointer; white-space: nowrap;">
-                    <span><i class="bi bi-plus-lg"></i> Nuevo</span>
+                  <button type="button" class="btn-quick-new-doc" id="btnQuickAddClient" onclick="clientsApp.openQuickModal(document.getElementById('patientDocInput')?.value)" title="Registrar nuevo cliente rápido">
+                    <i class="bi bi-plus-lg"></i> <span>Nuevo</span>
                   </button>
                 </div>
                 <div class="patient-status-line" id="patientStatusLine">
@@ -541,19 +538,34 @@
               <div class="empty-ticket-view">
                 <div class="empty-cart-icon"><i class="bi bi-cart3"></i></div>
                 <p class="empty-cart-title">Carrito libre</p>
-                <small class="empty-cart-hint">Selecciona una medicina o presiona <kbd>F2</kbd></small>
+                <small class="empty-cart-hint">Selecciona una medicina con <kbd>F2</kbd> • Carrito <kbd>F3</kbd></small>
               </div>
             </div>
 
-            <!-- Alerta de Receta Obligatoria CMP -->
+            <!-- Alerta de Receta Obligatoria CMP y DIGEMID -->
             <div class="prescription-alert-box d-none" id="prescriptionAlertBox">
-              <i class="bi bi-exclamation-triangle text-danger"></i>
-              <div>
-                <strong class="text-danger">Requiere Receta Médica DIGEMID:</strong>
-                <p>Escribe el CMP del médico tratante para autorizar la salida:</p>
-                <div class="cmp-row">
-                  <input type="text" id="orderDoctorCmp" placeholder="Ej. CMP-48291 (Doctor)">
-                  <button type="button" class="btn-check-cmp" onclick="showValetecToast('Colegiatura CMP verificada y vigente en el Colegio Médico del Perú.', 'success')">Validar</button>
+              <i class="bi bi-shield-exclamation text-danger" id="prescriptionAlertIcon"></i>
+              <div class="prescription-alert-content">
+                <div class="prescription-title-row">
+                  <strong id="prescriptionAlertTitle" class="text-danger">Requiere Receta Médica DIGEMID:</strong>
+                  <span class="badge-rx-tag" id="prescriptionRxTag">Receta Médica</span>
+                </div>
+                <p id="prescriptionAlertMsg">Ingrese CMP del médico y folio de receta para autorizar dispensación:</p>
+                <div class="cmp-row" id="prescriptionInputRow">
+                  <input type="text" id="orderDoctorCmp" placeholder="CMP (ej. 48291)" maxlength="15" title="Colegiatura Médica del Perú">
+                  <input type="text" id="orderRecipeFolio" placeholder="Folio Receta (ej. REC-892)" maxlength="20" title="Número o Folio de Receta Retenida">
+                  <button type="button" class="btn-check-cmp" id="btnVerifyCmp" onclick="counterApp.verifyDoctorCmp()" title="Validar datos médicos">
+                    <i class="bi bi-check-lg"></i> Validar
+                  </button>
+                </div>
+                <div class="prescription-verified-view d-none" id="prescriptionVerifiedView">
+                  <span class="verified-text">
+                    <i class="bi bi-patch-check-fill text-success"></i>
+                    <span>Autorizado: CMP <b id="lblVerifiedCmp"></b> • Folio <b id="lblVerifiedFolio"></b></span>
+                  </span>
+                  <button type="button" class="btn-edit-rx" onclick="counterApp.editDoctorCmp()" title="Editar datos de receta">
+                    <i class="bi bi-pencil-square"></i> Editar
+                  </button>
                 </div>
               </div>
             </div>
@@ -578,81 +590,14 @@
               </div>
             </div>
 
-            <!-- Panel de Cobro Rápido -->
-            <div class="payment-controls-card">
-              <div class="voucher-switch-grid">
-                <label class="v-opt"><input type="radio" name="orderVoucherType" value="ticket" checked> Ticket</label>
-                <label class="v-opt"><input type="radio" name="orderVoucherType" value="boleta"> Boleta</label>
-                <label class="v-opt"><input type="radio" name="orderVoucherType" value="factura"> Factura</label>
-              </div>
-
-              <!-- Selector Táctil de Medios de Pago -->
-              <div class="payment-methods-selector">
-                <button type="button" class="pay-method-btn active" data-method="cash" id="btnPayCash">
-                  <i class="bi bi-cash"></i> <span>Efectivo</span>
-                </button>
-                <button type="button" class="pay-method-btn" data-method="yape" id="btnPayYape">
-                  <i class="bi bi-qr-code"></i> <span>Yape / Plin</span>
-                </button>
-                <button type="button" class="pay-method-btn" data-method="card" id="btnPayCard">
-                  <i class="bi bi-credit-card"></i> <span>Tarjeta POS</span>
-                </button>
-              </div>
-
-              <!-- Billetes para cálculo inmediato de vuelto (Solo Efectivo) -->
-              <div class="cash-calc-wrapper" id="cashPaymentSection">
-                <span class="calc-label-tag">Cálculo de vuelto rápido:</span>
-                <div class="bills-fast-grid">
-                  <button type="button" class="btn-cash-bill" data-amount="10">S/ 10</button>
-                  <button type="button" class="btn-cash-bill" data-amount="20">S/ 20</button>
-                  <button type="button" class="btn-cash-bill" data-amount="50">S/ 50</button>
-                  <button type="button" class="btn-cash-bill" data-amount="100">S/ 100</button>
-                  <button type="button" class="btn-cash-bill" data-amount="200">S/ 200</button>
-                  <button type="button" class="btn-cash-bill exact" id="btnCashExact">Pago Exacto</button>
-                </div>
-                <div class="change-display-grid">
-                  <div class="c-field">
-                    <small>Dinero Recibido:</small>
-                    <input type="number" id="cashReceivedInput" placeholder="0.00" step="0.50">
-                  </div>
-                  <div class="c-field highlight">
-                    <small>Vuelto:</small>
-                    <strong id="cashChangeDisplay">S/ 0.00</strong>
-                  </div>
-                  <div id="bcrpRoundingNotice" style="display: none; grid-column: 1 / -1; margin-top: 6px; padding: 4px 8px; background: #fefce8; border: 1px dashed #ca8a04; border-radius: 4px; font-size: 11px; color: #854d0e; text-align: center; font-weight: 600;">
-                    <i class="bi bi-info-circle"></i> <span id="bcrpRoundingText">Redondeo Ley 29571 / BCRP: -S/ 0.00 (Efectivo a cobrar: S/ 0.00)</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Sección para Cobro Digital (Yape / Plin / Tarjeta) -->
-              <div class="digital-calc-wrapper d-none" id="digitalPaymentSection">
-                <div class="digital-info-box">
-                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                      <i class="bi bi-phone" style="font-size: 1.1rem; color: #64748b;"></i>
-                      <strong id="digitalTitleTag" style="font-size: 13px;">Pago Digital Directo</strong>
-                    </div>
-                    <span class="badge" style="background: #f1f5f9; color: #475569; font-size: 11px; padding: 4px 8px; border-radius: 4px;" id="digitalExactBadge">Monto Exacto: S/ 0.00</span>
-                  </div>
-                  <small style="color: #64748b; display: block; margin-bottom: 8px;" id="digitalHintTag">Pide al cliente transferir el monto exacto por Yape o Plin.</small>
-                  <div>
-                    <label for="digitalRefInput" style="font-size: 11.5px; font-weight: 600; color: #334155; margin-bottom: 3px; display: block;">N° Operación / Referencia (Opcional):</label>
-                    <input type="text" id="digitalRefInput" class="form-control" placeholder="Ej. OP-738291" style="font-size: 12.5px; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; width: 100%;">
-                  </div>
-                </div>
-              </div>
-
-              <!-- Acciones de Mostrador: Botones Grandes y Claros -->
-              <div class="ticket-action-btns">
-                <button type="button" class="btn-order-checkout" id="btnCheckoutOrder" title="Cobrar e imprimir comprobante [F4]">
-                  <i class="bi bi-printer"></i> <span>[F4] COBRAR Y ENTREGAR</span>
-                </button>
-                <button type="button" class="btn-order-cancel" id="btnCancelOrder" title="Borrar y vaciar el carrito [F8]">
-                  <i class="bi bi-trash3"></i> <span>[F8] Cancelar Venta</span>
-                </button>
-              </div>
-
+            <!-- Acciones de Mostrador: Proceder a Cobro Enfocado y Vaciar -->
+            <div class="ticket-action-btns" style="margin-top: 14px;">
+              <button type="button" class="btn-order-checkout" id="btnCheckoutOrder" onclick="counterApp.openCheckoutModal()" title="Proceder a la pasarela de cobro enfocado [F4]">
+                <i class="bi bi-wallet2"></i> <span>[F4] PROCEDER AL COBRO</span>
+              </button>
+              <button type="button" class="btn-order-cancel" id="btnCancelOrder" title="Borrar y vaciar el carrito [F8]">
+                <i class="bi bi-trash3"></i> <span>[F8] Vaciar Carrito</span>
+              </button>
             </div>
 
           </div>
@@ -2366,6 +2311,114 @@
           </button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal Pasarela de Cobro Enfocado POS [F4] -->
+  <div class="pos-checkout-backdrop" id="posCheckoutModalBackdrop" onclick="counterApp.closeCheckoutModal()"></div>
+  <div class="pos-checkout-modal" id="posCheckoutModal" role="dialog" aria-labelledby="posCheckoutTitle" aria-modal="true">
+    <div class="pos-checkout-header">
+      <div class="pos-checkout-header-left">
+        <div class="checkout-icon-wrap"><i class="bi bi-wallet2"></i></div>
+        <div>
+          <h3 id="posCheckoutTitle" style="margin: 0; font-size: 15px; font-weight: 700; color: #0f172a;">Pasarela de Cobro</h3>
+          <small style="color: #64748b; font-size: 11px;">Finalizar venta y emisión de comprobante <kbd>F4</kbd></small>
+        </div>
+      </div>
+      <button type="button" class="btn-close-checkout" id="btnCloseCheckoutModal" onclick="counterApp.closeCheckoutModal()" title="Cerrar pasarela [ESC]"><i class="bi bi-x-lg"></i></button>
+    </div>
+
+    <div class="pos-checkout-body">
+      <!-- Total Prominente y Resumen Rápido -->
+      <div style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <span style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; display: block;">Total a Cobrar:</span>
+          <span id="checkoutModalTotalDisplay" style="font-size: 26px; font-weight: 800; color: #0d9488; line-height: 1.1;">S/ 0.00</span>
+        </div>
+        <div style="text-align: right;">
+          <span class="badge" id="checkoutModalItemsBadge" style="background: #e0f2fe; color: #0369a1; font-weight: 700; font-size: 11px; padding: 4px 8px; border-radius: 6px;">0 ítems</span>
+          <small id="checkoutModalClientBadge" style="display: block; color: #64748b; font-size: 11px; margin-top: 4px;">Cliente General</small>
+        </div>
+      </div>
+
+      <!-- Tipo de Comprobante Fiscal -->
+      <div>
+        <label style="font-size: 11.5px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">Tipo de Comprobante:</label>
+        <div class="voucher-switch-grid">
+          <label class="v-opt"><input type="radio" name="orderVoucherType" value="ticket" checked> Ticket</label>
+          <label class="v-opt"><input type="radio" name="orderVoucherType" value="boleta"> Boleta</label>
+          <label class="v-opt"><input type="radio" name="orderVoucherType" value="factura"> Factura</label>
+        </div>
+      </div>
+
+      <!-- Selector Táctil de Medios de Pago -->
+      <div>
+        <label style="font-size: 11.5px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">Medio de Pago:</label>
+        <div class="payment-methods-selector">
+          <button type="button" class="pay-method-btn active" data-method="cash" id="btnPayCash">
+            <i class="bi bi-cash"></i> <span>Efectivo</span>
+          </button>
+          <button type="button" class="pay-method-btn" data-method="yape" id="btnPayYape">
+            <i class="bi bi-qr-code"></i> <span>Yape / Plin</span>
+          </button>
+          <button type="button" class="pay-method-btn" data-method="card" id="btnPayCard">
+            <i class="bi bi-credit-card"></i> <span>Tarjeta POS</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Billetes para cálculo inmediato de vuelto (Solo Efectivo) -->
+      <div class="cash-calc-wrapper" id="cashPaymentSection">
+        <span class="calc-label-tag">Billetes rápidos de recepción:</span>
+        <div class="bills-fast-grid">
+          <button type="button" class="btn-cash-bill" data-amount="10">S/ 10</button>
+          <button type="button" class="btn-cash-bill" data-amount="20">S/ 20</button>
+          <button type="button" class="btn-cash-bill" data-amount="50">S/ 50</button>
+          <button type="button" class="btn-cash-bill" data-amount="100">S/ 100</button>
+          <button type="button" class="btn-cash-bill" data-amount="200">S/ 200</button>
+          <button type="button" class="btn-cash-bill exact" id="btnCashExact">Pago Exacto</button>
+        </div>
+        <div class="change-display-grid">
+          <div class="c-field">
+            <small>Dinero Recibido:</small>
+            <input type="number" id="cashReceivedInput" placeholder="0.00" step="0.50">
+          </div>
+          <div class="c-field highlight">
+            <small>Vuelto:</small>
+            <strong id="cashChangeDisplay">S/ 0.00</strong>
+          </div>
+          <div id="bcrpRoundingNotice" style="display: none; grid-column: 1 / -1; margin-top: 6px; padding: 4px 8px; background: #fefce8; border: 1px dashed #ca8a04; border-radius: 4px; font-size: 11px; color: #854d0e; text-align: center; font-weight: 600;">
+            <i class="bi bi-info-circle"></i> <span id="bcrpRoundingText">Redondeo Ley 29571 / BCRP: -S/ 0.00 (Efectivo a cobrar: S/ 0.00)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sección para Cobro Digital (Yape / Plin / Tarjeta) -->
+      <div class="digital-calc-wrapper d-none" id="digitalPaymentSection">
+        <div class="digital-info-box">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <i class="bi bi-phone" style="font-size: 1.1rem; color: #64748b;"></i>
+              <strong id="digitalTitleTag" style="font-size: 13px;">Pago Digital Directo</strong>
+            </div>
+            <span class="badge" style="background: #f1f5f9; color: #475569; font-size: 11px; padding: 4px 8px; border-radius: 4px;" id="digitalExactBadge">Monto Exacto: S/ 0.00</span>
+          </div>
+          <small style="color: #64748b; display: block; margin-bottom: 8px;" id="digitalHintTag">Pide al cliente transferir el monto exacto por Yape o Plin.</small>
+          <div>
+            <label for="digitalRefInput" style="font-size: 11.5px; font-weight: 600; color: #334155; margin-bottom: 3px; display: block;">N° Operación / Referencia (Opcional):</label>
+            <input type="text" id="digitalRefInput" class="form-control" placeholder="Ej. OP-738291" style="font-size: 12.5px; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; width: 100%;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pos-checkout-footer">
+      <button type="button" class="btn-confirm-checkout" id="btnConfirmCheckout" onclick="counterApp.confirmFinalCheckout()">
+        <i class="bi bi-printer-fill"></i> <span>[Enter] CONFIRMAR Y EMITIR COMPROBANTE</span>
+      </button>
+      <button type="button" class="btn-cancel-checkout" onclick="counterApp.closeCheckoutModal()">
+        [ESC] Volver al Carrito
+      </button>
     </div>
   </div>
 

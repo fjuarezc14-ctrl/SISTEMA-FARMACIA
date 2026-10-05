@@ -1128,17 +1128,22 @@ body.valetec-app-body {
   max-width: 520px;
   height: 100vh;
   background-color: #ffffff;
-  box-shadow: -8px 0 32px rgba(15, 23, 42, 0.18);
+  box-shadow: none;
+  visibility: hidden;
+  pointer-events: none;
   z-index: 1501;
   display: flex;
   flex-direction: column;
   transform: translateX(100%);
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.3s ease;
   box-sizing: border-box;
 }
 
 .drawer.active {
   transform: translateX(0);
+  visibility: visible;
+  pointer-events: auto;
+  box-shadow: -8px 0 32px rgba(15, 23, 42, 0.18);
 }
 
 .drawer-header {
@@ -1738,22 +1743,6 @@ body.valetec-app-body {
   margin-left: 4px;
 }
 
-.btn-mobile-menu {
-  display: inline-flex;
-  background: none;
-  border: 1px solid #e2e8f0;
-  color: var(--valetec-navy);
-  font-size: 22px;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-mobile-menu:hover {
-  background: #f1f5f9;
-}
 
 .sidebar-backdrop {
   display: none;
@@ -2072,6 +2061,9 @@ body.valetec-app-body {
   width: 100%;
   box-sizing: border-box;
   scrollbar-width: none;
+  scroll-behavior: smooth;
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 36px), transparent 100%);
+  mask-image: linear-gradient(to right, black calc(100% - 36px), transparent 100%);
 }
 .category-chips-scroll::-webkit-scrollbar {
   display: none;
@@ -2143,21 +2135,26 @@ body.valetec-app-body {
 
 .products-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(245px, 1fr));
+  gap: 10px;
+  align-items: stretch;
 }
 
 .product-staff-card {
   background-color: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 16px 18px;
+  border-radius: 12px;
+  padding: 11px 13px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
-  gap: 10px;
+  gap: 7px;
+  box-sizing: border-box;
+  overflow: hidden;
+  width: 100%;
+  min-width: 0;
 }
 
 .product-staff-card:hover {
@@ -2176,42 +2173,51 @@ body.valetec-app-body {
   justify-content: space-between;
   align-items: center;
   gap: 6px;
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .card-pills-wrap {
   display: flex;
   align-items: center;
   gap: 4px;
-  flex-wrap: wrap;
+  overflow: visible;
   justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 .shelf-tag {
   background-color: #f1f5f9;
   border: 1px solid #e2e8f0;
   color: #475569;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 2px 6px;
+  border-radius: 5px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
+  min-width: 0;
+  flex-shrink: 1;
 }
 
 .chip-generic-pill {
   background-color: #fefce8;
   border: 1px solid #fef08a;
   color: #854d0e;
-  font-size: 11.5px;
+  font-size: 10.5px;
   font-weight: 700;
-  padding: 3px 8px;
+  padding: 2px 6px;
   border-radius: 9999px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   transition: all var(--transition-fast);
   white-space: nowrap;
 }
@@ -2220,18 +2226,18 @@ body.valetec-app-body {
   background-color: #fef08a;
   border-color: #fde047;
   color: #713f12;
-  transform: translateY(-1px);
 }
 
 .rx-badge {
-  font-size: 11.5px;
+  font-size: 10.5px;
   font-weight: 600;
-  padding: 3px 8px;
+  padding: 2px 6px;
   border-radius: var(--radius-full);
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .rx-badge.free { background-color: transparent; color: #047857; border: 1px solid rgba(16, 185, 129, 0.3); }
@@ -2241,137 +2247,344 @@ body.valetec-app-body {
 .card-body-compact {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .prod-name {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
   color: #0f172a;
-  line-height: 1.35;
-  min-height: 40px;
+  line-height: 1.25;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  white-space: normal;
+  min-height: 33px;
+  margin: 0;
+}
+
+.prod-subtitle-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5px;
+  margin-top: 2px;
 }
 
 .prod-dci {
-  font-size: 12.5px;
-  color: #64748b;
+  font-size: 11px;
+  color: #475569;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.prod-dci i {
+  color: var(--valetec-teal);
+  font-size: 10.5px;
+  flex-shrink: 0;
+}
+
+.prod-lab {
+  color: #94a3b8;
+  font-size: 10.5px;
   font-weight: 500;
-  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.prod-lab i {
+  color: #94a3b8;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.stock-pill-row {
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.stock-pill-tag {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 11px;
+  color: #475569;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 3px 8px;
+  box-sizing: border-box;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.stock-fraction-unified-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  background-color: #f8fafc;
-  border: 1px solid #f1f5f9;
-  border-radius: 8px;
-  padding: 6px 10px;
-}
-
-.prod-compact-stock {
-  font-size: 12.5px;
-  color: #64748b;
-  white-space: nowrap;
-  display: flex;
-  align-items: baseline;
-  gap: 2px;
-}
-
-
-.prod-compact-stock .stock-num {
-  font-weight: 700;
-  color: #1e293b;
-  font-size: 12px;
-}
-
-.prod-compact-stock .stock-unit {
-  color: #475569;
-  font-weight: 600;
-}
-
-.prod-compact-stock .stock-sep {
-  color: #cbd5e1;
-  margin: 0 2px;
-}
-
-.prod-compact-stock .stock-sub {
+.stock-pill-tag small {
   color: #94a3b8;
   font-size: 10px;
 }
 
-.fraction-segmented-control {
-  display: inline-flex;
-  background-color: #e2e8f0;
-  border-radius: 6px;
+.fraction-segmented-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(65px, 1fr));
+  gap: 3px;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #f1f5f9;
+  border-radius: 7px;
   padding: 2px;
-  gap: 2px;
 }
 
-.fraction-segmented-control .btn-frac-pick {
-  border: none;
+.fraction-segmented-grid .btn-frac-pick {
+  border: 1px solid transparent;
   background: transparent;
-  padding: 3px 7px;
-  font-size: 10.5px;
-  font-weight: 600;
-  color: #64748b;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  line-height: 1.2;
-}
-
-.fraction-segmented-control .btn-frac-pick:hover {
-  color: #1e293b;
-}
-
-.fraction-segmented-control .btn-frac-pick.active {
-  background-color: #ffffff;
-  color: #0284c7;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  color: #475569;
+  border-radius: 5px;
+  padding: 4px 2px;
+  font-size: 10px;
   font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+
+.fraction-segmented-grid .btn-frac-pick:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.fraction-segmented-grid .btn-frac-pick.active {
+  background-color: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.3);
+}
+
+.fraction-segmented-grid .btn-frac-pick.dimmed {
+  opacity: 0.45;
+  text-decoration: line-through;
 }
 
 .card-action-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 2px;
-}
-
-.price-tag {
-  font-size: 19px;
-  font-weight: 800;
-  color: #0f172a;
-  letter-spacing: -0.4px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 2px;
 }
 
 .btn-dispense {
-  background: linear-gradient(135deg, #00d4b2 0%, #00bfa5 100%);
-  border: none;
-  color: #042f2e;
-  padding: 7px 14px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 5px;
-  box-shadow: 0 2px 8px rgba(0, 212, 178, 0.25);
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #00d4b2 0%, #00bfa5 100%);
+  color: #042f2e;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  box-sizing: border-box;
+  box-shadow: 0 2px 6px rgba(0, 212, 178, 0.25);
   transition: all var(--transition-fast);
 }
 
-.btn-dispense i.bi {
-  font-size: 13px;
+.btn-dispense:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 212, 178, 0.35);
+}
+
+.btn-dispense:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #e2e8f0;
+  color: #94a3b8;
+  box-shadow: none;
+}
+
+.btn-dispense .price-val {
+  font-size: 13.5px;
+  font-weight: 800;
   color: #042f2e;
+}
+
+.btn-dispense:disabled .price-val {
+  color: #94a3b8;
+}
+
+.btn-dispense .btn-dispense-lbl {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+}
+
+/* =============================================================
+   FASE 2: PASARELA DE COBRO RÁPIDO Y ENFOCADO [F4]
+   ============================================================= */
+.pos-checkout-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1550;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.pos-checkout-backdrop.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.pos-checkout-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -48%) scale(0.97);
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.22);
+  z-index: 1551;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.pos-checkout-modal.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.pos-checkout-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #ffffff;
+}
+
+.pos-checkout-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pos-checkout-header-left .checkout-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background-color: #f0fdf4;
+  color: #16a34a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.btn-close-checkout {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all var(--transition-fast);
+}
+
+.btn-close-checkout:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.pos-checkout-body {
+  padding: 18px 20px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pos-checkout-footer {
+  padding: 14px 20px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-color: #f8fafc;
+}
+
+.btn-confirm-checkout {
+  width: 100%;
+  padding: 12px 18px;
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
+  transition: all var(--transition-fast);
+}
+
+.btn-confirm-checkout:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(13, 148, 136, 0.4);
+}
+
+.btn-cancel-checkout {
+  width: 100%;
+  padding: 8px;
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  border-radius: 6px;
+  transition: background-color var(--transition-fast);
+}
+
+.btn-cancel-checkout:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
 }
 
 .btn-dispense:hover:not(:disabled) {
@@ -2396,20 +2609,23 @@ body.valetec-app-body {
   background-color: #ffffff;
   border: 1px solid var(--border-card);
   border-radius: var(--radius-card);
-  padding: 18px;
+  padding: 16px;
   box-shadow: var(--shadow-card);
-  width: 340px;
+  width: 100%;
   max-width: 100%;
   box-sizing: border-box;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   transition: all var(--transition-normal);
+  position: sticky;
+  top: 14px;
 }
 
 /* Progressive Disclosure: Carrito Vacío */
-.counter-ticket-pane.cart-empty .payment-controls-card {
-  display: none !important;
+.counter-ticket-pane.cart-empty .ticket-action-btns {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .counter-ticket-pane.cart-empty .ticket-totals-card {
@@ -2426,9 +2642,10 @@ body.valetec-app-body {
 }
 
 .ticket-items-scroll {
-  max-height: 280px;
+  max-height: 520px;
+  min-height: 260px;
   overflow-y: auto;
-  padding-right: 2px;
+  padding-right: 4px;
 }
 
 .empty-ticket-view {
@@ -2515,22 +2732,32 @@ body.valetec-app-body {
 }
 
 .input-doc-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.input-doc-field {
   position: relative;
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
 }
 
-.input-doc-wrap i {
+.input-doc-field i {
   position: absolute;
   left: 10px;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-light);
+  pointer-events: none;
 }
 
-.input-doc-wrap input {
+.input-doc-field input {
   width: 100%;
-  height: 36px;
-  padding: 0 34px 0 32px;
+  height: 34px;
+  padding: 0 8px 0 30px;
   font-size: 12px;
   font-family: inherit;
   border: 1px solid #e2e8f0;
@@ -2538,36 +2765,94 @@ body.valetec-app-body {
   background-color: #f8fafc;
   outline: none;
   transition: all var(--transition-fast);
+  box-sizing: border-box;
 }
 
-.input-doc-wrap input:focus {
+.input-doc-field input:focus {
   background-color: #ffffff;
   border-color: var(--valetec-teal);
   box-shadow: 0 0 0 2px rgba(var(--valetec-teal-rgb), 0.12);
 }
 
-.input-doc-wrap button {
-  position: absolute;
-  right: 6px;
-  background: none;
-  border: none;
-  color: var(--valetec-teal);
+.btn-search-doc {
+  height: 34px;
+  padding: 0 10px;
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #334155;
+  font-size: 11.5px;
+  font-weight: 600;
   cursor: pointer;
-  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.btn-search-doc:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.btn-quick-new-doc {
+  height: 34px;
+  padding: 0 10px;
+  background-color: #0d9488;
+  border: 1px solid #0f766e;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.btn-quick-new-doc:hover {
+  background-color: #0f766e;
 }
 
 .ticket-item-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
+  padding: 8px 6px;
   border-bottom: 1px solid #f8fafc;
+  gap: 8px;
+  border-radius: 6px;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.ticket-item-row:hover {
+  background-color: #f8fafc;
+}
+
+.ticket-item-row.selected {
+  background-color: #f0fdf4 !important;
+  border-left: 3px solid #0d9488 !important;
+  box-shadow: 0 1px 3px rgba(13, 148, 136, 0.12);
+}
+
+.item-left-desc {
+  flex: 1;
+  min-width: 0;
 }
 
 .item-left-desc .i-name {
   font-size: 12.5px;
   font-weight: 600;
   color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .item-left-desc .i-sub {
@@ -2576,41 +2861,247 @@ body.valetec-app-body {
   margin-top: 1px;
 }
 
-.btn-item-qty {
-  width: 28px;
-  height: 28px;
-  border: 1px solid #e2e8f0;
+.item-qty-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   background-color: #f8fafc;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 2px 4px;
+  flex-shrink: 0;
+}
+
+.btn-item-qty {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background-color: #ffffff;
+  border-radius: 5px;
+  font-weight: 700;
+  font-size: 13px;
   color: #475569;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: var(--transition-fast);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  transition: all var(--transition-fast);
 }
 
 .btn-item-qty:hover {
-  background-color: #f1f5f9;
-  color: #0f172a;
-  border-color: #cbd5e1;
+  background-color: #0d9488;
+  color: #ffffff;
 }
 
 .item-qty-val {
   font-size: 12px;
   font-weight: 700;
-  min-width: 18px;
+  min-width: 20px;
   text-align: center;
-  color: #1e293b;
+  color: #0f172a;
 }
 
 .item-subtotal-val {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 700;
   color: #0f172a;
-  margin-left: 8px;
+  text-align: right;
+  min-width: 58px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-item-del {
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.btn-item-del:hover {
+  background-color: #fee2e2;
+  color: #ef4444;
+}
+
+/* Alerta Médica CMP DIGEMID */
+.prescription-alert-box {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 10px;
+  box-sizing: border-box;
+  transition: all var(--transition-fast);
+}
+
+.prescription-alert-box i#prescriptionAlertIcon,
+.prescription-alert-box i.bi-shield-exclamation,
+.prescription-alert-box i.bi-exclamation-triangle {
+  font-size: 18px;
+  color: #dc2626;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.prescription-alert-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.prescription-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.prescription-alert-box strong {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #991b1b;
+  display: block;
+  margin-bottom: 0;
+}
+
+.badge-rx-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background-color: #fee2e2;
+  color: #991b1b;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.prescription-alert-box p {
+  font-size: 11px;
+  color: #7f1d1d;
+  margin: 0 0 8px 0;
+  line-height: 1.3;
+}
+
+.prescription-alert-box .cmp-row {
+  display: flex;
+  gap: 6px;
+}
+
+.prescription-alert-box .cmp-row input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 4px 8px;
+  font-size: 11.5px;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  background-color: #ffffff;
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.prescription-alert-box .cmp-row input:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+}
+
+.prescription-alert-box .btn-check-cmp {
+  background-color: #dc2626;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 0 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.prescription-alert-box .btn-check-cmp:hover {
+  background-color: #b91c1c;
+}
+
+.prescription-alert-box.verified {
+  background-color: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.prescription-alert-box.verified i#prescriptionAlertIcon,
+.prescription-alert-box.verified i.bi-shield-exclamation,
+.prescription-alert-box.verified i.bi-exclamation-triangle {
+  color: #16a34a !important;
+}
+
+.prescription-alert-box.verified strong {
+  color: #15803d !important;
+}
+
+.prescription-alert-box.verified p {
+  color: #166534 !important;
+}
+
+.prescription-alert-box.verified .badge-rx-tag {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.prescription-verified-view {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background-color: #ffffff;
+  border: 1px solid #86efac;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 11.5px;
+  margin-top: 4px;
+}
+
+.prescription-verified-view .verified-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #14532d;
+  font-size: 11.5px;
+}
+
+.btn-edit-rx {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.btn-edit-rx:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
 }
 
 .ticket-totals-card {
@@ -4088,6 +4579,66 @@ body.uw-dark-mode small,
 body.uw-dark-mode .text-muted {
   color: #94a3b8 !important;
 }
+
+body.uw-dark-mode .input-doc-field input {
+  background-color: #0f172a;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+body.uw-dark-mode .btn-search-doc {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+body.uw-dark-mode .btn-search-doc:hover {
+  background-color: #334155;
+  color: #ffffff;
+}
+
+body.uw-dark-mode .btn-item-del:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+}
+
+body.uw-dark-mode .prescription-alert-box.verified {
+  background-color: rgba(22, 101, 52, 0.15) !important;
+  border-color: rgba(34, 197, 94, 0.3) !important;
+}
+
+body.uw-dark-mode .prescription-verified-view {
+  background-color: #1e293b !important;
+  border-color: rgba(34, 197, 94, 0.3) !important;
+  color: #86efac !important;
+}
+
+body.uw-dark-mode .prescription-verified-view .verified-text {
+  color: #86efac !important;
+}
+
+body.uw-dark-mode .btn-edit-rx {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #94a3b8;
+}
+
+body.uw-dark-mode .btn-edit-rx:hover {
+  background-color: #334155;
+  color: #f8fafc;
+}
+
+body.uw-dark-mode .prod-dci {
+  color: #cbd5e1 !important;
+}
+
+body.uw-dark-mode .prod-lab {
+  color: #64748b !important;
+}
+
+body.uw-dark-mode .ticket-item-row.selected {
+  background-color: rgba(13, 148, 136, 0.18) !important;
+  border-left-color: #2dd4bf !important;
+}
 /* Tipografía de Lectura Fácil */
 body.uw-dyslexia,
 body.uw-dyslexia * {
@@ -4138,9 +4689,6 @@ body.uw-highlight-links input[type="submit"] {
   .app-content-wrapper {
     margin-left: 0 !important;
     width: 100% !important;
-  }
-  .btn-mobile-menu {
-    display: inline-flex !important;
   }
   .btn-sidebar-close {
     display: inline-flex !important;
@@ -4453,11 +5001,11 @@ body.uw-highlight-links input[type="submit"] {
     gap: 12px;
   }
   .counter-ticket-pane {
-    width: 330px;
-    padding: 10px;
+    width: 100%;
+    padding: 12px;
   }
   .products-cards-grid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
     gap: 10px;
   }
   .product-staff-card {

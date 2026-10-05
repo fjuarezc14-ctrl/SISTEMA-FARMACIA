@@ -424,15 +424,17 @@ class ValetecApiClient {
 
     if (isOnline && data) {
       badge.className = 'valetec-live-badge online';
+      badge.title = `Trazabilidad: Frontend ↔ Backend:4000 ↔ PostgreSQL 16 (${data.database.latencyMs}ms)`;
       badge.innerHTML = `
         <span class="dot"></span>
-        <span><strong>Conectado:</strong> Frontend ↔ Backend:4000 ↔ <strong>PostgreSQL 16</strong> (${data.database.latencyMs}ms)</span>
+        <span><strong>En Línea</strong> • PostgreSQL (${data.database.latencyMs}ms)</span>
       `;
     } else {
       badge.className = 'valetec-live-badge offline';
+      badge.title = 'Esperando conexión con el servidor REST Node.js y la base de datos PostgreSQL';
       badge.innerHTML = `
         <span class="dot"></span>
-        <span><strong>Desconectado:</strong> Esperando Backend Node.js en :4000...</span>
+        <span><strong>Desconectado</strong> • Esperando Backend...</span>
       `;
     }
   }
