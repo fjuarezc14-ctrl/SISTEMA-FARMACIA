@@ -50,6 +50,30 @@ function getActiveStaffName(fallbackRole = 'cashier', defaultName = 'Cajero de T
 window.getActiveStaffName = getActiveStaffName;
 
 /**
+ * Recupera la configuración corporativa dinámica (RUC, Razón Social, Dirección, etc.)
+ * Fallback a valores por defecto seguros si aún no han sido cargados.
+ */
+function getCompanySettings() {
+  const defaults = {
+    companyName: 'BOTICA VALETEC PHARMA S.A.C.',
+    commercialName: 'VALETEC PHARMA',
+    ruc: '20601234567',
+    address: 'Av. Aviación 2450, San Borja, Lima',
+    phone: '(01) 480-1234',
+    email: 'contacto@valetec.pe',
+    currencySymbol: 'S/',
+    currencyCode: 'PEN',
+    igvPercent: 18.00,
+    sanitaryLicense: 'AUT-DIGEMID-2026-904',
+    technicalDirector: 'Q.F. Carlos Mendoza Paredes (C.Q.F.P. 14208)',
+    invoiceFooterText: 'Gracias por su compra. Conserve este comprobante.'
+  };
+  const active = (window.settingsApp && window.settingsApp.settingsData) ? window.settingsApp.settingsData : {};
+  return Object.assign({}, defaults, active);
+}
+window.getCompanySettings = getCompanySettings;
+
+/**
  * Impresión Térmica Aislada en Rollo de 80mm / 58mm (Evita las 8 páginas en blanco de SPA)
  * Inyecta un iframe aislado con tipografía Courier New en negrita para máxima legibilidad.
  */
@@ -2484,8 +2508,11 @@ class CounterModule {
     const cleanDoc = String(sale.customerDoc || '00000000').trim();
     const docTypeSunat = cleanDoc.length === 11 ? '6' : (cleanDoc.length === 8 ? '1' : '0');
 
+    // Datos corporativos dinámicos de la botica
+    const comp = getCompanySettings();
+
     // Cadena técnica oficial para Código QR SUNAT
-    const qrPayload = `20601234567|${tipoCpeSunat}|${series}|${numberStr}|${parseFloat(sale.igv || 0).toFixed(2)}|${parseFloat(sale.total || 0).toFixed(2)}|${isoDate}|${docTypeSunat}|${cleanDoc}|${hashVal}|`;
+    const qrPayload = `${comp.ruc || '20601234567'}|${tipoCpeSunat}|${series}|${numberStr}|${parseFloat(sale.igv || 0).toFixed(2)}|${parseFloat(sale.total || 0).toFixed(2)}|${isoDate}|${docTypeSunat}|${cleanDoc}|${hashVal}|`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=115x115&margin=2&data=${encodeURIComponent(qrPayload)}`;
 
     const itemsRows = (sale.items || []).map(item => {
@@ -2514,11 +2541,11 @@ class CounterModule {
         ` : ''}
 
         <div class="receipt-header">
-          <div class="receipt-logo-title">VALETEC PHARMA S.A.C.</div>
-          <div class="receipt-meta-line">R.U.C. 20601234567</div>
-          <div class="receipt-meta-line">Av. Aviación 2450 • San Borja, Lima</div>
-          <div class="receipt-meta-line">Central Telefónica: (01) 500-8900</div>
-          <div class="receipt-meta-line">Reg. Sanitario DIGEMID N° 10842-FAR</div>
+          <div class="receipt-logo-title">${escHtml(comp.companyName || comp.commercialName || 'VALETEC PHARMA S.A.C.')}</div>
+          <div class="receipt-meta-line">R.U.C. ${escHtml(comp.ruc || '20601234567')}</div>
+          ${comp.address ? `<div class="receipt-meta-line">${escHtml(comp.address)}</div>` : ''}
+          ${comp.phone ? `<div class="receipt-meta-line">Central Telefónica: ${escHtml(comp.phone)}</div>` : ''}
+          ${comp.sanitaryLicense ? `<div class="receipt-meta-line">Reg. Sanitario DIGEMID N° ${escHtml(comp.sanitaryLicense)}</div>` : ''}
         </div>
 
         <div class="receipt-dashed-line"></div>
@@ -2640,8 +2667,7 @@ class CounterModule {
         <div class="receipt-footer">
           <div>Representación impresa autorizada de Comprobante de Pago Electrónico.</div>
           <div style="margin-top: 3px;">Generado bajo normativa SUNAT UBL 2.1.</div>
-          <div style="margin-top: 3px;">Stock gestionado automáticamente por FEFO en PostgreSQL.</div>
-          <div style="margin-top: 4px; font-weight: 700;">¡Gracias por cuidar tu salud en VALETEC PHARMA!</div>
+          <div style="margin-top: 4px; font-weight: 700;">${escHtml(comp.invoiceFooterText || `¡Gracias por cuidar tu salud en ${comp.commercialName || comp.companyName || 'nuestra botica'}!`)}</div>
         </div>
       </div>
     `;
@@ -4453,15 +4479,16 @@ class CashModule {
     }
 
     const totalRevenue = parseFloat((report.cashSales || 0) + (report.digitalSales || 0)).toFixed(2);
+    const comp = getCompanySettings();
 
     const targetContainer = this.zPrintableContainer || this.zReportModalBody;
     targetContainer.innerHTML = `
       <div class="thermal-receipt" id="printableZReportReceipt">
         <div class="receipt-header">
-          <div class="receipt-logo-title">VALETEC PHARMA S.A.C.</div>
-          <div class="receipt-meta-line">R.U.C. 20601234567</div>
-          <div class="receipt-meta-line">Av. Aviación 2450 • San Borja, Lima</div>
-          <div class="receipt-meta-line">Central: (01) 500-8900 • DIGEMID: 10842-FAR</div>
+          <div class="receipt-logo-title">${escHtml(comp.companyName || comp.commercialName || 'VALETEC PHARMA S.A.C.')}</div>
+          <div class="receipt-meta-line">R.U.C. ${escHtml(comp.ruc || '20601234567')}</div>
+          ${comp.address ? `<div class="receipt-meta-line">${escHtml(comp.address)}</div>` : ''}
+          <div class="receipt-meta-line">${comp.phone ? `Central: ${escHtml(comp.phone)} • ` : ''}DIGEMID: ${escHtml(comp.sanitaryLicense || '10842-FAR')}</div>
         </div>
 
         <div class="receipt-dashed-line"></div>
@@ -6638,13 +6665,14 @@ class DigemidModule {
       const retained = digemidMockRecords.filter(r => r.status === 'retained').length;
       const approved = digemidMockRecords.filter(r => r.status === 'approved').length;
       const dispensed = digemidMockRecords.filter(r => r.status === 'dispensed').length;
+      const comp = getCompanySettings();
       balanceData = {
         establishment: {
-          name: 'BOTICA VALETEC PHARMA S.A.C.',
-          ruc: '20601234567',
-          sanitaryLicense: 'DIRIS-LC N° 10842-FAR',
-          address: 'Av. Aviación 2450, San Borja, Lima',
-          technicalDirector: 'Dra. Elena Vega (Q.F. Reg. CQFP 18492)'
+          name: comp.companyName || comp.commercialName || 'BOTICA VALETEC PHARMA S.A.C.',
+          ruc: comp.ruc || '20601234567',
+          sanitaryLicense: comp.sanitaryLicense || 'DIRIS-LC N° 10842-FAR',
+          address: comp.address || 'Av. Aviación 2450, San Borja, Lima',
+          technicalDirector: comp.technicalDirector || 'Dra. Elena Vega (Q.F. Reg. CQFP 18492)'
         },
         summary: {
           totalLedgerEntries: digemidMockRecords.length,
@@ -10551,11 +10579,20 @@ class SettingsModule {
         if (res && res.data) {
           this.settingsData = res.data;
           this.populateForm(res.data);
+          this.syncCompanyBranding();
         }
       }
     } catch (err) {
       console.warn("Aviso cargando configuraciones:", err.message);
       showValetecToast(`Error al cargar datos de empresa: ${err.message}`, "danger");
+    }
+  }
+
+  syncCompanyBranding() {
+    if (!this.settingsData) return;
+    const branchEl = document.getElementById('topBarBranchName');
+    if (branchEl) {
+      branchEl.innerText = this.settingsData.commercialName || this.settingsData.companyName || 'Botica Central';
     }
   }
 
@@ -10779,6 +10816,7 @@ class SettingsModule {
       const res = await window.api.updateSettings(payload);
       if (res && res.data) {
         this.settingsData = res.data;
+        this.syncCompanyBranding();
         showValetecToast("Configuración de empresa y parámetros fiscales guardados con éxito en PostgreSQL 16.", "success");
         this.toggleModal(false);
       }

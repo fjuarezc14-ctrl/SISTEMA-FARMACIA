@@ -199,6 +199,12 @@
           <span class="tab-icon"><i class="bi bi-person-badge"></i></span>
           <span class="tab-label">Personal</span>
         </button>
+
+        <!-- Módulo 10: Configuración & Ajustes de Empresa (Admin / Q.F.) -->
+        <button type="button" class="nav-tab-btn" id="btnSidebarSettings" onclick="settingsApp.openModal('botica')" data-roles="admin,qf" title="Configurar RUC, Razón Social, Facturación y Datos de la Botica">
+          <span class="tab-icon"><i class="bi bi-gear-wide-connected"></i></span>
+          <span class="tab-label">Configuración</span>
+        </button>
       </div>
 
       <!-- Pie del Sidebar: Perfil del Usuario Activo & Cerrar Sesión -->
@@ -239,7 +245,7 @@
           <!-- Indicador de Terminal y Sede -->
           <div class="terminal-badge d-none d-lg-flex">
             <i class="bi bi-shop"></i>
-            <span><strong>Botica Central</strong> • Caja 01</span>
+            <span><strong id="topBarBranchName">VALETEC PHARMA</strong> • Caja 01</span>
             <span class="pulse-indicator"><span class="status-dot free pulse"></span> Turno Abierto</span>
           </div>
         </div>
