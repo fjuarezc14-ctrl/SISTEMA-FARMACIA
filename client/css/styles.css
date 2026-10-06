@@ -618,6 +618,33 @@ body.valetec-app-body {
   background: rgba(255, 255, 255, 0.1);
 }
 
+.btn-sidebar-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: var(--valetec-navy);
+  font-size: 20px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.btn-sidebar-toggle:hover {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.btn-sidebar-toggle:active {
+  transform: scale(0.96);
+}
+
 .sidebar-role-container {
   padding: 12px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -1805,7 +1832,7 @@ body.valetec-app-body {
   max-width: 100% !important;
   width: 100%;
   margin: 0;
-  padding: 20px 28px;
+  padding: 14px 18px;
   flex: 1;
   box-sizing: border-box;
   overflow-x: hidden;
@@ -1831,9 +1858,11 @@ body.valetec-app-body {
   background-color: #ffffff;
   border: 1px solid var(--border-card);
   border-radius: var(--radius-card);
-  padding: 24px 28px;
+  padding: 18px 20px;
   box-shadow: var(--shadow-card);
   transition: box-shadow var(--transition-fast);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .card-header-flex {
@@ -3641,16 +3670,33 @@ body.valetec-app-body {
   box-shadow: var(--shadow-xs);
   margin-top: 10px;
   position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+}
+
+.table-responsive-container::-webkit-scrollbar,
+.table-responsive::-webkit-scrollbar {
+  height: 4px;
+}
+
+.table-responsive-container::-webkit-scrollbar-track,
+.table-responsive::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.table-responsive-container::-webkit-scrollbar-thumb,
+.table-responsive::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
 }
 
 .valetec-table,
 .valetec-data-table,
 table.table {
   width: 100%;
-  min-width: 700px;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-main);
   text-align: left;
 }
@@ -3660,11 +3706,11 @@ table.table {
 table.table th {
   background-color: #f8fafc;
   color: #475569;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
-  padding: 14px 18px;
+  letter-spacing: 0.4px;
+  padding: 10px 10px;
   border-bottom: 1px solid #e2e8f0;
   border-left: none;
   border-right: none;
@@ -3678,12 +3724,40 @@ table.table th {
 .valetec-table td,
 .valetec-data-table td,
 table.table td {
-  padding: 15px 18px;
+  padding: 10px 10px;
   border-bottom: 1px solid #f1f5f9;
   border-left: none;
   border-right: none;
   vertical-align: middle;
   transition: background-color var(--transition-fast);
+}
+
+.valetec-table th:last-child,
+.valetec-table td:last-child,
+.valetec-data-table th:last-child,
+.valetec-data-table td:last-child {
+  white-space: nowrap;
+  text-align: right;
+  width: 1%;
+}
+
+/* Tablas compactas de alta densidad (ej. Compras y Canjes) */
+.valetec-data-table.dense,
+.valetec-table.dense {
+  font-size: 11.5px;
+}
+
+.valetec-data-table.dense th,
+.valetec-table.dense th {
+  padding: 8px 6px;
+  font-size: 10px;
+  letter-spacing: 0.2px;
+}
+
+.valetec-data-table.dense td,
+.valetec-table.dense td {
+  padding: 8px 6px;
+  font-size: 11.5px;
 }
 
 
@@ -4536,6 +4610,8 @@ body.uw-dark-mode .btn-userway-reset {
 /* Botones Superiores e Indicadores en Modo Oscuro */
 body.uw-dark-mode .btn-shortcuts-modal,
 body.dark-mode .btn-shortcuts-modal,
+body.uw-dark-mode .btn-sidebar-toggle,
+body.dark-mode .btn-sidebar-toggle,
 body.uw-dark-mode .live-clock-badge,
 body.dark-mode .live-clock-badge,
 body.uw-dark-mode .terminal-badge,
@@ -4546,7 +4622,9 @@ body.dark-mode .terminal-badge {
 }
 
 body.uw-dark-mode .btn-shortcuts-modal:hover,
-body.dark-mode .btn-shortcuts-modal:hover {
+body.dark-mode .btn-shortcuts-modal:hover,
+body.uw-dark-mode .btn-sidebar-toggle:hover,
+body.dark-mode .btn-sidebar-toggle:hover {
   background-color: #334155 !important;
   border-color: #475569 !important;
   color: #38bdf8 !important;
@@ -4691,6 +4769,9 @@ body.uw-highlight-links input[type="submit"] {
     width: 100% !important;
   }
   .btn-sidebar-close {
+    display: inline-flex !important;
+  }
+  .btn-sidebar-toggle {
     display: inline-flex !important;
   }
 }
@@ -4995,6 +5076,41 @@ body.uw-highlight-links input[type="submit"] {
 @media (max-width: 1440px) {
   .app-workspace-main {
     padding: 10px 14px;
+  }
+  .valetec-card-box {
+    padding: 14px 16px;
+  }
+  .valetec-table,
+  .valetec-data-table,
+  table.table {
+    font-size: 12.5px;
+  }
+  .valetec-table th,
+  .valetec-data-table th,
+  table.table th {
+    padding: 8px 8px;
+    font-size: 10px;
+    letter-spacing: 0.2px;
+  }
+  .valetec-table td,
+  .valetec-data-table td,
+  table.table td {
+    padding: 8px 8px;
+    font-size: 12px;
+  }
+  .valetec-data-table.dense th,
+  .valetec-table.dense th {
+    padding: 6px 5px;
+    font-size: 9.5px;
+  }
+  .valetec-data-table.dense td,
+  .valetec-table.dense td {
+    padding: 6px 5px;
+    font-size: 11px;
+  }
+  .fefo-chip {
+    font-size: 9.5px;
+    padding: 1px 5px;
   }
   .counter-responsive-grid {
     grid-template-columns: minmax(0, 1fr) 330px;

@@ -135,245 +135,70 @@
         </button>
       </div>
 
-      <!-- Selector de Rol Dinámico (Simulador de Perfiles) -->
-      <div class="sidebar-role-container">
-        <div class="role-selector-pill" title="Toca aquí para cambiar de perfil y ver cómo trabaja cada colaborador">
-          <i class="bi bi-person-badge"></i>
-          <div class="role-selector-info">
-            <small>Estás viendo como:</small>
-            <select id="appRoleSelector" class="role-select">
-              <option value="admin" selected>Dueño / Gerente (Acceso Total)</option>
-              <option value="qf">Químico (Q.F.) (Regente)</option>
-              <option value="tech">Técnico Mostrador (Ventas)</option>
-              <option value="cashier">Cajero de Turno (Caja)</option>
-            </select>
-          </div>
-        </div>
-      </div>
 
       <!-- Lista de Módulos Principales (Vertical Sidebar Menu) -->
       <div class="sidebar-nav-menu">
         <div class="sidebar-section-label">MÓDULOS DEL SISTEMA</div>
 
-        <!-- Módulo 1: Dashboard (Acceso directo con un solo clic) -->
+        <!-- Módulo 1: Dashboard -->
         <button type="button" class="nav-tab-btn active" data-view="viewManagement" data-roles="admin,qf">
           <span class="tab-icon"><i class="bi bi-speedometer2"></i></span>
           <span class="tab-label">Dashboard</span>
           <span class="tab-kbd-hint">F6</span>
         </button>
 
-        <!-- Módulo 2: Ventas (Plegable) -->
-        <div class="nav-module-group open" data-module="sales" data-roles="all">
-          <button type="button" class="nav-module-header">
-            <span class="nav-module-title">
-              <span class="tab-icon"><i class="bi bi-lightning-charge"></i></span>
-              <span>Ventas</span>
-            </span>
-            <i class="bi bi-chevron-down nav-chevron"></i>
-          </button>
-          <div class="nav-submodules">
-            <button type="button" class="nav-sub-btn" data-view="viewCounter">
-              <i class="bi bi-shop-window"></i>
-              <span>Mostrador</span>
-              <span class="tab-kbd-hint" style="margin-left: auto;">F2</span>
-            </button>
-            <button type="button" class="nav-sub-btn" data-view="viewVouchers" data-action="openSalesHistory">
-              <i class="bi bi-clock-history"></i>
-              <span>Comprobantes</span>
-              <span class="tab-kbd-hint" style="margin-left: auto;">F7</span>
-            </button>
-          </div>
-        </div>
+        <!-- Módulo 2: Mostrador (Venta POS) -->
+        <button type="button" class="nav-tab-btn" data-view="viewCounter" data-roles="all">
+          <span class="tab-icon"><i class="bi bi-shop-window"></i></span>
+          <span class="tab-label">Mostrador</span>
+          <span class="tab-kbd-hint">F2</span>
+        </button>
 
-        <!-- Módulo 3: Caja (Plegable) -->
-        <div class="nav-module-group" data-module="cash" data-roles="cashier,admin">
-          <button type="button" class="nav-module-header">
-            <span class="nav-module-title">
-              <span class="tab-icon"><i class="bi bi-wallet2"></i></span>
-              <span>Caja</span>
-            </span>
-            <i class="bi bi-chevron-down nav-chevron"></i>
-          </button>
-          <div class="nav-submodules">
-            <button type="button" class="nav-sub-btn" data-view="viewCash">
-              <i class="bi bi-calculator"></i>
-              <span>Arqueo</span>
-              <span class="tab-kbd-hint" style="margin-left: auto;">F9</span>
-            </button>
-            <button type="button" class="nav-sub-btn" data-action="openShift">
-              <i class="bi bi-unlock"></i>
-              <span>Apertura</span>
-            </button>
-            <button type="button" class="nav-sub-btn" data-action="openExpense">
-              <i class="bi bi-dash-circle"></i>
-              <span>Gastos</span>
-            </button>
-            <button type="button" class="nav-sub-btn" data-action="triggerZClose">
-              <i class="bi bi-lock"></i>
-              <span>Cierre Z</span>
-            </button>
-            <button type="button" class="nav-sub-btn" data-action="openZHistory">
-              <i class="bi bi-clock-history"></i>
-              <span>Historial Z</span>
-            </button>
-          </div>
-        </div>
+        <!-- Módulo 3: Comprobantes (Historial de ventas y SUNAT) -->
+        <button type="button" class="nav-tab-btn" data-view="viewVouchers" data-roles="all">
+          <span class="tab-icon"><i class="bi bi-clock-history"></i></span>
+          <span class="tab-label">Comprobantes</span>
+          <span class="tab-kbd-hint">F7</span>
+        </button>
 
-        <!-- Módulo 4: Clientes (Plegable) -->
-        <div class="nav-module-group" data-module="clients" data-roles="all">
-          <button type="button" class="nav-module-header">
-            <span class="nav-module-title">
-              <span class="tab-icon"><i class="bi bi-people"></i></span>
-              <span>Clientes</span>
-            </span>
-            <i class="bi bi-chevron-down nav-chevron"></i>
-          </button>
-          <div class="nav-submodules">
-            <button type="button" class="nav-sub-btn" data-view="viewClients" data-action="openClientsDirectory">
-              <i class="bi bi-person-lines-fill"></i>
-              <span>Directorio</span>
-            </button>
-            <button type="button" class="nav-sub-btn" data-view="viewClients" data-action="openClientsPoints">
-              <i class="bi bi-award"></i>
-              <span>Puntos</span>
-            </button>
-          </div>
-        </div>
+        <!-- Módulo 4: Caja (Arqueo y Turnos) -->
+        <button type="button" class="nav-tab-btn" data-view="viewCash" data-roles="cashier,admin">
+          <span class="tab-icon"><i class="bi bi-wallet2"></i></span>
+          <span class="tab-label">Caja</span>
+          <span class="tab-kbd-hint">F9</span>
+        </button>
 
-        <!-- Módulo 5: Inventario (Plegable) -->
-        <div class="nav-module-group" data-module="inventory" data-roles="qf,admin,tech,cashier">
-          <button type="button" class="nav-module-header">
-            <span class="nav-module-title">
-              <span class="tab-icon"><i class="bi bi-boxes"></i></span>
-              <span>Inventario</span>
-            </span>
-            <i class="bi bi-chevron-down nav-chevron"></i>
-          </button>
-          <div class="nav-submodules">
-            <button type="button" class="nav-sub-btn" data-view="viewWarehouse">
-              <i class="bi bi-capsule"></i>
-              <span>Productos</span>
-              <span class="tab-kbd-hint" style="margin-left: auto;">F3</span>
-            </button>
-            <button type="button" class="nav-sub-btn" data-action="openFefoAlerts">
-              <i class="bi bi-hourglass-split"></i>
-              <span>Lotes</span>
-            </button>
-            <button type="button" class="nav-sub-btn" data-action="openKardex">
-              <i class="bi bi-journal-text"></i>
-              <span>Kardex</span>
-            </button>
-            <button type="button" class="nav-sub-btn" data-action="openCategories">
-              <i class="bi bi-tags"></i>
-              <span>Categorías</span>
-            </button>
-            <button type="button" class="nav-sub-btn" data-action="openAdjustments">
-              <i class="bi bi-sliders"></i>
-              <span>Cuadre</span>
-            </button>
-          </div>
-        </div>
+        <!-- Módulo 5: Inventario (Productos, Lotes y Kardex) -->
+        <button type="button" class="nav-tab-btn" data-view="viewWarehouse" data-roles="qf,admin,tech,cashier">
+          <span class="tab-icon"><i class="bi bi-boxes"></i></span>
+          <span class="tab-label">Inventario</span>
+          <span class="tab-kbd-hint">F3</span>
+        </button>
 
-        <!-- Módulo 6: Compras (Plegable) -->
-        <div class="nav-module-group" data-module="purchases" data-roles="admin,qf">
-          <button type="button" class="nav-module-header">
-            <span class="nav-module-title">
-              <span class="tab-icon"><i class="bi bi-truck"></i></span>
-              <span>Compras</span>
-            </span>
-            <i class="bi bi-chevron-down nav-chevron"></i>
-          </button>
-          <div class="nav-submodules">
-            <button type="button" class="nav-sub-btn" data-view="viewPurchases" data-action="openPurchasesInvoices">
-              <i class="bi bi-box-arrow-in-down"></i>
-              <span>Ingresos</span>
-            </button>
-            <button type="button" class="nav-sub-btn" data-view="viewPurchases" data-action="openPurchasesSuppliers">
-              <i class="bi bi-building"></i>
-              <span>Proveedores</span>
-            </button>
-            <button type="button" class="nav-sub-btn" data-view="viewPurchases" data-action="openPurchasesExchanges">
-              <i class="bi bi-arrow-repeat"></i>
-              <span>Canjes</span>
-            </button>
-          </div>
-        </div>
+        <!-- Módulo 6: Compras (Ingresos y Proveedores) -->
+        <button type="button" class="nav-tab-btn" data-view="viewPurchases" data-roles="admin,qf">
+          <span class="tab-icon"><i class="bi bi-truck"></i></span>
+          <span class="tab-label">Compras</span>
+        </button>
 
-        <!-- Módulo 7: DIGEMID (Plegable) -->
-        <div class="nav-module-group" data-module="digemid" data-roles="qf,admin,tech,cashier">
-          <button type="button" class="nav-module-header">
-            <span class="nav-module-title">
-              <span class="tab-icon"><i class="bi bi-file-earmark-medical"></i></span>
-              <span>DIGEMID</span>
-            </span>
-            <i class="bi bi-chevron-down nav-chevron"></i>
-          </button>
-          <div class="nav-submodules">
-            <button type="button" class="nav-sub-btn" data-view="viewDigemid">
-              <i class="bi bi-journal-medical"></i>
-              <span>Recetas</span>
-              <span class="tab-kbd-hint" style="margin-left: auto;">F4</span>
-            </button>
-            <button type="button" class="nav-sub-btn" data-action="openVault">
-              <i class="bi bi-shield-lock"></i>
-              <span>Bóveda</span>
-            </button>
-            <button type="button" class="nav-sub-btn" data-action="openDigemidBalance">
-              <i class="bi bi-printer"></i>
-              <span>Balances</span>
-            </button>
-          </div>
-        </div>
+        <!-- Módulo 7: Clientes (Padrón y Puntos) -->
+        <button type="button" class="nav-tab-btn" data-view="viewClients" data-roles="all">
+          <span class="tab-icon"><i class="bi bi-people"></i></span>
+          <span class="tab-label">Clientes</span>
+        </button>
 
-        <!-- Módulo 8: Reportes (Plegable) -->
-        <div class="nav-module-group" data-module="reports" data-roles="admin,qf">
-          <button type="button" class="nav-module-header">
-            <span class="nav-module-title">
-              <span class="tab-icon"><i class="bi bi-graph-up-arrow"></i></span>
-              <span>Reportes</span>
-            </span>
-            <i class="bi bi-chevron-down nav-chevron"></i>
-          </button>
-          <div class="nav-submodules">
-            <button type="button" class="nav-sub-btn" data-action="openAccountantReport">
-              <i class="bi bi-file-spreadsheet"></i>
-              <span>Contador</span>
-            </button>
-            <button type="button" class="nav-sub-btn" data-action="openRestockReport">
-              <i class="bi bi-cart-check"></i>
-              <span>Reposición</span>
-            </button>
-          </div>
-        </div>
+        <!-- Módulo 8: DIGEMID (Controlados y Recetas) -->
+        <button type="button" class="nav-tab-btn" data-view="viewDigemid" data-roles="qf,admin,tech,cashier">
+          <span class="tab-icon"><i class="bi bi-file-earmark-medical"></i></span>
+          <span class="tab-label">DIGEMID</span>
+          <span class="tab-kbd-hint">F4</span>
+        </button>
 
-        <!-- Módulo 9: Ajustes (Plegable) -->
-        <div class="nav-module-group" data-module="settings" data-roles="admin">
-          <button type="button" class="nav-module-header">
-            <span class="nav-module-title">
-              <span class="tab-icon"><i class="bi bi-gear"></i></span>
-              <span>Ajustes</span>
-            </span>
-            <i class="bi bi-chevron-down nav-chevron"></i>
-          </button>
-          <div class="nav-submodules">
-            <button type="button" class="nav-sub-btn" data-action="openSettingsBotica">
-              <i class="bi bi-shop"></i>
-              <span>Botica</span>
-            </button>
-            <button type="button" class="nav-sub-btn" data-action="openSettingsSunat">
-              <i class="bi bi-shield-check"></i>
-              <span>SUNAT</span>
-            </button>
-            <button type="button" class="nav-sub-btn" data-view="viewStaff">
-              <i class="bi bi-people"></i>
-              <span>Personal</span>
-            </button>
-            <button type="button" class="nav-sub-btn" data-action="downloadBackup">
-              <i class="bi bi-database-down"></i>
-              <span>Backups</span>
-            </button>
-          </div>
-        </div>
+        <!-- Módulo 9: Personal (Usuarios, Roles y Turnos) -->
+        <button type="button" class="nav-tab-btn" data-view="viewStaff" data-roles="admin">
+          <span class="tab-icon"><i class="bi bi-person-badge"></i></span>
+          <span class="tab-label">Personal</span>
+        </button>
       </div>
 
       <!-- Pie del Sidebar: Perfil del Usuario Activo & Cerrar Sesión -->
@@ -400,6 +225,11 @@
       <!-- Header Superior Compacto & Ejecutivo -->
       <header class="app-top-bar">
         <div class="top-bar-left">
+          <!-- Botón Menú Hamburguesa para Pantallas Reducidas, Tablets y Celulares -->
+          <button type="button" class="btn-sidebar-toggle" id="btnSidebarOpen" aria-label="Abrir Menú de Navegación" title="Menú Principal">
+            <i class="bi bi-list"></i>
+          </button>
+
           <!-- Indicador de Comunicación en Vivo (Frontend ↔ Backend ↔ PostgreSQL) -->
           <div id="liveApiStatusBadge" class="valetec-live-badge online">
             <span class="dot"></span>
@@ -426,9 +256,9 @@
             <i class="bi bi-moon-stars" id="themeToggleIcon"></i> <span id="themeToggleText">Modo Oscuro</span>
           </button>
 
-          <!-- Botón Configuración de Empresa (Admin) -->
-          <button type="button" class="btn-shortcuts-modal" id="btnOpenSettingsHeader" title="Configuraciones Generales de la Empresa [Admin]">
-            <i class="bi bi-gear"></i> <span>Empresa</span>
+          <!-- Botón Configuración y Ajustes del Sistema (Admin) -->
+          <button type="button" class="btn-shortcuts-modal" id="btnOpenSettingsHeader" title="Configuración y Ajustes del Sistema [Admin]">
+            <i class="bi bi-gear"></i> <span>Ajustes</span>
           </button>
 
           <!-- Botón de Atajos -->
@@ -1307,19 +1137,19 @@
             </div>
 
             <div class="table-responsive" style="border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px; overflow-x: auto;">
-              <table class="valetec-data-table" style="width: 100%; font-size: 12px; border-collapse: collapse;">
+              <table class="valetec-data-table dense" style="width: 100%; border-collapse: collapse;">
                 <thead>
                   <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
-                    <th style="padding: 10px 12px; text-align: left;">Fecha Ingreso</th>
-                    <th style="padding: 10px 12px; text-align: left;">N° Comprobante</th>
-                    <th style="padding: 10px 12px; text-align: left;">Droguería Proveedora (RUC)</th>
-                    <th style="padding: 10px 12px; text-align: left;">Lotes & Fármacos Recibidos</th>
-                    <th style="padding: 10px 12px; text-align: left;">Condición</th>
-                    <th style="padding: 10px 12px; text-align: right;">Subtotal</th>
-                    <th style="padding: 10px 12px; text-align: right;">IGV (18%)</th>
-                    <th style="padding: 10px 12px; text-align: right;">Total Factura</th>
-                    <th style="padding: 10px 12px; text-align: center;">Estado</th>
-                    <th style="padding: 10px 12px; text-align: right;">Acciones</th>
+                    <th style="text-align: left; white-space: nowrap;">Fecha</th>
+                    <th style="text-align: left; white-space: nowrap;">Comprobante</th>
+                    <th style="text-align: left;">Droguería / RUC</th>
+                    <th style="text-align: left;">Fármacos y Lotes</th>
+                    <th style="text-align: left; white-space: nowrap;">Condición</th>
+                    <th style="text-align: right; white-space: nowrap;">Subtotal</th>
+                    <th style="text-align: right; white-space: nowrap;">IGV</th>
+                    <th style="text-align: right; white-space: nowrap;">Total</th>
+                    <th style="text-align: center; white-space: nowrap;">Estado</th>
+                    <th style="text-align: right; white-space: nowrap;">Acción</th>
                   </tr>
                 </thead>
                 <tbody id="purchasesInvoicesTableBody">
@@ -1368,19 +1198,19 @@
               </button>
             </div>
 
-            <div class="table-responsive" style="border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px;">
-              <table class="valetec-data-table" style="width: 100%; font-size: 12px; border-collapse: collapse;">
+            <div class="table-responsive" style="border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px; overflow-x: auto;">
+              <table class="valetec-data-table dense" style="width: 100%; border-collapse: collapse;">
                 <thead>
                   <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
-                    <th style="padding: 10px 12px; text-align: left;">Medicamento & Concentración</th>
-                    <th style="padding: 10px 12px; text-align: left;">Droguería / Laboratorio</th>
-                    <th style="padding: 10px 12px; text-align: left;">N° Lote</th>
-                    <th style="padding: 10px 12px; text-align: left;">Vencimiento</th>
-                    <th style="padding: 10px 12px; text-align: center;">Días Restantes</th>
-                    <th style="padding: 10px 12px; text-align: right;">Cajas a Canjear</th>
-                    <th style="padding: 10px 12px; text-align: right;">Valor Estimado</th>
-                    <th style="padding: 10px 12px; text-align: center;">Estado Trámite</th>
-                    <th style="padding: 10px 12px; text-align: right;">Acciones</th>
+                    <th style="text-align: left;">Medicamento</th>
+                    <th style="text-align: left;">Droguería</th>
+                    <th style="text-align: left; white-space: nowrap;">Lote</th>
+                    <th style="text-align: left; white-space: nowrap;">Vcto.</th>
+                    <th style="text-align: center; white-space: nowrap;">Días</th>
+                    <th style="text-align: right; white-space: nowrap;">Cajas</th>
+                    <th style="text-align: right; white-space: nowrap;">Valor</th>
+                    <th style="text-align: center; white-space: nowrap;">Estado</th>
+                    <th style="text-align: right; white-space: nowrap;">Acción</th>
                   </tr>
                 </thead>
                 <tbody id="purchasesExchangesTableBody">
@@ -1721,13 +1551,6 @@
               <p class="view-subheading">Reporte contable tributario para SUNAT, sugerido inteligente de reposición a droguerías y auditoría de rentabilidad en vivo.</p>
             </div>
             <div class="header-actions-group">
-              <button type="button" class="btn-action-outline" id="btnOpenSettingsFromMgmt" onclick="settingsApp.openModal()">
-                <i class="bi bi-gear"></i> <span>Configuración</span>
-              </button>
-              <button type="button" class="btn-action-solid" id="btnDownloadBackupMgmt">
-                <i class="bi bi-database-down"></i> <span>Descargar Backup BD</span>
-              </button>
-
               <span class="live-stream-badge"><span class="status-dot free pulse"></span> Nube Activa</span>
             </div>
           </div>

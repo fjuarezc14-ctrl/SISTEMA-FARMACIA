@@ -677,19 +677,6 @@ class AuthManager {
 
       if (this.loginScreen) this.loginScreen.classList.add('d-none');
       if (this.appScreen) this.appScreen.classList.remove('d-none');
-
-      const roleSelect = document.getElementById('appRoleSelector');
-      if (roleSelect) {
-        roleSelect.value = res.user.roleKey;
-        roleSelect.disabled = (res.user.roleKey !== 'admin');
-        const pill = roleSelect.closest('.role-selector-pill');
-        if (pill) {
-          pill.style.opacity = (res.user.roleKey === 'admin') ? '1' : '0.7';
-          pill.title = (res.user.roleKey === 'admin')
-            ? 'Simulador de perfiles activo (Modo Administrador)'
-            : `Rol activo: ${res.user.roleLabel} (Bloqueado por política RBAC)`;
-        }
-      }
       appNav.applyRolePermissions(res.user.roleKey);
 
       // Redirección inmediata al Dashboard / Mostrador para evitar pantalla en blanco
@@ -727,19 +714,6 @@ class AuthManager {
         window.currentUser = user;
         if (this.loginScreen) this.loginScreen.classList.add('d-none');
         if (this.appScreen) this.appScreen.classList.remove('d-none');
-
-        const roleSelect = document.getElementById('appRoleSelector');
-        if (roleSelect) {
-          roleSelect.value = user.roleKey;
-          roleSelect.disabled = (user.roleKey !== 'admin');
-          const pill = roleSelect.closest('.role-selector-pill');
-          if (pill) {
-            pill.style.opacity = (user.roleKey === 'admin') ? '1' : '0.7';
-            pill.title = (user.roleKey === 'admin')
-              ? 'Simulador de perfiles activo (Modo Administrador)'
-              : `Rol activo: ${user.roleLabel} (Bloqueado por política RBAC)`;
-          }
-        }
         appNav.applyRolePermissions(user.roleKey);
 
         // Redirección inmediata al Dashboard o Mostrador
@@ -864,17 +838,20 @@ class NavigationController {
   constructor() {
     this.tabs = document.querySelectorAll('.nav-tab-btn');
     this.views = document.querySelectorAll('.app-view-panel');
-    this.roleSelect = document.getElementById('appRoleSelector');
-    this.currentRole = this.roleSelect?.value || 'admin';
-    this.currentViewId = 'viewManagement';
+    let savedRole = 'admin';
+    try {
+      const savedUser = JSON.parse(localStorage.getItem('valetec_user') || 'null');
+      if (savedUser && savedUser.roleKey) savedRole = savedUser.roleKey;
+    } catch (e) {}
+
+    this.currentRole = savedRole;
+    this.currentViewId = (savedRole === 'cashier') ? 'viewCounter' : 'viewManagement';
 
     this.initSidebarState();
     this.initEvents();
     this.startClock();
 
-    if (this.roleSelect) {
-      this.applyRolePermissions(this.currentRole);
-    }
+    this.applyRolePermissions(this.currentRole);
 
     // Asegurar que la vista inicial quede inmediatamente activa en el DOM
     this.navigateTo(this.currentViewId);
@@ -948,14 +925,10 @@ class NavigationController {
       });
     });
 
-    if (this.roleSelect) {
-      this.roleSelect.addEventListener('change', (e) => {
-        this.currentRole = e.target.value;
-        this.applyRolePermissions(this.currentRole);
-      });
-    }
+
 
     const btnSidebarClose = document.getElementById('btnSidebarClose');
+    const btnSidebarOpen = document.getElementById('btnSidebarOpen');
     const navBar = document.getElementById('appNavBar');
     const backdrop = document.getElementById('sidebarBackdrop');
 
@@ -975,6 +948,10 @@ class NavigationController {
         else backdrop?.classList.remove('active');
       }
     };
+    if (btnSidebarOpen) btnSidebarOpen.addEventListener('click', (e) => {
+      if (e && e.preventDefault) e.preventDefault();
+      toggleSidebar(true);
+    });
     if (btnSidebarClose) btnSidebarClose.addEventListener('click', (e) => {
       if (e && e.preventDefault) e.preventDefault();
       toggleSidebar(false);
@@ -1106,7 +1083,10 @@ class NavigationController {
 
     document.querySelectorAll('.nav-tab-btn').forEach(tab => {
       const viewId = tab.dataset.view;
-      if (!viewId || profile.allowedViews.includes(viewId)) {
+      const roles = tab.dataset.roles;
+      const roleAllowed = !roles || roles === 'all' || roles.split(',').includes(roleKey) || roleKey === 'admin';
+      const viewAllowed = !viewId || profile.allowedViews.includes(viewId);
+      if (roleAllowed && viewAllowed) {
         tab.classList.remove('d-none');
         tab.removeAttribute('disabled');
       } else {
@@ -1289,7 +1269,7 @@ class NavigationController {
         if (typeof window.settingsApp !== 'undefined' && window.settingsApp) {
           window.settingsApp.openModal('backups');
         } else {
-          document.getElementById('btnDownloadBackupMgmt')?.click();
+          document.getElementById('btnOpenSettingsHeader')?.click();
         }
         break;
       default:
@@ -1353,6 +1333,9 @@ class NavigationController {
 
     this.views.forEach(v => v.classList.remove('active'));
     targetElement.classList.add('active');
+    try {
+      targetElement.querySelectorAll('.table-responsive').forEach(el => { el.scrollLeft = 0; });
+    } catch (_) {}
 
     document.querySelectorAll('.nav-tab-btn').forEach(t => {
       if (t.dataset.view === viewId) {
@@ -8738,9 +8721,21 @@ class PurchasesModule {
     if (tabSup) tabSup.classList.toggle('active', tab === 'suppliers');
     if (tabExc) tabExc.classList.toggle('active', tab === 'exchanges');
 
-    if (paneInv) paneInv.style.display = (tab === 'invoices') ? 'block' : 'none';
+    if (paneInv) {
+      paneInv.style.display = (tab === 'invoices') ? 'block' : 'none';
+      if (tab === 'invoices') {
+        const resp = paneInv.querySelector('.table-responsive');
+        if (resp) resp.scrollLeft = 0;
+      }
+    }
     if (paneSup) paneSup.style.display = (tab === 'suppliers') ? 'block' : 'none';
-    if (paneExc) paneExc.style.display = (tab === 'exchanges') ? 'block' : 'none';
+    if (paneExc) {
+      paneExc.style.display = (tab === 'exchanges') ? 'block' : 'none';
+      if (tab === 'exchanges') {
+        const resp = paneExc.querySelector('.table-responsive');
+        if (resp) resp.scrollLeft = 0;
+      }
+    }
   }
 
   onInvoicesSearch(val) {
@@ -8788,56 +8783,56 @@ class PurchasesModule {
 
     tbody.innerHTML = filtered.map(inv => {
       const itemsSummary = (inv.items || []).map(it => `
-        <span style="display: block; font-size: 11.5px;">
+        <span style="display: block; font-size: 11px; line-height: 1.3;">
           <strong>${it.boxes} cj.</strong> ${escHtml(it.prodName)} 
-          <code style="background: #f1f5f9; padding: 1px 4px; border-radius: 4px; font-size: 10px;">${escHtml(it.lot || '')}</code>
+          <code style="background: #f1f5f9; padding: 1px 4px; border-radius: 4px; font-size: 9.5px;">${escHtml(it.lot || '')}</code>
         </span>
       `).join('');
 
       const conditionBadge = inv.condition.includes('Contado')
-        ? '<span class="badge" style="background: #ecfdf5; color: #047857; font-weight: 700; border: 1px solid #a7f3d0; padding: 3px 6px; border-radius: 4px; font-size: 11px;">Contado</span>'
-        : `<span class="badge" style="background: #eff6ff; color: #1d4ed8; font-weight: 700; border: 1px solid #bfdbfe; padding: 3px 6px; border-radius: 4px; font-size: 11px;">${escHtml(inv.condition)}</span>`;
+        ? '<span class="badge" style="background: #ecfdf5; color: #047857; font-weight: 700; border: 1px solid #a7f3d0; padding: 2px 5px; border-radius: 4px; font-size: 10.5px;">Contado</span>'
+        : `<span class="badge" style="background: #eff6ff; color: #1d4ed8; font-weight: 700; border: 1px solid #bfdbfe; padding: 2px 5px; border-radius: 4px; font-size: 10.5px;">${escHtml(inv.condition)}</span>`;
 
       const paymentBadge = inv.paymentStatus === 'Pagado'
-        ? '<span class="badge" style="background: #ecfdf5; color: #065f46; font-size: 10.5px; padding: 2px 6px; border-radius: 4px; font-weight: 700;"><i class="bi bi-check2"></i> Pagado</span>'
-        : `<span class="badge" style="background: #fffbeb; color: #b45309; font-size: 10.5px; padding: 2px 6px; border-radius: 4px; font-weight: 700;"><i class="bi bi-clock"></i> Vcto: ${escHtml(inv.dueDate || '30d')}</span>`;
+        ? '<span class="badge" style="background: #ecfdf5; color: #065f46; font-size: 10px; padding: 1px 5px; border-radius: 4px; font-weight: 700;"><i class="bi bi-check2"></i> Pagado</span>'
+        : `<span class="badge" style="background: #fffbeb; color: #b45309; font-size: 10px; padding: 1px 5px; border-radius: 4px; font-weight: 700;"><i class="bi bi-clock"></i> ${escHtml(inv.dueDate || '30d')}</span>`;
 
       return `
         <tr style="border-bottom: 1px solid #e2e8f0;">
-          <td style="padding: 10px 12px; font-size: 12px; color: #475569;">
-            <i class="bi bi-calendar3" style="color: #94a3b8; margin-right: 4px;"></i>${escHtml(inv.date)}
+          <td style="white-space: nowrap; color: #475569;">
+            <i class="bi bi-calendar3" style="color: #94a3b8; margin-right: 3px;"></i>${escHtml(inv.date)}
           </td>
-          <td style="padding: 10px 12px; font-weight: 800; color: #0f172a; font-family: monospace; font-size: 13px;">
+          <td style="font-weight: 800; color: #0f172a; font-family: monospace; font-size: 12px; white-space: nowrap;">
             ${escHtml(inv.invoiceNum)}
           </td>
-          <td style="padding: 10px 12px;">
-            <strong style="color: #0a2540; font-size: 12.5px; display: block;">${escHtml(inv.supplierName)}</strong>
-            <small style="color: #64748b; font-family: monospace; font-size: 11px;">RUC: ${escHtml(inv.supplierRuc || '20601234567')}</small>
+          <td style="min-width: 140px;">
+            <strong style="color: #0a2540; font-size: 11.5px; display: block; line-height: 1.2;">${escHtml(inv.supplierName)}</strong>
+            <small style="color: #64748b; font-family: monospace; font-size: 10px;">RUC: ${escHtml(inv.supplierRuc || '20601234567')}</small>
           </td>
-          <td style="padding: 10px 12px;">
+          <td>
             ${itemsSummary}
           </td>
-          <td style="padding: 10px 12px;">
+          <td style="white-space: nowrap;">
             ${conditionBadge}
-            <div style="margin-top: 4px;">${paymentBadge}</div>
+            <div style="margin-top: 3px;">${paymentBadge}</div>
           </td>
-          <td style="padding: 10px 12px; text-align: right; color: #64748b; font-size: 12px;">
+          <td style="text-align: right; color: #64748b; white-space: nowrap;">
             S/ ${(inv.subtotal || 0).toFixed(2)}
           </td>
-          <td style="padding: 10px 12px; text-align: right; color: #64748b; font-size: 12px;">
+          <td style="text-align: right; color: #64748b; white-space: nowrap;">
             S/ ${(inv.igv || 0).toFixed(2)}
           </td>
-          <td style="padding: 10px 12px; text-align: right; font-weight: 800; color: #0d9488; font-size: 13px;">
+          <td style="text-align: right; font-weight: 800; color: #0d9488; font-size: 12px; white-space: nowrap;">
             S/ ${(inv.total || 0).toFixed(2)}
           </td>
-          <td style="padding: 10px 12px; text-align: center;">
-            <span class="badge" style="background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; font-size: 11px; padding: 3px 8px; border-radius: 12px; font-weight: 700;">
+          <td style="text-align: center; white-space: nowrap;">
+            <span class="badge" style="background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: 700;">
               <i class="bi bi-check-circle"></i> ${escHtml(inv.status)}
             </span>
           </td>
-          <td style="padding: 10px 12px; text-align: right; white-space: nowrap;">
-            <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11px; font-weight: 700;" onclick="purchasesApp.viewInvoiceDetail('${inv.invoiceNum}')" title="Ver detalle de factura y lotes ingresados">
-              <i class="bi bi-eye"></i> <span>Ver Factura</span>
+          <td style="text-align: right; white-space: nowrap;">
+            <button type="button" class="btn-action-outline" style="padding: 3px 6px; font-size: 11px; font-weight: 700;" onclick="purchasesApp.viewInvoiceDetail('${inv.invoiceNum}')" title="Ver detalle de factura y lotes ingresados">
+              <i class="bi bi-eye"></i> <span>Ver</span>
             </button>
           </td>
         </tr>
@@ -8945,34 +8940,34 @@ class PurchasesModule {
 
       return `
         <tr style="border-bottom: 1px solid #e2e8f0;">
-          <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">
+          <td style="font-weight: 700; color: #0f172a; font-size: 11.5px;">
             ${escHtml(exc.prodName)}
-            <small style="display: block; color: #64748b; font-weight: 500; font-size: 11px;">${escHtml(exc.reason || 'Canje normativo')}</small>
+            <small style="display: block; color: #64748b; font-weight: 500; font-size: 10.5px;">${escHtml(exc.reason || 'Canje normativo')}</small>
           </td>
-          <td style="padding: 10px 12px; color: #334155; font-size: 12px;">
+          <td style="color: #334155; font-size: 11.5px;">
             ${escHtml(exc.supplierName)}
           </td>
-          <td style="padding: 10px 12px; font-family: monospace; font-weight: 700;">
+          <td style="font-family: monospace; font-weight: 700; font-size: 11px;">
             <code>${escHtml(exc.lot)}</code>
           </td>
-          <td style="padding: 10px 12px; font-size: 12px;">
+          <td style="font-size: 11.5px; white-space: nowrap;">
             ${escHtml(exc.exp)}
           </td>
-          <td style="padding: 10px 12px; text-align: center;">
+          <td style="text-align: center; white-space: nowrap;">
             ${daysChip}
           </td>
-          <td style="padding: 10px 12px; text-align: right; font-weight: 800; color: #b45309;">
+          <td style="text-align: right; font-weight: 800; color: #b45309; font-size: 11.5px; white-space: nowrap;">
             ${exc.boxes} cj.
           </td>
-          <td style="padding: 10px 12px; text-align: right; font-weight: 800; color: #0f172a;">
+          <td style="text-align: right; font-weight: 800; color: #0f172a; font-size: 11.5px; white-space: nowrap;">
             S/ ${(exc.estimatedValue || 0).toFixed(2)}
           </td>
-          <td style="padding: 10px 12px; text-align: center;">
-            <span class="badge" style="background: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 11px; padding: 3px 8px; border-radius: 12px; font-weight: 700;">
+          <td style="text-align: center; white-space: nowrap;">
+            <span class="badge" style="background: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: 700;">
               ${escHtml(exc.status)}
             </span>
           </td>
-          <td style="padding: 10px 12px; text-align: right; white-space: nowrap;">
+          <td style="text-align: right; white-space: nowrap;">
             <button type="button" class="btn-action-outline" style="padding: 3px 6px; font-size: 11px; margin-right: 4px;" onclick="purchasesApp.printExchangeLetter(${exc.id})" title="Imprimir Acta de Retiro / Carta de Canje">
               <i class="bi bi-printer"></i>
             </button>
