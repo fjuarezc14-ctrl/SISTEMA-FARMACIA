@@ -266,6 +266,424 @@ window.printThermalElement = printThermalElement;
 
 /**
  * =============================================================
+ * IMPRESIÓN A4 AISLADA PARA CARTAS, ACTAS Y REPORTES OFICIALES
+ * =============================================================
+ * Genera un iframe desacoplado en formato estándar A4 (210 x 297 mm)
+ * con tipografía corporativa y estilos independientes del DOM SPA.
+ */
+function printA4Document(elementOrHtml, docTitle = 'Carta_Canje_Valetec') {
+  if (!elementOrHtml) {
+    window.print();
+    return;
+  }
+  const htmlContent = typeof elementOrHtml === 'string' ? elementOrHtml : elementOrHtml.outerHTML;
+
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.style.visibility = 'hidden';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow.document;
+  doc.open();
+  doc.write(`
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <title>${escHtml(docTitle)}</title>
+      <style>
+        @page {
+          size: A4 portrait;
+          margin: 14mm 16mm 14mm 16mm;
+        }
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        body {
+          font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+          color: #1e293b;
+          background: #ffffff;
+          font-size: 11.5px;
+          line-height: 1.45;
+          padding: 6px 0;
+        }
+        .a4-container {
+          width: 100%;
+          max-width: 180mm;
+          margin: 0 auto;
+        }
+        .a4-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          border-bottom: 2.5px solid #0f766e;
+          padding-bottom: 12px;
+          margin-bottom: 16px;
+        }
+        .a4-brand-title {
+          font-size: 17px;
+          font-weight: 800;
+          color: #0f766e;
+          letter-spacing: 0.5px;
+          text-transform: uppercase;
+        }
+        .a4-brand-sub {
+          font-size: 11px;
+          color: #334155;
+          font-weight: 600;
+          margin-top: 2px;
+        }
+        .a4-brand-details {
+          font-size: 10px;
+          color: #64748b;
+          line-height: 1.4;
+          margin-top: 4px;
+        }
+        .a4-doc-meta {
+          text-align: right;
+          font-size: 11px;
+        }
+        .a4-doc-badge {
+          display: inline-block;
+          background: #f1f5f9;
+          border: 1px solid #cbd5e1;
+          color: #0f172a;
+          font-weight: 700;
+          padding: 4px 10px;
+          border-radius: 4px;
+          margin-bottom: 4px;
+          font-size: 10.5px;
+        }
+        .a4-title-box {
+          text-align: center;
+          margin: 12px 0 16px 0;
+          padding: 8px 12px;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+        }
+        .a4-main-title {
+          font-size: 14px;
+          font-weight: 800;
+          color: #0f172a;
+          letter-spacing: 0.3px;
+        }
+        .a4-main-subtitle {
+          font-size: 10px;
+          color: #64748b;
+          font-weight: 600;
+          margin-top: 2px;
+        }
+        .a4-recipient-box {
+          background: #ffffff;
+          border: 1px solid #cbd5e1;
+          border-radius: 6px;
+          padding: 10px 14px;
+          margin-bottom: 14px;
+          font-size: 11px;
+          line-height: 1.5;
+        }
+        .a4-recipient-row {
+          display: flex;
+          margin-bottom: 3px;
+        }
+        .a4-recipient-row:last-child {
+          margin-bottom: 0;
+        }
+        .a4-label {
+          font-weight: 700;
+          color: #334155;
+          min-width: 120px;
+          font-size: 10.5px;
+        }
+        .a4-val {
+          color: #0f172a;
+        }
+        .a4-body-text {
+          font-size: 11px;
+          line-height: 1.5;
+          color: #334155;
+          margin-bottom: 14px;
+          text-align: justify;
+        }
+        table.a4-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 14px;
+          font-size: 11px;
+        }
+        table.a4-table th {
+          background: #0f766e;
+          color: #ffffff;
+          padding: 7px 8px;
+          text-align: left;
+          font-weight: 700;
+          border: 1px solid #0f766e;
+          font-size: 10.5px;
+        }
+        table.a4-table td {
+          padding: 7px 8px;
+          border: 1px solid #cbd5e1;
+          color: #1e293b;
+        }
+        table.a4-table tr:nth-child(even) td {
+          background: #f8fafc;
+        }
+        .a4-notes-box {
+          background: #fffbeb;
+          border: 1px solid #fde68a;
+          border-left: 4px solid #f59e0b;
+          padding: 8px 12px;
+          border-radius: 4px;
+          font-size: 10.5px;
+          color: #92400e;
+          margin-bottom: 14px;
+          line-height: 1.45;
+        }
+        .a4-legal-notice {
+          font-size: 9.5px;
+          color: #64748b;
+          border-top: 1px solid #e2e8f0;
+          padding-top: 8px;
+          margin-bottom: 24px;
+          line-height: 1.45;
+          text-align: justify;
+        }
+        .a4-signatures {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+          margin-top: 36px;
+          padding: 0 16px;
+        }
+        .a4-sig-block {
+          text-align: center;
+          width: 44%;
+        }
+        .a4-sig-line {
+          border-top: 1px solid #334155;
+          margin-bottom: 6px;
+        }
+        .a4-sig-name {
+          font-weight: 700;
+          font-size: 10.5px;
+          color: #0f172a;
+        }
+        .a4-sig-title {
+          font-size: 9.5px;
+          color: #64748b;
+          line-height: 1.35;
+        }
+        .a4-footer {
+          margin-top: 24px;
+          text-align: center;
+          font-size: 9px;
+          color: #94a3b8;
+          border-top: 1px solid #f1f5f9;
+          padding-top: 6px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="a4-container">
+        ${htmlContent}
+      </div>
+    </body>
+    </html>
+  `);
+  doc.close();
+
+  const triggerPrint = () => {
+    setTimeout(() => {
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      } catch (e) {
+        console.error("Error al imprimir documento A4:", e);
+      } finally {
+        setTimeout(() => {
+          if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        }, 3000);
+      }
+    }, 250);
+  };
+
+  const images = doc.images;
+  let loadedCount = 0;
+  if (!images || images.length === 0) {
+    triggerPrint();
+  } else {
+    for (let i = 0; i < images.length; i++) {
+      if (images[i].complete) {
+        loadedCount++;
+      } else {
+        images[i].onload = images[i].onerror = () => {
+          loadedCount++;
+          if (loadedCount >= images.length) triggerPrint();
+        };
+      }
+    }
+    if (loadedCount >= images.length) triggerPrint();
+  }
+}
+window.printA4Document = printA4Document;
+
+/**
+ * Generador y Renderizador de Carta Formal / Acta Sanitaria de Canje por Vencimiento (BPA/DIGEMID)
+ */
+function generateAndPrintExchangeLetter(data) {
+  if (!data) data = {};
+  const comp = typeof getCompanySettings === 'function' ? getCompanySettings() : {
+    companyName: 'BOTICA VALETEC PHARMA S.A.C.',
+    commercialName: 'VALETEC PHARMA',
+    ruc: '20601234567',
+    address: 'Av. Aviación 2450, San Borja, Lima',
+    phone: '(01) 480-1234',
+    sanitaryLicense: 'AUT-DIGEMID-2026-904',
+    technicalDirector: 'Q.F. Carlos Mendoza Paredes (C.Q.F.P. 14208)'
+  };
+
+  const medName = data.prodName || data.productName || 'Medicamento No Especificado';
+  const supp = data.supplierName || data.supplier || 'Droguería Proveedora';
+  const lot = data.lot || data.lotCode || 'S/L';
+  const exp = data.exp || data.expireDate || 'No especificado';
+  const qty = data.boxes || data.quantity || 1;
+  const reason = data.reason || 'Próximo Vencimiento por Baja Rotación (< 90 días)';
+  const notes = data.notes || 'Lote retirado del mostrador y en custodia en gaveta de cuarentena de Regencia Farmacéutica.';
+  const estValue = data.estimatedValue ? `S/ ${parseFloat(data.estimatedValue).toFixed(2)}` : null;
+
+  const today = new Date();
+  const formattedDate = today.toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' });
+  const formattedTime = today.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+  const docCode = `ACTA-CANJE-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}-${String(Math.floor(1000 + Math.random() * 9000))}`;
+
+  const letterHtml = `
+    <div class="a4-header">
+      <div>
+        <div class="a4-brand-title">${escHtml(comp.commercialName || comp.companyName)}</div>
+        <div class="a4-brand-sub">${escHtml(comp.companyName)} • RUC ${escHtml(comp.ruc)}</div>
+        <div class="a4-brand-details">
+          ${escHtml(comp.address)}<br>
+          Telf: ${escHtml(comp.phone || '—')} | Aut. Sanitaria: ${escHtml(comp.sanitaryLicense || 'REG-DIGEMID')}<br>
+          Regente Técnico: ${escHtml(comp.technicalDirector || 'Dirección Técnica Q.F.')}
+        </div>
+      </div>
+      <div class="a4-doc-meta">
+        <div class="a4-doc-badge">ACTA SANITARIA DE CANJE</div>
+        <div style="font-weight: 800; color: #0f172a; margin-top: 4px; font-family: monospace; font-size: 12px;">${escHtml(docCode)}</div>
+        <div style="color: #64748b; font-size: 10px; margin-top: 2px;">Fecha: ${escHtml(formattedDate)} • ${escHtml(formattedTime)}</div>
+      </div>
+    </div>
+
+    <div class="a4-title-box">
+      <div class="a4-main-title">SOLICITUD FORMAL Y ACTA DE CANJE DE MEDICAMENTOS POR VENCIMIENTO</div>
+      <div class="a4-main-subtitle">CONFORME A MANUAL DE BUENAS PRÁCTICAS DE ALMACENAMIENTO (R.M. 132-2015/MINSA) Y REGULACIÓN DIGEMID</div>
+    </div>
+
+    <div class="a4-recipient-box">
+      <div class="a4-recipient-row">
+        <span class="a4-label">DIRIGIDO A:</span>
+        <span class="a4-val"><strong>${escHtml(supp)}</strong></span>
+      </div>
+      <div class="a4-recipient-row">
+        <span class="a4-label">ATENCIÓN:</span>
+        <span class="a4-val">Área de Devoluciones, Canjes y Aseguramiento de la Calidad</span>
+      </div>
+      <div class="a4-recipient-row">
+        <span class="a4-label">SOLICITANTE:</span>
+        <span class="a4-val">${escHtml(comp.companyName)} (RUC: ${escHtml(comp.ruc)})</span>
+      </div>
+      <div class="a4-recipient-row">
+        <span class="a4-label">PUNTO DE ENTREGA:</span>
+        <span class="a4-val">${escHtml(comp.address)}</span>
+      </div>
+      <div class="a4-recipient-row">
+        <span class="a4-label">DIR. TÉCNICA:</span>
+        <span class="a4-val">${escHtml(comp.technicalDirector || 'Químico Farmacéutico Regente')}</span>
+      </div>
+    </div>
+
+    <div class="a4-body-text">
+      Por medio de la presente, nos dirigimos a ustedes en cumplimiento de los estándares de garantía de calidad y normativas sanitarias vigentes del Ministerio de Salud (MINSA / DIGEMID) y los acuerdos comerciales pactados. Solicitamos formalmente el <strong>canje físico y/o reposición mediante Nota de Crédito</strong> de los productos farmacéuticos detallados a continuación, retirados oportunamente de nuestros anaqueles de dispensación por trazabilidad FEFO:
+    </div>
+
+    <table class="a4-table">
+      <thead>
+        <tr>
+          <th style="width: 5%; text-align: center;">ÍTEM</th>
+          <th style="width: 38%;">PRODUCTO FARMACÉUTICO / FORMA</th>
+          <th style="width: 15%; text-align: center;">LOTE</th>
+          <th style="width: 14%; text-align: center;">VENCIMIENTO</th>
+          <th style="width: 12%; text-align: center;">CANTIDAD</th>
+          ${estValue ? '<th style="width: 16%; text-align: right;">VALOR ESTIM.</th>' : ''}
+          <th style="width: ${estValue ? '15%' : '16%'};">MOTIVO SANITARIO</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="text-align: center; font-weight: 700;">01</td>
+          <td><strong>${escHtml(medName)}</strong></td>
+          <td style="text-align: center; font-family: monospace; font-weight: 700;">${escHtml(lot)}</td>
+          <td style="text-align: center;">${escHtml(exp)}</td>
+          <td style="text-align: center; font-weight: 800; color: #b45309; font-size: 12.5px;">${escHtml(qty)} CJ</td>
+          ${estValue ? `<td style="text-align: right; font-weight: 700;">${escHtml(estValue)}</td>` : ''}
+          <td>${escHtml(reason)}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    ${notes ? `
+      <div class="a4-notes-box">
+        <strong>OBSERVACIONES Y CONDICIONES DE RECOJO / CUSTODIA:</strong><br>
+        ${escHtml(notes)}
+      </div>
+    ` : ''}
+
+    <div class="a4-legal-notice">
+      <strong>BASE NORMATIVA Y PROTOCOLO SANITARIO DE RETIRO:</strong><br>
+      1. Los productos referidos se encuentran custodiados bajo condiciones controladas de temperatura y humedad en el Área de Cuarentena / Devoluciones del establecimiento, de acuerdo a la R.M. 132-2015/MINSA (BPA).<br>
+      2. Toda reposición física deberá ampararse con la correspondiente Guía de Remisión y Certificado de Análisis (Protocolo de Calidad) del nuevo lote, o en su defecto Nota de Crédito electrónica SUNAT.<br>
+      3. El plazo coordinado para el retiro físico no deberá exceder la fecha límite acordada para prevenir merma o descarte definitivo del producto.
+    </div>
+
+    <div class="a4-signatures">
+      <div class="a4-sig-block">
+        <div class="a4-sig-line"></div>
+        <div class="a4-sig-name">${escHtml(comp.technicalDirector || 'Dirección Técnica')}</div>
+        <div class="a4-sig-title">Químico Farmacéutico - Regente Técnico<br>${escHtml(comp.companyName)}</div>
+      </div>
+
+      <div class="a4-sig-block">
+        <div class="a4-sig-line"></div>
+        <div class="a4-sig-name">Recepción Droguería / Transportista</div>
+        <div class="a4-sig-title">Firma, DNI y Sello de Conformidad<br>Fecha de Recepción: _____ / _____ / 202___</div>
+      </div>
+    </div>
+
+    <div class="a4-footer">
+      Documento emitido electrónicamente por el Sistema de Gestión Farmacéutica Valetec Pharma • Copia 1: Droguería Proveedora / Copia 2: Archivo de Regencia Farmacéutica
+    </div>
+  `;
+
+  const cleanFileLot = String(lot).replace(/[^a-zA-Z0-9_-]/g, '_');
+  const cleanFileName = String(medName).replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 30);
+  printA4Document(letterHtml, `Carta_Canje_${cleanFileLot}_${cleanFileName}`);
+  showValetecToast("Generando carta formal de canje para impresión / PDF...", "info");
+}
+window.generateAndPrintExchangeLetter = generateAndPrintExchangeLetter;
+
+
+/**
+ * =============================================================
  * LÓGICA OFICIAL DE FRACCIONAMIENTO DE INVENTARIO VALETEC PHARMA
  * =============================================================
  * Convierte el total de unidades mínimas registradas en Kardex a su descomposición
@@ -5666,7 +6084,24 @@ class WarehouseModule {
       e.preventDefault();
       e.stopPropagation();
     }
-    window.print();
+    const medName = document.getElementById('exchangeProductName')?.value || 'Bio-Amoxil 500mg Cápsulas';
+    const supp = document.getElementById('exchangeSupplier')?.value || 'Droguería Proveedora';
+    const lot = document.getElementById('exchangeLotCode')?.value || 'L-24115';
+    const exp = document.getElementById('exchangeExpireDate')?.value || '15/11/2026';
+    const qty = document.getElementById('exchangeQuantity')?.value || '15';
+    const reasonSel = document.getElementById('exchangeReasonSelect');
+    const reason = reasonSel ? reasonSel.options[reasonSel.selectedIndex]?.text : 'Próximo Vencimiento (< 90 días)';
+    const notes = document.getElementById('exchangeNotes')?.value || 'Lote retirado del mostrador y custodiado en gaveta de cuarentena de Regencia Farmacéutica.';
+
+    generateAndPrintExchangeLetter({
+      prodName: medName,
+      supplierName: supp,
+      lot: lot,
+      exp: exp,
+      boxes: qty,
+      reason: reason,
+      notes: notes
+    });
   }
 
   sendExchangeWhatsApp(e) {
@@ -5679,9 +6114,17 @@ class WarehouseModule {
     const supp = document.getElementById('exchangeSupplier')?.value || 'Droguería Proveedora';
     const qty = document.getElementById('exchangeQuantity')?.value || '15';
     const reason = document.getElementById('exchangeReasonSelect')?.options[document.getElementById('exchangeReasonSelect')?.selectedIndex]?.text || 'Próximo Vencimiento';
+    const comp = typeof getCompanySettings === 'function' ? getCompanySettings() : {
+      companyName: 'BOTICA VALETEC PHARMA S.A.C.',
+      commercialName: 'VALETEC PHARMA',
+      ruc: '20601234567',
+      address: 'Av. Aviación 2450, San Borja, Lima',
+      technicalDirector: 'Q.F. Carlos Mendoza Paredes (C.Q.F.P. 14208)'
+    };
 
     const text = `*SOLICITUD FORMAL DE CANJE POR VENCIMIENTO*\n` +
-      `*VALETEC PHARMA* | RUC: 20601234567\n` +
+      `*${(comp.commercialName || comp.companyName).toUpperCase()}* | RUC: ${comp.ruc}\n` +
+      `Establecimiento: ${comp.companyName}\n` +
       `Fecha: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}\n` +
       `Destinatario: *${supp}*\n\n` +
       `Estimado proveedor, solicitamos el canje formal por rotación conforme a normativa DIGEMID/BPA:\n` +
@@ -5689,8 +6132,8 @@ class WarehouseModule {
       `• *Lote:* ${lot}\n` +
       `• *Cantidad:* ${qty} Cajas\n` +
       `• *Motivo:* ${reason}\n\n` +
-      `Punto de Recojo: Botica Central (Av. Aviación 2450, San Borja, Lima)\n` +
-      `Regente Q.F.: Dra. Elena Vega (CQFP 18492)\n` +
+      `Punto de Recojo: ${comp.address}\n` +
+      `Regente Q.F.: ${comp.technicalDirector}\n` +
       `Agradecemos coordinar con nosotros la fecha de retiro físico y emisión de nota de crédito / reposición.`;
 
     const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
@@ -9357,25 +9800,77 @@ class PurchasesModule {
   }
 
   printExchangeLetter(exchangeId) {
-    window.print();
+    let exc = null;
+    if (exchangeId && Array.isArray(this.exchanges)) {
+      exc = this.exchanges.find(e => e.id === Number(exchangeId) || e.id === exchangeId);
+    }
+    if (!exc) {
+      const medName = document.getElementById('exchangeProductName')?.value;
+      const supp = document.getElementById('exchangeSupplier')?.value;
+      const lot = document.getElementById('exchangeLotCode')?.value;
+      const exp = document.getElementById('exchangeExpireDate')?.value;
+      const qty = document.getElementById('exchangeQuantity')?.value;
+      const reasonSel = document.getElementById('exchangeReasonSelect');
+      const reason = reasonSel ? reasonSel.options[reasonSel.selectedIndex]?.text : '';
+      const notes = document.getElementById('exchangeNotes')?.value;
+      exc = {
+        prodName: medName || 'Bio-Amoxil 500mg Cápsulas',
+        supplierName: supp || 'Droguería Proveedora',
+        lot: lot || 'L-24115',
+        exp: exp || '15/11/2026',
+        boxes: qty || 15,
+        reason: reason || 'Próximo Vencimiento (< 90 días)',
+        notes: notes || 'Lote retirado del mostrador y en custodia en gaveta de cuarentena de Regencia.'
+      };
+    }
+    generateAndPrintExchangeLetter(exc);
   }
 
   sendExchangeWhatsApp(exchangeId) {
-    const exc = this.exchanges.find(e => e.id === exchangeId);
-    if (!exc) return;
+    let exc = null;
+    if (exchangeId && Array.isArray(this.exchanges)) {
+      exc = this.exchanges.find(e => e.id === Number(exchangeId) || e.id === exchangeId);
+    }
+    if (!exc) {
+      const medName = document.getElementById('exchangeProductName')?.value || 'Bio-Amoxil 500mg Cápsulas';
+      const supp = document.getElementById('exchangeSupplier')?.value || 'Droguería Proveedora';
+      const lot = document.getElementById('exchangeLotCode')?.value || 'L-24115';
+      const exp = document.getElementById('exchangeExpireDate')?.value || '15/11/2026';
+      const qty = document.getElementById('exchangeQuantity')?.value || '15';
+      const reasonSel = document.getElementById('exchangeReasonSelect');
+      const reason = reasonSel ? reasonSel.options[reasonSel.selectedIndex]?.text : 'Próximo Vencimiento';
+      exc = {
+        prodName: medName,
+        supplierName: supp,
+        lot: lot,
+        exp: exp,
+        daysRemaining: 60,
+        boxes: qty,
+        reason: reason
+      };
+    }
+
+    const comp = typeof getCompanySettings === 'function' ? getCompanySettings() : {
+      companyName: 'BOTICA VALETEC PHARMA S.A.C.',
+      commercialName: 'VALETEC PHARMA',
+      ruc: '20601234567',
+      address: 'Av. Aviación 2450, San Borja, Lima',
+      technicalDirector: 'Q.F. Carlos Mendoza Paredes (C.Q.F.P. 14208)'
+    };
 
     const text = `*SOLICITUD FORMAL DE CANJE POR VENCIMIENTO*\n` +
-      `*VALETEC PHARMA* | RUC: 20601234567\n` +
+      `*${(comp.commercialName || comp.companyName).toUpperCase()}* | RUC: ${comp.ruc}\n` +
+      `Establecimiento: ${comp.companyName}\n` +
       `Fecha: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}\n` +
       `Destinatario: *${exc.supplierName}*\n\n` +
       `Estimado proveedor, solicitamos el canje formal por rotación conforme a normativa DIGEMID/BPA:\n` +
       `• *Producto:* ${exc.prodName}\n` +
       `• *Lote:* ${exc.lot}\n` +
-      `• *Vencimiento:* ${exc.exp} (${exc.daysRemaining} días restantes)\n` +
+      `• *Vencimiento:* ${exc.exp}${exc.daysRemaining ? ` (${exc.daysRemaining} días restantes)` : ''}\n` +
       `• *Cantidad:* ${exc.boxes} Cajas\n` +
       `• *Motivo:* ${exc.reason}\n\n` +
-      `Punto de Recojo: Botica Central (Av. Aviación 2450, San Borja, Lima)\n` +
-      `Regente Q.F.: Dra. Elena Vega (CQFP 18492)\n` +
+      `Punto de Recojo: ${comp.address}\n` +
+      `Regente Q.F.: ${comp.technicalDirector}\n` +
       `Agradecemos coordinar con nosotros la fecha de retiro físico y emisión de nota de crédito / reposición.`;
 
     const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
@@ -10975,6 +11470,12 @@ window.closeExchangeModal = function (e) {
   if (window.warehouseApp) return window.warehouseApp.closeExchangeModal(e);
   const m = document.getElementById('exchangeModal');
   if (m) m.classList.remove('active');
+};
+window.printExchangeLetter = function (e) {
+  if (window.warehouseApp) return window.warehouseApp.printExchangeLetter(e);
+};
+window.sendExchangeWhatsApp = function (e) {
+  if (window.warehouseApp) return window.warehouseApp.sendExchangeWhatsApp(e);
 };
 window.openNewStaffModal = function (e) {
   if (window.staffApp) return window.staffApp.openNewStaffModal(e);

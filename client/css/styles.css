@@ -5324,13 +5324,6 @@ body.uw-highlight-links input[type="submit"] {
 
 /* Modo Impresión / Generación PDF para Ticketera Térmica 80mm */
 @media print {
-  body * {
-    visibility: hidden !important;
-  }
-  #printableThermalReceipt,
-  #printableThermalReceipt * {
-    visibility: visible !important;
-  }
   #printableThermalReceipt {
     position: absolute !important;
     left: 0 !important;
@@ -5345,10 +5338,6 @@ body.uw-highlight-links input[type="submit"] {
   }
   .modal-backdrop-valetec {
     background: transparent !important;
-  }
-  @page {
-    size: 80mm auto;
-    margin: 0;
   }
 }
 
