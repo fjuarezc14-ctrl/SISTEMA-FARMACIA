@@ -19,8 +19,6 @@ CREATE TABLE IF NOT EXISTS usuarios (
   name VARCHAR(150) NOT NULL,
   email VARCHAR(150) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
-  terminal VARCHAR(50) DEFAULT 'Terminal 01',
-  shift VARCHAR(100) DEFAULT 'Mañana (08:00 - 16:00)',
   permissions TEXT,
   target VARCHAR(100),
   status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'inactive', 'pending')),
@@ -279,5 +277,22 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN 
   NULL;
 END $$;
+
+-- 15. Catálogo de Cajas Registradoras y Terminales POS
+CREATE TABLE IF NOT EXISTS cajas_registradoras (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(50) NOT NULL UNIQUE,
+  description VARCHAR(100),
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO cajas_registradoras (name, description, is_active)
+VALUES 
+  ('Caja 01', 'Mostrador Principal', true),
+  ('Caja 02', 'Turno Noche / Rápida', true)
+ON CONFLICT (name) DO NOTHING;
+
 
 

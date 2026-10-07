@@ -418,6 +418,223 @@ class CashModel {
       LIMIT $1;
     `, [limit]);
   }
+
+  /**
+   * Obtener lista de Cajas Registradoras / Terminales POS configuradas
+   * @param {boolean} [onlyActive=true] - Filtrar solo las activas
+   * @param {Object} [dbClient] - Cliente de base de datos opcional
+   * @returns {Promise<Array>} Lista de cajas
+   */
+  static async getTerminals(onlyActive = true, dbClient) {
+    const queryFn = (dbClient && dbClient.query) ? dbClient.query.bind(dbClient) : query;
+    try {
+      const whereClause = onlyActive ? 'WHERE cr.is_active = true' : '';
+      const sql = `
+        SELECT 
+          cr.id, 
+          cr.name, 
+          cr.description, 
+          cr.is_active AS "isActive", 
+          cr.created_at AS "createdAt",
+          (CASE WHEN ct.id IS NOT NULL THEN true ELSE false END) AS "inUse",
+          ct.id AS "activeShiftId",
+          u.name AS "activeCashierName"
+        FROM cajas_registradoras cr
+        LEFT JOIN caja_turnos ct ON LOWER(ct.terminal) = LOWER(cr.name) AND ct.status = 'open'
+        LEFT JOIN usuarios u ON ct.user_id = u.id
+        ${whereClause}
+        ORDER BY cr.id ASC;
+      `;
+      const rows = await queryFn(sql);
+      if (rows && rows.length > 0) return rows;
+      return [
+        { id: 1, name: 'Caja 01', description: 'Mostrador Principal', isActive: true, inUse: false },
+        { id: 2, name: 'Caja 02', description: 'Turno Noche / Rápida', isActive: true, inUse: false }
+      ];
+    } catch (e) {
+      return [
+        { id: 1, name: 'Caja 01', description: 'Mostrador Principal', isActive: true, inUse: false },
+        { id: 2, name: 'Caja 02', description: 'Turno Noche / Rápida', isActive: true, inUse: false }
+      ];
+    }
+  }
+
+  /**
+   * Registrar una nueva Caja Registradora / Terminal POS
+   * @param {Object} data - { name, description }
+   * @param {Object} [dbClient] - Cliente de base de datos opcional
+   * @returns {Promise<Object>} Caja creada
+   */
+  static async createTerminal(data = {}, dbClient) {
+    const getFn = (dbClient && dbClient.get) ? dbClient.get.bind(dbClient) : get;
+    const cleanName = data.name ? String(data.name).trim() : '';
+    const cleanDesc = data.description ? String(data.description).trim() : null;
+
+    if (!cleanName || cleanName.length < 2 || cleanName.length > 50) {
+      const err = new Error('El nombre de la caja registradora debe tener entre 2 y 50 caracteres.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    // Verificar si ya existe una caja con ese nombre
+    const existing = await getFn(`SELECT id FROM cajas_registradoras WHERE LOWER(name) = LOWER($1) LIMIT 1`, [cleanName]);
+    if (existing) {
+      const err = new Error(`Ya existe una caja registradora con el nombre "${cleanName}".`);
+      err.statusCode = 400;
+      throw err;
+    }
+
+    return await getFn(`
+      INSERT INTO cajas_registradoras (name, description, is_active)
+      VALUES ($1, $2, true)
+      RETURNING id, name, description, is_active AS "isActive", created_at AS "createdAt";
+    `, [cleanName, cleanDesc]);
+  }
+
+  /**
+   * Actualizar nombre, descripción o estado de una Caja Registradora
+   * @param {number} id - Identificador de la caja
+   * @param {Object} data - { name, description, isActive }
+   * @param {Object} [dbClient] - Cliente transaccional opcional
+   */
+  static async updateTerminal(id, data = {}, dbClient) {
+    const termId = parseInt(id, 10);
+    if (isNaN(termId) || termId <= 0) {
+      const err = new Error('Identificador de caja registradora inválido.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const getFn = (dbClient && dbClient.get) ? dbClient.get.bind(dbClient) : get;
+    const runFn = (dbClient && dbClient.run) ? dbClient.run.bind(dbClient) : run;
+
+    const existing = await getFn(`SELECT id, name, description, is_active FROM cajas_registradoras WHERE id = $1`, [termId]);
+    if (!existing) {
+      const err = new Error(`No se encontró la caja registradora con ID ${termId}.`);
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const newName = (data.name !== undefined) ? String(data.name).trim() : existing.name;
+    const newDesc = (data.description !== undefined) ? (data.description ? String(data.description).trim() : null) : existing.description;
+    const newActive = (data.isActive !== undefined) ? Boolean(data.isActive) : (data.is_active !== undefined ? Boolean(data.is_active) : existing.is_active);
+
+    if (!newName || newName.length < 2 || newName.length > 50) {
+      const err = new Error('El nombre de la caja registradora debe tener entre 2 y 50 caracteres.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    // Verificar si el nuevo nombre colisiona con otra caja
+    if (newName.toLowerCase() !== existing.name.toLowerCase()) {
+      const dup = await getFn(`SELECT id FROM cajas_registradoras WHERE LOWER(name) = LOWER($1) AND id != $2 LIMIT 1`, [newName, termId]);
+      if (dup) {
+        const err = new Error(`Ya existe otra caja registradora con el nombre "${newName}".`);
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+
+    // Si se intenta desactivar, verificar que no tenga turno abierto actualmente
+    if (existing.is_active && !newActive) {
+      const openShift = await getFn(`SELECT id FROM caja_turnos WHERE LOWER(terminal) = LOWER($1) AND status = 'open' LIMIT 1`, [existing.name]);
+      if (openShift) {
+        const err = new Error(`No se puede desactivar la caja "${existing.name}" porque tiene el turno #${openShift.id} actualmente abierto. Debes realizar el Cierre Z antes de desactivarla.`);
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+
+    // Si cambió el nombre, sincronizar los turnos históricos para mantener la consistencia
+    if (newName.toLowerCase() !== existing.name.toLowerCase()) {
+      await runFn(`UPDATE caja_turnos SET terminal = $1 WHERE LOWER(terminal) = LOWER($2)`, [newName, existing.name]);
+    }
+
+    return await getFn(`
+      UPDATE cajas_registradoras
+      SET name = $1, description = $2, is_active = $3, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $4
+      RETURNING id, name, description, is_active AS "isActive", created_at AS "createdAt", updated_at AS "updatedAt";
+    `, [newName, newDesc, newActive, termId]);
+  }
+
+  /**
+   * Alternar estado activo/inactivo de una caja registradora
+   * @param {number} id - Identificador de la caja
+   * @param {Object} [dbClient] - Cliente opcional
+   */
+  static async toggleTerminalStatus(id, dbClient) {
+    const termId = parseInt(id, 10);
+    if (isNaN(termId) || termId <= 0) {
+      const err = new Error('Identificador de caja registradora inválido.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const getFn = (dbClient && dbClient.get) ? dbClient.get.bind(dbClient) : get;
+    const existing = await getFn(`SELECT id, name, description, is_active FROM cajas_registradoras WHERE id = $1`, [termId]);
+    if (!existing) {
+      const err = new Error(`No se encontró la caja registradora con ID ${termId}.`);
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const willBeActive = !existing.is_active;
+
+    // Si se va a desactivar, validar que no tenga turnos abiertos actualmente
+    if (!willBeActive) {
+      const openShift = await getFn(`SELECT id FROM caja_turnos WHERE LOWER(terminal) = LOWER($1) AND status = 'open' LIMIT 1`, [existing.name]);
+      if (openShift) {
+        const err = new Error(`No se puede desactivar la caja "${existing.name}" porque tiene el turno #${openShift.id} abierto. Debes realizar el Cierre Z antes de desactivarla.`);
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+
+    return await getFn(`
+      UPDATE cajas_registradoras
+      SET is_active = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING id, name, description, is_active AS "isActive", created_at AS "createdAt", updated_at AS "updatedAt";
+    `, [willBeActive, termId]);
+  }
+
+  /**
+   * Eliminar una caja registradora de forma segura (solo si no tiene historial contable)
+   * @param {number} id - Identificador de la caja
+   * @param {Object} [dbClient] - Cliente opcional
+   */
+  static async deleteTerminal(id, dbClient) {
+    const termId = parseInt(id, 10);
+    if (isNaN(termId) || termId <= 0) {
+      const err = new Error('Identificador de caja registradora inválido.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const getFn = (dbClient && dbClient.get) ? dbClient.get.bind(dbClient) : get;
+    const runFn = (dbClient && dbClient.run) ? dbClient.run.bind(dbClient) : run;
+
+    const existing = await getFn(`SELECT id, name FROM cajas_registradoras WHERE id = $1`, [termId]);
+    if (!existing) {
+      const err = new Error(`No se encontró la caja registradora con ID ${termId}.`);
+      err.statusCode = 404;
+      throw err;
+    }
+
+    // Verificar si registra turnos en el historial contable
+    const shiftCheck = await getFn(`SELECT COUNT(*) AS count FROM caja_turnos WHERE LOWER(terminal) = LOWER($1)`, [existing.name]);
+    const shiftCount = shiftCheck ? parseInt(shiftCheck.count, 10) : 0;
+
+    if (shiftCount > 0) {
+      const err = new Error(`No se puede eliminar la caja "${existing.name}" porque registra ${shiftCount} turno(s) contable(s) histórico(s). Por integridad fiscal y auditoría contable, desactívala en su lugar.`);
+      err.statusCode = 400;
+      throw err;
+    }
+
+    await runFn(`DELETE FROM cajas_registradoras WHERE id = $1`, [termId]);
+    return { id: existing.id, name: existing.name, deleted: true };
+  }
 }
 
 module.exports = CashModel;

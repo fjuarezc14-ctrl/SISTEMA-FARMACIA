@@ -86,8 +86,6 @@ async function login(req, res, next) {
       email: user.email,
       roleKey: user.role_name,
       roleLabel: user.role_label,
-      terminal: user.terminal,
-      shift: user.shift,
       allowedViews,
       defaultView
     };
@@ -143,8 +141,6 @@ async function getMe(req, res, next) {
         email: user.email,
         roleKey: user.roleKey,
         roleLabel: user.roleLabel,
-        terminal: user.terminal,
-        shift: user.shift,
         permissions: user.permissions,
         target: user.target,
         status: user.status,

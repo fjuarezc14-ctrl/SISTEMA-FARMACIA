@@ -297,10 +297,140 @@ async function getShiftHistory(req, res, next) {
   }
 }
 
+/**
+ * GET /api/cash/terminals
+ * Obtener listado de cajas registradoras configuradas
+ */
+async function getTerminals(req, res, next) {
+  try {
+    const onlyActive = req.query.all !== 'true';
+    const terminals = await CashModel.getTerminals(onlyActive);
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      count: terminals.length,
+      data: terminals
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/cash/terminals
+ * Registrar una nueva caja registradora / terminal POS (Solo Administrador)
+ */
+async function createTerminal(req, res, next) {
+  try {
+    const { name, description } = req.body;
+    const terminal = await CashModel.createTerminal({ name, description });
+    res.status(201).json({
+      success: true,
+      statusCode: 201,
+      message: `Caja registradora "${terminal.name}" creada exitosamente.`,
+      data: terminal
+    });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({
+        success: false,
+        statusCode: err.statusCode,
+        message: err.message
+      });
+    }
+    next(err);
+  }
+}
+
+/**
+ * PUT /api/cash/terminals/:id
+ * Actualizar datos de una caja registradora (Solo Administrador)
+ */
+async function updateTerminal(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { name, description, isActive } = req.body;
+    const terminal = await CashModel.updateTerminal(id, { name, description, isActive });
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: `Caja registradora "${terminal.name}" actualizada con éxito.`,
+      data: terminal
+    });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({
+        success: false,
+        statusCode: err.statusCode,
+        message: err.message
+      });
+    }
+    next(err);
+  }
+}
+
+/**
+ * PATCH /api/cash/terminals/:id/status
+ * Activar o desactivar una caja registradora (Solo Administrador)
+ */
+async function toggleTerminalStatus(req, res, next) {
+  try {
+    const { id } = req.params;
+    const terminal = await CashModel.toggleTerminalStatus(id);
+    const estadoStr = terminal.isActive ? 'activada' : 'desactivada';
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: `Caja registradora "${terminal.name}" ${estadoStr} correctamente.`,
+      data: terminal
+    });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({
+        success: false,
+        statusCode: err.statusCode,
+        message: err.message
+      });
+    }
+    next(err);
+  }
+}
+
+/**
+ * DELETE /api/cash/terminals/:id
+ * Eliminar permanentemente una caja sin turnos históricos (Solo Administrador)
+ */
+async function deleteTerminal(req, res, next) {
+  try {
+    const { id } = req.params;
+    const result = await CashModel.deleteTerminal(id);
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: `Caja registradora "${result.name}" eliminada exitosamente.`,
+      data: result
+    });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({
+        success: false,
+        statusCode: err.statusCode,
+        message: err.message
+      });
+    }
+    next(err);
+  }
+}
+
 module.exports = {
   getCurrentShift,
   addMovement,
   closeZ,
   openShift,
-  getShiftHistory
+  getShiftHistory,
+  getTerminals,
+  createTerminal,
+  updateTerminal,
+  toggleTerminalStatus,
+  deleteTerminal
 };

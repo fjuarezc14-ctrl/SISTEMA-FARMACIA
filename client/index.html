@@ -205,12 +205,6 @@
           <span class="tab-icon"><i class="bi bi-person-badge"></i></span>
           <span class="tab-label">Personal</span>
         </button>
-
-        <!-- Módulo 10: Configuración & Ajustes de Empresa (Admin / Q.F.) -->
-        <button type="button" class="nav-tab-btn" id="btnSidebarSettings" onclick="settingsApp.openModal('botica')" data-roles="admin,qf" title="Configurar RUC, Razón Social, Facturación y Datos de la Botica">
-          <span class="tab-icon"><i class="bi bi-gear-wide-connected"></i></span>
-          <span class="tab-label">Configuración</span>
-        </button>
       </div>
 
       <!-- Pie del Sidebar: Perfil del Usuario Activo & Cerrar Sesión -->
@@ -1533,8 +1527,6 @@
                 <tr>
                   <th>Colaborador</th>
                   <th>Puesto / Rol</th>
-                  <th>Caja / Terminal</th>
-                  <th>Horario de Turno</th>
                   <th>Permisos</th>
                   <th>Estado</th>
                   <th>Meta del Día</th>
@@ -1913,7 +1905,7 @@
       <div class="modal-body-valetec">
         <div class="form-grid-valetec" style="grid-template-columns: 1fr 1fr; gap: 10px;">
           <div class="form-group-valetec">
-            <label>Terminal / Punto:</label>
+            <label>Caja Registradora:</label>
             <select id="openShiftTerminalInput" class="form-select-valetec">
               <option value="Caja 01">Caja 01 (Mostrador Principal)</option>
               <option value="Caja 02">Caja 02 (Turno Noche / Rápida)</option>
@@ -2627,28 +2619,31 @@
     </div>
   </div>
 
-  <!-- Modal 8.1: Centro de Configuración & Ajustes del Sistema (4 Submódulos) -->
+  <!-- Modal 8.1: Centro de Configuración & Ajustes del Sistema (5 Submódulos) -->
   <div class="modal-backdrop-valetec" id="settingsModal">
-    <div class="modal-dialog-valetec" style="max-width: 820px; width: 95%;">
+    <div class="modal-dialog-valetec" style="max-width: 860px; width: 96%;">
       <div class="modal-header-valetec">
         <h3><i class="bi bi-gear-wide-connected text-teal"></i> Centro de Configuración & Ajustes del Sistema</h3>
         <button type="button" class="btn-close-modal" id="btnCloseSettingsModal" title="Cerrar"><i class="bi bi-x-lg"></i></button>
       </div>
 
-      <!-- Barra de 4 Pestañas del Módulo de Ajustes -->
-      <div style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; padding: 10px 18px 0 18px;">
-        <div class="client-tabs" style="border-bottom: none; padding-bottom: 0;">
+      <!-- Barra de 5 Pestañas del Módulo de Ajustes -->
+      <div style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; padding: 8px 14px 0 14px; overflow-x: auto;">
+        <div class="client-tabs settings-nav-tabs" style="border-bottom: none; padding-bottom: 0;">
           <button type="button" class="client-tab-btn active" id="settingsTabBtnBotica" onclick="settingsApp.setTab('botica')">
-            <i class="bi bi-shop"></i> <span>1. Datos de la Botica</span>
+            <i class="bi bi-shop"></i> <span>Datos Botica</span>
           </button>
           <button type="button" class="client-tab-btn" id="settingsTabBtnSunat" onclick="settingsApp.setTab('sunat')">
-            <i class="bi bi-shield-check"></i> <span>2. Facturación SUNAT</span>
+            <i class="bi bi-shield-check"></i> <span>Facturación SUNAT</span>
           </button>
           <button type="button" class="client-tab-btn" id="settingsTabBtnRoles" onclick="settingsApp.setTab('roles')">
-            <i class="bi bi-person-badge"></i> <span>3. Roles & Permisos (RBAC)</span>
+            <i class="bi bi-person-badge"></i> <span>Roles & Permisos</span>
           </button>
           <button type="button" class="client-tab-btn" id="settingsTabBtnBackups" onclick="settingsApp.setTab('backups')">
-            <i class="bi bi-database-down"></i> <span>4. Copias de Seguridad</span>
+            <i class="bi bi-database-down"></i> <span>Copias Seguridad</span>
+          </button>
+          <button type="button" class="client-tab-btn" id="settingsTabBtnTerminals" onclick="settingsApp.setTab('terminals')">
+            <i class="bi bi-cash-stack"></i> <span>Cajas & POS</span>
           </button>
         </div>
       </div>
@@ -2966,11 +2961,94 @@
 
         </div>
 
+        <!-- PANE 5: GESTIÓN DE CAJAS REGISTRADORAS & PUNTOS DE VENTA (POS) -->
+        <div id="settingsPaneTerminals" class="settings-pane" style="display: none;">
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #10b981; padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 12px; color: #166534;">
+            <strong style="display: flex; align-items: center; gap: 6px; margin-bottom: 3px;">
+              <i class="bi bi-info-circle-fill text-success"></i> Control Operativo de Cajas Registradoras:
+            </strong>
+            <span style="color: #15803d; line-height: 1.4;">
+              Las cajas <strong>Activas</strong> están disponibles para que los cajeros abran turno en <kbd>F9</kbd>. Si <strong>desactivas</strong> una caja, quedará pausada (no se podrá elegir para abrir turno), pero conservará todo su historial de ventas y arqueos.
+            </span>
+          </div>
+
+          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+            <h4 style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+              <i class="bi bi-plus-circle text-teal"></i> Agregar Nueva Caja Registradora / Punto de Venta
+            </h4>
+            <div style="display: grid; grid-template-columns: 1fr 1.5fr auto; gap: 10px; align-items: flex-end;">
+              <div>
+                <label for="newTerminalNameInput" style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 3px;">Nombre de Caja: <span class="text-danger">*</span></label>
+                <input type="text" id="newTerminalNameInput" class="form-control" placeholder="Ej: Caja 03" style="font-size: 12.5px; height: 36px;">
+              </div>
+              <div>
+                <label for="newTerminalDescInput" style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 3px;">Ubicación / Descripción:</label>
+                <input type="text" id="newTerminalDescInput" class="form-control" placeholder="Ej: Mostrador Secundario / Delivery" style="font-size: 12.5px; height: 36px;">
+              </div>
+              <div>
+                <button type="button" class="btn-action-solid" id="btnSaveNewTerminal" onclick="settingsApp.handleCreateTerminal()" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: 700;">
+                  <i class="bi bi-plus-lg"></i> <span>Agregar Caja</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+            <div style="padding: 10px 14px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+              <strong style="font-size: 12.5px; color: #0f172a;"><i class="bi bi-cash-stack text-teal"></i> Cajas Registradoras Configuradas</strong>
+              <button type="button" class="btn-action-outline" style="font-size: 11px; padding: 3px 8px;" onclick="settingsApp.loadTerminals()"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+            </div>
+            <div class="table-responsive-container">
+              <table class="valetec-table" style="width: 100%; margin: 0; font-size: 12px;">
+                <thead>
+                  <tr style="background: #f1f5f9; color: #475569; text-align: left;">
+                    <th style="padding: 10px 14px;">Identificador</th>
+                    <th style="padding: 10px 14px;">Ubicación / Descripción</th>
+                    <th style="padding: 10px 14px; text-align: center; width: 160px;">Funcionamiento</th>
+                    <th style="padding: 10px 14px; text-align: center; width: 130px;">Habilitación</th>
+                    <th style="padding: 10px 14px; text-align: center; width: 100px;">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="settingsTerminalsTableBody">
+                  <!-- Se llena dinámicamente -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <div class="modal-footer-valetec" style="display: flex; gap: 8px; justify-content: space-between; padding: 12px 20px;">
         <button type="button" class="btn-action-outline" id="btnCancelSettingsModal">Cancelar</button>
         <button type="button" class="btn-action-solid" id="btnSaveSettings">
+          <i class="bi bi-check-lg"></i> <span>Guardar Cambios</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 8.2: Edición de Caja Registradora / Terminal POS -->
+  <div class="modal-backdrop-valetec" id="editTerminalModal">
+    <div class="modal-dialog-valetec" style="max-width: 440px; width: 95%;">
+      <div class="modal-header-valetec">
+        <h3><i class="bi bi-pencil-square text-teal"></i> Editar Caja Registradora</h3>
+        <button type="button" class="btn-close-modal" id="btnCloseEditTerminalModal" onclick="settingsApp.closeEditTerminalModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body-valetec" style="padding: 16px 20px;">
+        <input type="hidden" id="editTerminalIdInput">
+        <div class="form-group-valetec" style="margin-bottom: 12px;">
+          <label for="editTerminalNameInput" style="font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px; display: block;">Nombre de Caja: <span class="text-danger">*</span></label>
+          <input type="text" id="editTerminalNameInput" class="form-control" placeholder="Ej: Caja 03" style="font-size: 13px; height: 36px;">
+        </div>
+        <div class="form-group-valetec">
+          <label for="editTerminalDescInput" style="font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px; display: block;">Ubicación / Descripción:</label>
+          <input type="text" id="editTerminalDescInput" class="form-control" placeholder="Ej: Mostrador Secundario" style="font-size: 13px; height: 36px;">
+        </div>
+      </div>
+      <div class="modal-footer-valetec" style="display: flex; gap: 8px; justify-content: flex-end; padding: 12px 20px;">
+        <button type="button" class="btn-action-outline" onclick="settingsApp.closeEditTerminalModal()">Cancelar</button>
+        <button type="button" class="btn-action-solid" id="btnSaveEditTerminal" onclick="settingsApp.handleSaveEditTerminal()">
           <i class="bi bi-check-lg"></i> <span>Guardar Cambios</span>
         </button>
       </div>
@@ -4171,42 +4249,21 @@
               </select>
             </div>
             <div class="form-group-valetec">
-              <label>Caja o Terminal Asignado:</label>
-              <select id="staffNewTerminal" class="form-select-valetec" required>
-                <option value="Terminal 01" selected>Terminal 01 (Mostrador)</option>
-                <option value="Terminal 02">Terminal 02 (Mostrador)</option>
-                <option value="Caja 01">Caja 01 (POS & Gaveta)</option>
-                <option value="Regencia Q.F.">Regencia Q.F. (Almacén)</option>
-                <option value="Acceso Remoto Cloud">Acceso Remoto Cloud (Gerencia)</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-            <div class="form-group-valetec">
-              <label>Horario de Turno:</label>
-              <select id="staffNewShift" class="form-select-valetec" required>
-                <option value="Mañana (08:00 - 16:00)" selected>Mañana (08:00 - 16:00)</option>
-                <option value="Tarde (14:00 - 22:00)">Tarde (14:00 - 22:00)</option>
-                <option value="Completo (08:00 - 18:00)">Completo (08:00 - 18:00)</option>
-                <option value="Supervisión 24/7">Supervisión 24/7</option>
-              </select>
-            </div>
-            <div class="form-group-valetec">
-              <label>Meta Comercial del Día (S/.):</label>
-              <input type="text" id="staffNewTarget" value="S/ 1,500.00" class="form-control">
-            </div>
-          </div>
-          <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
-            <div class="form-group-valetec">
-              <label>Clave / PIN de Acceso (4-8 dígitos):</label>
-              <input type="text" id="staffNewPin" placeholder="••••" value="1234" style="-webkit-text-security: disc; text-security: disc;" autocomplete="off" required class="form-control">
-            </div>
-            <div class="form-group-valetec">
               <label>Estado Inicial:</label>
               <select id="staffNewStatus" class="form-select-valetec">
                 <option value="active" selected>En Turno (Activo)</option>
                 <option value="pending">Pausa / Fuera de Turno</option>
               </select>
+            </div>
+          </div>
+          <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
+            <div class="form-group-valetec">
+              <label>Meta Comercial del Día (S/.):</label>
+              <input type="text" id="staffNewTarget" value="S/ 1,500.00" class="form-control">
+            </div>
+            <div class="form-group-valetec">
+              <label>Clave / PIN de Acceso (4-8 dígitos):</label>
+              <input type="text" id="staffNewPin" placeholder="••••" value="1234" style="-webkit-text-security: disc; text-security: disc;" autocomplete="off" required class="form-control">
             </div>
           </div>
         </div>
@@ -4220,11 +4277,11 @@
     </div>
   </div>
 
-  <!-- Modal 19: Configuración de Permisos y Horarios de Personal -->
+  <!-- Modal 19: Configuración de Permisos de Personal -->
   <div class="modal-backdrop-valetec" id="staffPermissionsModal">
     <div class="modal-dialog-valetec" style="max-width: 600px; width: 95%;">
       <div class="modal-header-valetec">
-        <h3><i class="bi bi-shield-lock text-blue"></i> Permisos y Horarios del Colaborador</h3>
+        <h3><i class="bi bi-shield-lock text-blue"></i> Permisos del Colaborador</h3>
         <button type="button" class="btn-close-modal" onclick="staffApp.closePermissionsModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
       </div>
       <form id="staffPermissionsForm" onsubmit="staffApp.savePermissions(event)">
@@ -4235,28 +4292,6 @@
             <div>
               <strong id="permStaffName" style="font-size: 14.5px; color: var(--valetec-navy);">Carlos Mendoza</strong>
               <div id="permStaffRole" style="font-size: 12px; color: var(--text-muted);">Técnico Mostrador</div>
-            </div>
-          </div>
-
-          <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-            <div class="form-group-valetec">
-              <label>Horario Asignado:</label>
-              <select id="permShiftSelect" class="form-select-valetec">
-                <option value="Mañana (08:00 - 16:00)">Mañana (08:00 - 16:00)</option>
-                <option value="Tarde (14:00 - 22:00)">Tarde (14:00 - 22:00)</option>
-                <option value="Completo (08:00 - 18:00)">Completo (08:00 - 18:00)</option>
-                <option value="Supervisión 24/7">Supervisión 24/7</option>
-              </select>
-            </div>
-            <div class="form-group-valetec">
-              <label>Terminal / Punto:</label>
-              <select id="permTerminalSelect" class="form-select-valetec">
-                <option value="Terminal 01">Terminal 01</option>
-                <option value="Terminal 02">Terminal 02</option>
-                <option value="Caja 01">Caja 01</option>
-                <option value="Regencia Q.F.">Regencia Q.F.</option>
-                <option value="Acceso Remoto Cloud">Acceso Remoto Cloud</option>
-              </select>
             </div>
           </div>
 

@@ -73,12 +73,6 @@ class UserModel {
     }
 
     // 6. Validaciones de campos de texto opcionales
-    if (data.terminal && typeof data.terminal === 'string' && data.terminal.length > 50) {
-      errors.push('La terminal no puede exceder los 50 caracteres.');
-    }
-    if (data.shift && typeof data.shift === 'string' && data.shift.length > 100) {
-      errors.push('El turno no puede exceder los 100 caracteres.');
-    }
     if (data.target && typeof data.target === 'string' && data.target.length > 100) {
       errors.push('La meta no puede exceder los 100 caracteres.');
     }
@@ -123,8 +117,6 @@ class UserModel {
         u.name,
         u.email,
         u.password_hash,
-        u.terminal,
-        u.shift,
         u.permissions,
         u.target,
         u.status,
@@ -154,8 +146,6 @@ class UserModel {
         r.label AS "roleLabel",
         u.name,
         u.email,
-        u.terminal,
-        u.shift,
         u.permissions,
         u.target,
         u.status,
@@ -186,8 +176,6 @@ class UserModel {
         u.email,
         r.name AS "roleKey",
         r.label AS "roleLabel",
-        u.terminal,
-        u.shift,
         u.permissions,
         u.target,
         u.status,
@@ -200,7 +188,7 @@ class UserModel {
 
   /**
    * Crear un nuevo usuario en PostgreSQL aplicando validaciones y hash seguro bcrypt.
-   * @param {Object} data - Datos: { roleId, name, email, password, terminal, shift, permissions, target, status }
+   * @param {Object} data - Datos: { roleId, name, email, password, permissions, target, status }
    * @param {Object} [dbClient] - Cliente transaccional opcional.
    * @returns {Promise<Object>} Usuario creado (sin contraseña).
    */
@@ -231,16 +219,14 @@ class UserModel {
     // 3. Insertar registro
     return await getFn(`
       INSERT INTO usuarios (
-        role_id, name, email, password_hash, terminal, shift, permissions, target, status
+        role_id, name, email, password_hash, permissions, target, status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING 
         id,
         role_id AS "roleId",
         name,
         email,
-        terminal,
-        shift,
         permissions,
         target,
         status,
@@ -250,8 +236,6 @@ class UserModel {
       cleanName,
       cleanEmail,
       hash,
-      data.terminal ? data.terminal.trim() : 'Terminal 01',
-      data.shift ? data.shift.trim() : 'Mañana (08:00 - 16:00)',
       data.permissions ? data.permissions.trim() : null,
       data.target ? data.target.trim() : null,
       data.status || 'active'
@@ -300,19 +284,15 @@ class UserModel {
         role_id = COALESCE($1, role_id),
         name = COALESCE($2, name),
         email = COALESCE($3, email),
-        terminal = COALESCE($4, terminal),
-        shift = COALESCE($5, shift),
-        permissions = COALESCE($6, permissions),
-        target = COALESCE($7, target),
-        status = COALESCE($8, status)
-      WHERE id = $9
+        permissions = COALESCE($4, permissions),
+        target = COALESCE($5, target),
+        status = COALESCE($6, status)
+      WHERE id = $7
       RETURNING 
         id,
         role_id AS "roleId",
         name,
         email,
-        terminal,
-        shift,
         permissions,
         target,
         status,
@@ -321,8 +301,6 @@ class UserModel {
       roleId,
       data.name ? data.name.trim() : null,
       data.email ? data.email.trim().toLowerCase() : null,
-      data.terminal !== undefined ? (data.terminal ? data.terminal.trim() : null) : null,
-      data.shift !== undefined ? (data.shift ? data.shift.trim() : null) : null,
       data.permissions !== undefined ? (data.permissions ? data.permissions.trim() : null) : null,
       data.target !== undefined ? (data.target ? data.target.trim() : null) : null,
       data.status || null,

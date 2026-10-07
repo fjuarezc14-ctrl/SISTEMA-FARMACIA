@@ -994,11 +994,11 @@ let mockStaffProfiles = {
 };
 
 let staffMembersList = [
-  { name: "Carlos Mendoza", role: "Técnico de Mostrador", terminal: "Terminal 01", shift: "Mañana (08:00 - 16:00)", permissions: "Dispensación, Consulta Stock", status: "active", target: "S/ 1,500.00" },
-  { name: "Dra. Elena Vega", role: "Directora Técnica / Regente", terminal: "Regencia Q.F.", shift: "Completo (08:00 - 18:00)", permissions: "Auditoría, DIGEMID, Lotes", status: "active", target: "Cumplimiento BPA" },
-  { name: "Rodrigo Soto", role: "Cajero Principal", terminal: "Caja 01", shift: "Mañana (08:00 - 16:00)", permissions: "Cobro POS, Arqueo, Egresos", status: "active", target: "S/ 3,500.00" },
-  { name: "Mariana Silva", role: "Técnico de Turno Tarde", terminal: "Terminal 02", shift: "Tarde (14:00 - 22:00)", permissions: "Dispensación, Consulta Stock", status: "pending", target: "S/ 1,200.00" },
-  { name: "Ing. Juan Pérez", role: "Gerente General", terminal: "Acceso Remoto Cloud", shift: "Supervisión 24/7", permissions: "Control Total, Finanzas, Compras", status: "active", target: "Rentabilidad 35%" }
+  { name: "Carlos Mendoza", role: "Técnico de Mostrador", permissions: "Dispensación, Consulta Stock", status: "active", target: "S/ 1,500.00" },
+  { name: "Dra. Elena Vega", role: "Directora Técnica / Regente", permissions: "Auditoría, DIGEMID, Lotes", status: "active", target: "Cumplimiento BPA" },
+  { name: "Rodrigo Soto", role: "Cajero Principal", permissions: "Cobro POS, Arqueo, Egresos", status: "active", target: "S/ 3,500.00" },
+  { name: "Mariana Silva", role: "Técnico de Turno Tarde", permissions: "Dispensación, Consulta Stock", status: "pending", target: "S/ 1,200.00" },
+  { name: "Ing. Juan Pérez", role: "Gerente General", permissions: "Control Total, Finanzas, Compras", status: "active", target: "Rentabilidad 35%" }
 ];
 
 let digemidMockRecords = [
@@ -4405,6 +4405,7 @@ class CashModule {
     this.cacheDom();
     this.initEvents();
     this.calculateAudit();
+    this.populateTerminalsDropdown();
   }
 
   cacheDom() {
@@ -4772,11 +4773,33 @@ class CashModule {
     }
   }
 
+  async populateTerminalsDropdown() {
+    if (!this.openShiftTerminalInput) return;
+    try {
+      if (window.api && typeof window.api.getTerminals === 'function') {
+        const res = await window.api.getTerminals(false);
+        if (res && res.data && Array.isArray(res.data) && res.data.length > 0) {
+          const currentVal = this.openShiftTerminalInput.value;
+          this.openShiftTerminalInput.innerHTML = res.data.map(t => {
+            const desc = t.description ? ` (${t.description})` : '';
+            return `<option value="${escHtml(t.name)}">${escHtml(t.name)}${escHtml(desc)}</option>`;
+          }).join('');
+          if (currentVal && [...this.openShiftTerminalInput.options].some(o => o.value === currentVal)) {
+            this.openShiftTerminalInput.value = currentVal;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("[CASH] Error al sincronizar terminales dinámicas:", err.message);
+    }
+  }
+
   toggleOpenShiftModal(open) {
     if (open) {
       if (this.openShiftCashierDisplay) {
         this.openShiftCashierDisplay.value = getActiveStaffName(appNav?.currentRole || 'cashier', 'Cajero de Turno');
       }
+      this.populateTerminalsDropdown();
       this.openShiftModal?.classList.add('active');
     } else {
       this.openShiftModal?.classList.remove('active');
@@ -7997,8 +8020,6 @@ class StaffManagementModule {
             </div>
           </td>
           <td><span class="shelf-tag" style="background-color: var(--valetec-blue-light); color: var(--valetec-blue);">${escHtml(m.role)}</span></td>
-          <td><strong>${escHtml(m.terminal)}</strong></td>
-          <td>${escHtml(m.shift)}</td>
           <td><small style="color: var(--text-muted);">${escHtml(m.permissions)}</small></td>
           <td>
             <span class="pulse-indicator" style="background-color: ${isAct ? 'rgba(13, 148, 136, 0.15)' : '#f1f5f9'}; color: ${isAct ? '#0d9488' : '#64748b'};">
@@ -8035,10 +8056,6 @@ class StaffManagementModule {
     if (dniEl) dniEl.value = '';
     const roleEl = document.getElementById('staffNewRole');
     if (roleEl) roleEl.value = 'tech';
-    const termEl = document.getElementById('staffNewTerminal');
-    if (termEl) termEl.value = 'Terminal 01';
-    const shiftEl = document.getElementById('staffNewShift');
-    if (shiftEl) shiftEl.value = 'Mañana (08:00 - 16:00)';
     const targetEl = document.getElementById('staffNewTarget');
     if (targetEl) targetEl.value = 'S/ 1,500.00';
     const pinEl = document.getElementById('staffNewPin');
@@ -8060,20 +8077,14 @@ class StaffManagementModule {
 
   onRoleChange() {
     const role = document.getElementById('staffNewRole')?.value;
-    const termSelect = document.getElementById('staffNewTerminal');
     const targetInput = document.getElementById('staffNewTarget');
-    if (!termSelect) return;
     if (role === 'cashier') {
-      termSelect.value = 'Caja 01';
       if (targetInput) targetInput.value = 'S/ 3,500.00';
     } else if (role === 'qf') {
-      termSelect.value = 'Regencia Q.F.';
       if (targetInput) targetInput.value = 'Cumplimiento BPA';
     } else if (role === 'admin') {
-      termSelect.value = 'Acceso Remoto Cloud';
       if (targetInput) targetInput.value = 'Rentabilidad 35%';
     } else {
-      termSelect.value = 'Terminal 01';
       if (targetInput) targetInput.value = 'S/ 1,500.00';
     }
   }
@@ -8086,8 +8097,6 @@ class StaffManagementModule {
     const name = document.getElementById('staffNewName')?.value?.trim();
     const dni = document.getElementById('staffNewDni')?.value?.trim();
     const roleKey = document.getElementById('staffNewRole')?.value || 'tech';
-    const terminal = document.getElementById('staffNewTerminal')?.value || 'Terminal 01';
-    const shift = document.getElementById('staffNewShift')?.value || 'Mañana (08:00 - 16:00)';
     const target = document.getElementById('staffNewTarget')?.value || 'S/ 1,500.00';
     const status = document.getElementById('staffNewStatus')?.value || 'active';
 
@@ -8117,8 +8126,6 @@ class StaffManagementModule {
     const newWorker = {
       name: name,
       role: roleLabels[roleKey] || "Colaborador",
-      terminal: terminal,
-      shift: shift,
       permissions: permLabels[roleKey] || "Atención y Consulta",
       status: status,
       target: target
@@ -8154,14 +8161,10 @@ class StaffManagementModule {
     const nameEl = document.getElementById('permStaffName');
     const roleEl = document.getElementById('permStaffRole');
     const avatarEl = document.getElementById('permAvatar');
-    const shiftSelect = document.getElementById('permShiftSelect');
-    const termSelect = document.getElementById('permTerminalSelect');
 
     if (nameEl) nameEl.innerText = member.name;
     if (roleEl) roleEl.innerText = member.role;
     if (avatarEl) avatarEl.innerText = member.name.split(' ').map(n => n[0]).join('').substring(0, 2);
-    if (shiftSelect) shiftSelect.value = member.shift;
-    if (termSelect) termSelect.value = member.terminal;
 
     const pStr = (member.permissions || '').toLowerCase();
     const isOwner = member.role.toLowerCase().includes('gerente') || member.role.toLowerCase().includes('dueño') || member.role.toLowerCase().includes('admin');
@@ -8204,8 +8207,6 @@ class StaffManagementModule {
     if (isNaN(index) || !staffMembersList[index]) return;
 
     const member = staffMembersList[index];
-    const shift = document.getElementById('permShiftSelect')?.value;
-    const terminal = document.getElementById('permTerminalSelect')?.value;
 
     const modules = [];
     if (document.getElementById('permModuleCounter')?.checked) modules.push("Ventas");
@@ -8215,13 +8216,11 @@ class StaffManagementModule {
     if (document.getElementById('permModuleStaff')?.checked) modules.push("Personal");
     if (document.getElementById('permModuleManagement')?.checked) modules.push("Gerencia");
 
-    member.shift = shift || member.shift;
-    member.terminal = terminal || member.terminal;
     member.permissions = modules.join(', ') || "Consulta básica";
 
     this.render();
     this.closePermissionsModal();
-    showValetecToast(`Permisos y horarios de ${member.name} actualizados exitosamente.`, 'success');
+    showValetecToast(`Permisos de ${member.name} actualizados exitosamente.`, 'success');
   }
 
   // =============================================================
@@ -11531,6 +11530,12 @@ class SettingsModule {
     this.inSunatPass = document.getElementById('settingSunatPass');
     this.inPfxPassword = document.getElementById('settingPfxPassword');
 
+    // Elementos de Cajas & POS (Terminales)
+    this.inNewTerminalName = document.getElementById('newTerminalNameInput');
+    this.inNewTerminalDesc = document.getElementById('newTerminalDescInput');
+    this.terminalsTableBody = document.getElementById('settingsTerminalsTableBody');
+    this.btnSaveNewTerminal = document.getElementById('btnSaveNewTerminal');
+
     this.settingsData = null;
 
     this.initEvents();
@@ -11544,20 +11549,29 @@ class SettingsModule {
     document.getElementById('settingsTabBtnSunat')?.classList.toggle('active', this.currentTab === 'sunat');
     document.getElementById('settingsTabBtnRoles')?.classList.toggle('active', this.currentTab === 'roles');
     document.getElementById('settingsTabBtnBackups')?.classList.toggle('active', this.currentTab === 'backups');
+    document.getElementById('settingsTabBtnTerminals')?.classList.toggle('active', this.currentTab === 'terminals');
 
     // Paneles de contenido
     const paneBotica = document.getElementById('settingsPaneBotica');
     const paneSunat = document.getElementById('settingsPaneSunat');
     const paneRoles = document.getElementById('settingsPaneRoles');
     const paneBackups = document.getElementById('settingsPaneBackups');
+    const paneTerminals = document.getElementById('settingsPaneTerminals');
 
     if (paneBotica) paneBotica.style.display = (this.currentTab === 'botica') ? 'block' : 'none';
     if (paneSunat) paneSunat.style.display = (this.currentTab === 'sunat') ? 'block' : 'none';
     if (paneRoles) paneRoles.style.display = (this.currentTab === 'roles') ? 'block' : 'none';
     if (paneBackups) paneBackups.style.display = (this.currentTab === 'backups') ? 'block' : 'none';
+    if (paneTerminals) paneTerminals.style.display = (this.currentTab === 'terminals') ? 'block' : 'none';
+
+    if (this.btnSave) {
+      this.btnSave.style.display = (this.currentTab === 'terminals' || this.currentTab === 'roles' || this.currentTab === 'backups') ? 'none' : 'inline-flex';
+    }
 
     if (this.currentTab === 'roles') {
       this.renderRbacMatrix();
+    } else if (this.currentTab === 'terminals') {
+      this.loadTerminals();
     }
   }
 
@@ -11572,6 +11586,44 @@ class SettingsModule {
     }
     if (this.btnDownloadBackupMgmt) {
       this.btnDownloadBackupMgmt.addEventListener('click', () => this.handleDownloadBackup(this.btnDownloadBackupMgmt));
+    }
+    if (this.btnSaveNewTerminal) {
+      this.btnSaveNewTerminal.addEventListener('click', () => this.handleCreateTerminal());
+    }
+    if (this.inNewTerminalName) {
+      this.inNewTerminalName.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          this.handleCreateTerminal();
+        }
+      });
+    }
+    if (this.inNewTerminalDesc) {
+      this.inNewTerminalDesc.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          this.handleCreateTerminal();
+        }
+      });
+    }
+
+    const editName = document.getElementById('editTerminalNameInput');
+    const editDesc = document.getElementById('editTerminalDescInput');
+    if (editName) {
+      editName.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          this.handleSaveEditTerminal();
+        }
+      });
+    }
+    if (editDesc) {
+      editDesc.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          this.handleSaveEditTerminal();
+        }
+      });
     }
   }
 
@@ -11861,6 +11913,238 @@ class SettingsModule {
       }
     }
   }
+
+  async loadTerminals() {
+    if (!this.terminalsTableBody) return;
+    this.terminalsTableBody.innerHTML = `
+      <tr>
+        <td colspan="5" style="text-align: center; padding: 18px; color: #64748b;">
+          <span class="spinner-border spinner-border-sm" role="status"></span> Cargando cajas registradoras...
+        </td>
+      </tr>
+    `;
+
+    try {
+      if (window.api && typeof window.api.getTerminals === 'function') {
+        const res = await window.api.getTerminals(true);
+        const list = (res && Array.isArray(res.data)) ? res.data : [];
+        if (list.length === 0) {
+          this.terminalsTableBody.innerHTML = `
+            <tr>
+              <td colspan="5" style="text-align: center; padding: 18px; color: #94a3b8;">
+                No hay cajas registradoras configuradas.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        this.terminalsTableBody.innerHTML = list.map(t => {
+          const inUseBadge = t.inUse
+            ? `<span class="badge" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; font-weight: 700; font-size: 11px; padding: 5px 9px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;">
+                 <span class="status-dot active"></span> En Uso ${t.activeCashierName ? `(${escHtml(t.activeCashierName)})` : '(Turno Abierto)'}
+               </span>`
+            : `<span class="badge" style="background: #f8fafc; border: 1px solid #e2e8f0; color: #64748b; font-weight: 600; font-size: 11px; padding: 5px 9px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;">
+                 <span class="status-dot"></span> Libre (Sin Turno)
+               </span>`;
+
+          const isActive = (t.isActive !== undefined ? t.isActive : (t.is_active !== undefined ? t.is_active : true));
+          const statusBtn = isActive
+            ? `<button type="button" class="btn-terminal-status active" title="Caja habilitada en el sistema. Clic para desactivar" onclick="settingsApp.handleToggleTerminalStatus(${t.id}, '${escHtml(t.name)}')">
+                 <i class="bi bi-check-circle-fill"></i> <span>Activado</span>
+               </button>`
+            : `<button type="button" class="btn-terminal-status inactive" title="Caja inhabilitada en el sistema. Clic para activar" onclick="settingsApp.handleToggleTerminalStatus(${t.id}, '${escHtml(t.name)}')">
+                 <i class="bi bi-x-circle-fill"></i> <span>Desactivado</span>
+               </button>`;
+
+          return `
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 10px 14px; font-weight: 700; color: #0f172a;">
+                <i class="bi bi-cash-stack text-teal" style="margin-right: 6px;"></i>${escHtml(t.name)}
+              </td>
+              <td style="padding: 10px 14px; color: #475569;">
+                ${escHtml(t.description || 'Punto de Venta Mostrador')}
+              </td>
+              <td style="padding: 8px 14px; text-align: center;">
+                ${inUseBadge}
+              </td>
+              <td style="padding: 8px 14px; text-align: center;">
+                ${statusBtn}
+              </td>
+              <td style="padding: 6px 14px; text-align: center;">
+                <div style="display: flex; gap: 6px; justify-content: center; align-items: center;">
+                  <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11.5px; font-weight: 600;" title="Editar Nombre / Descripción" onclick="settingsApp.openEditTerminalModal(${t.id}, '${escHtml(t.name)}', '${escHtml(t.description || '')}')">
+                    <i class="bi bi-pencil text-teal"></i> <span>Editar</span>
+                  </button>
+                  <button type="button" class="btn-action-outline" style="padding: 4px 8px; font-size: 11.5px; color: #dc2626; border-color: #fecaca;" title="Eliminar Caja (solo si no tiene historial de turnos)" onclick="settingsApp.handleDeleteTerminal(${t.id}, '${escHtml(t.name)}')">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    } catch (err) {
+      console.error("[SETTINGS] Error al cargar terminales:", err);
+      this.terminalsTableBody.innerHTML = `
+        <tr>
+          <td colspan="5" style="text-align: center; padding: 16px; color: #ef4444;">
+            <i class="bi bi-exclamation-triangle"></i> Error al cargar cajas: ${escHtml(err.message)}
+          </td>
+        </tr>
+      `;
+    }
+  }
+
+  async handleCreateTerminal() {
+    const name = this.inNewTerminalName?.value?.trim() || '';
+    const description = this.inNewTerminalDesc?.value?.trim() || '';
+
+    if (!name || name.length < 2) {
+      showValetecToast("El nombre de la caja es obligatorio (mínimo 2 caracteres).", "warning");
+      this.inNewTerminalName?.focus();
+      return;
+    }
+
+    if (name.length > 50) {
+      showValetecToast("El nombre de la caja no debe exceder 50 caracteres.", "warning");
+      this.inNewTerminalName?.focus();
+      return;
+    }
+
+    const btn = this.btnSaveNewTerminal;
+    const origHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> Guardando...`;
+    }
+
+    try {
+      if (window.api && typeof window.api.createTerminal === 'function') {
+        const res = await window.api.createTerminal({ name, description });
+        showValetecToast(res?.message || `Caja "${name}" creada exitosamente en PostgreSQL 16.`, "success");
+        if (this.inNewTerminalName) this.inNewTerminalName.value = '';
+        if (this.inNewTerminalDesc) this.inNewTerminalDesc.value = '';
+        await this.loadTerminals();
+        if (window.cashApp && typeof window.cashApp.populateTerminalsDropdown === 'function') {
+          await window.cashApp.populateTerminalsDropdown();
+        }
+      }
+    } catch (err) {
+      console.error("[SETTINGS] Error al crear caja registradora:", err);
+      showValetecToast(`Error al registrar caja: ${err.message}`, "danger");
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+      }
+    }
+  }
+
+  openEditTerminalModal(id, name, desc) {
+    const modal = document.getElementById('editTerminalModal');
+    const inId = document.getElementById('editTerminalIdInput');
+    const inName = document.getElementById('editTerminalNameInput');
+    const inDesc = document.getElementById('editTerminalDescInput');
+    if (inId) inId.value = id;
+    if (inName) inName.value = name || '';
+    if (inDesc) inDesc.value = desc || '';
+    modal?.classList.add('active');
+    setTimeout(() => inName?.focus(), 100);
+  }
+
+  closeEditTerminalModal() {
+    document.getElementById('editTerminalModal')?.classList.remove('active');
+  }
+
+  async handleSaveEditTerminal() {
+    const inId = document.getElementById('editTerminalIdInput');
+    const inName = document.getElementById('editTerminalNameInput');
+    const inDesc = document.getElementById('editTerminalDescInput');
+
+    const id = parseInt(inId?.value, 10);
+    const name = inName?.value?.trim() || '';
+    const description = inDesc?.value?.trim() || '';
+
+    if (!id || isNaN(id)) {
+      showValetecToast("Identificador de caja inválido.", "danger");
+      return;
+    }
+
+    if (!name || name.length < 2) {
+      showValetecToast("El nombre de la caja es obligatorio (mínimo 2 caracteres).", "warning");
+      inName?.focus();
+      return;
+    }
+
+    if (name.length > 50) {
+      showValetecToast("El nombre de la caja no debe superar 50 caracteres.", "warning");
+      inName?.focus();
+      return;
+    }
+
+    const btn = document.getElementById('btnSaveEditTerminal');
+    const origHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> Guardando...`;
+    }
+
+    try {
+      const res = await window.api.updateTerminal(id, { name, description });
+      showValetecToast(res?.message || `Caja "${name}" actualizada con éxito.`, "success");
+      this.closeEditTerminalModal();
+      await this.loadTerminals();
+      if (window.cashApp && typeof window.cashApp.populateTerminalsDropdown === 'function') {
+        await window.cashApp.populateTerminalsDropdown();
+      }
+    } catch (err) {
+      console.error("[SETTINGS] Error actualizando caja:", err);
+      showValetecToast(`Error al actualizar caja: ${err.message}`, "danger");
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+      }
+    }
+  }
+
+  async handleToggleTerminalStatus(id, name) {
+    try {
+      const res = await window.api.toggleTerminalStatus(id);
+      const isNowActive = res?.data?.is_active;
+      const msg = isNowActive 
+        ? `Caja "${name}" activada: ya está lista y disponible para aperturar turnos (F9).`
+        : `Caja "${name}" desactivada: quedó pausada y ya no aparecerá en apertura de turnos.`;
+      showValetecToast(res?.message || msg, isNowActive ? "success" : "info");
+      await this.loadTerminals();
+      if (window.cashApp && typeof window.cashApp.populateTerminalsDropdown === 'function') {
+        await window.cashApp.populateTerminalsDropdown();
+      }
+    } catch (err) {
+      console.error("[SETTINGS] Error al cambiar estado de caja:", err);
+      showValetecToast(err.message, "warning");
+    }
+  }
+
+  async handleDeleteTerminal(id, name) {
+    if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente "${name}"?\n\nNota: Solo se podrá eliminar si la caja no tiene turnos ni movimientos históricos registrados.`)) {
+      return;
+    }
+
+    try {
+      const res = await window.api.deleteTerminal(id);
+      showValetecToast(res?.message || `Caja "${name}" eliminada exitosamente.`, "success");
+      await this.loadTerminals();
+      if (window.cashApp && typeof window.cashApp.populateTerminalsDropdown === 'function') {
+        await window.cashApp.populateTerminalsDropdown();
+      }
+    } catch (err) {
+      console.error("[SETTINGS] Error al eliminar caja:", err);
+      showValetecToast(err.message, "danger");
+    }
+  }
 }
 
 // =============================================================
@@ -11928,6 +12212,9 @@ async function syncWithBackend() {
         cashApp.updateFromBackend(cashRes.data);
       }
     }
+    if (cashApp) {
+      await cashApp.populateTerminalsDropdown();
+    }
 
     // 4. Cargar personal de turno desde PostgreSQL (Exclusivo Administrador)
     if (window.api && window.api.currentUser && window.api.currentUser.roleKey === 'admin') {
@@ -11952,8 +12239,6 @@ async function syncWithBackend() {
             staffMembersList = userRes.data.staffList.map(u => ({
               name: u.name,
               role: u.roleLabel,
-              terminal: u.terminal,
-              shift: u.shift,
               permissions: u.permissions,
               status: u.status,
               target: u.target

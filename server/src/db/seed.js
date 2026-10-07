@@ -32,8 +32,6 @@ async function seedDatabase() {
         email: 'gerencia@valetec.pe',
         password: 'admin123',
         role_id: roleMap['admin'],
-        terminal: 'Acceso Remoto Cloud',
-        shift: 'Supervisión 24/7',
         permissions: 'Control Total, Finanzas, Compras',
         target: 'Rentabilidad 35%',
         status: 'active'
@@ -43,8 +41,6 @@ async function seedDatabase() {
         email: 'regencia@valetec.pe',
         password: 'qf123',
         role_id: roleMap['qf'],
-        terminal: 'Regencia Q.F.',
-        shift: 'Completo (08:00 - 18:00)',
         permissions: 'Auditoría, DIGEMID, Lotes',
         target: 'Cumplimiento BPA',
         status: 'active'
@@ -54,8 +50,6 @@ async function seedDatabase() {
         email: 'mostrador@valetec.pe',
         password: 'tech123',
         role_id: roleMap['tech'],
-        terminal: 'Terminal 01',
-        shift: 'Mañana (08:00 - 16:00)',
         permissions: 'Dispensación, Consulta Stock',
         target: 'S/ 1,500.00',
         status: 'active'
@@ -65,8 +59,6 @@ async function seedDatabase() {
         email: 'caja@valetec.pe',
         password: 'cashier123',
         role_id: roleMap['cashier'],
-        terminal: 'Caja 01',
-        shift: 'Mañana (08:00 - 16:00)',
         permissions: 'Cobro POS, Arqueo, Egresos',
         target: 'S/ 3,500.00',
         status: 'active'
@@ -76,8 +68,6 @@ async function seedDatabase() {
         email: 'mariana@valetec.pe',
         password: 'tech123',
         role_id: roleMap['tech'],
-        terminal: 'Terminal 02',
-        shift: 'Tarde (14:00 - 22:00)',
         permissions: 'Dispensación, Consulta Stock',
         target: 'S/ 1,200.00',
         status: 'pending'
@@ -89,9 +79,9 @@ async function seedDatabase() {
       if (!existing) {
         const hash = bcrypt.hashSync(u.password, salt);
         await run(
-          `INSERT INTO usuarios (role_id, name, email, password_hash, terminal, shift, permissions, target, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [u.role_id, u.name, u.email, hash, u.terminal, u.shift, u.permissions, u.target, u.status]
+          `INSERT INTO usuarios (role_id, name, email, password_hash, permissions, target, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [u.role_id, u.name, u.email, hash, u.permissions, u.target, u.status]
         );
       }
     }

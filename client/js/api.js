@@ -377,6 +377,38 @@ class ValetecApiClient {
     return await this.request(`/cash/history?limit=${limit}`);
   }
 
+  // 7.1 Gestión de Cajas Registradoras / Puntos de Venta (POS)
+  async getTerminals(all = false) {
+    const q = all ? '?all=true' : '';
+    return await this.request(`/cash/terminals${q}`);
+  }
+
+  async createTerminal(terminalData) {
+    return await this.request('/cash/terminals', {
+      method: 'POST',
+      body: JSON.stringify(terminalData)
+    });
+  }
+
+  async updateTerminal(id, terminalData) {
+    return await this.request(`/cash/terminals/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(terminalData)
+    });
+  }
+
+  async toggleTerminalStatus(id) {
+    return await this.request(`/cash/terminals/${id}/status`, {
+      method: 'PATCH'
+    });
+  }
+
+  async deleteTerminal(id) {
+    return await this.request(`/cash/terminals/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
   // 8. Métricas y Estadísticas Financieras en Tiempo Real
   async getDashboardStats() {
     return await this.request('/reports/dashboard');
