@@ -92,7 +92,7 @@ async function login(req, res, next) {
     };
 
     const token = jwt.sign(payload, config.jwtSecret, {
-      expiresIn: '12h'
+      expiresIn: process.env.JWT_EXPIRES_IN || '12h'
     });
 
     res.status(200).json({

@@ -1048,6 +1048,7 @@ class AuthManager {
     this.usernameInput = document.getElementById('loginUsername');
     this.passwordInput = document.getElementById('loginPassword');
     this.rememberCheck = document.getElementById('rememberMe');
+    this.sessionExpiredAlert = document.getElementById('loginSessionExpiredAlert');
 
     // Restaurar usuario recordado previamente si existe
     const savedEmail = localStorage.getItem('valetec_remember_email');
@@ -1056,6 +1057,99 @@ class AuthManager {
       if (this.rememberCheck) this.rememberCheck.checked = true;
     } else {
       if (this.rememberCheck) this.rememberCheck.checked = false;
+    }
+
+    // Enlazar manejador de sesión expirada con api client y eventos globales
+    if (window.api) {
+      window.api.onSessionExpired = (reason) => this.handleSessionExpired(reason);
+    }
+    window.addEventListener('valetec:session-expired', (e) => {
+      this.handleSessionExpired(e.detail?.reason);
+    });
+
+    // Iniciar vigilante preventivo de inactividad de botica (60 min)
+    this.initInactivityWatcher(60);
+  }
+
+  initInactivityWatcher(timeoutMinutes = 60) {
+    const timeoutMs = timeoutMinutes * 60 * 1000;
+    let inactivityTimer = null;
+
+    const resetTimer = () => {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      // Solo correr el temporizador si el usuario tiene sesión activa
+      if (!localStorage.getItem('valetec_token')) return;
+
+      inactivityTimer = setTimeout(() => {
+        if (localStorage.getItem('valetec_token')) {
+          console.warn(`🔒 Bloqueo preventivo de botica por inactividad (${timeoutMinutes} min).`);
+          this.handleSessionExpired(`Tu sesión ha expirado tras ${timeoutMinutes} minutos de inactividad por seguridad.`);
+        }
+      }, timeoutMs);
+    };
+
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
+    events.forEach(evt => window.addEventListener(evt, resetTimer, { passive: true }));
+    resetTimer();
+  }
+
+  handleSessionExpired(reason = 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.') {
+    const isAppVisible = this.appScreen && !this.appScreen.classList.contains('d-none');
+
+    // 1. Invalidar estado de autenticación en memoria y almacenamiento local
+    this.currentUser = null;
+    window.currentUser = null;
+    if (window.api) window.api.logout();
+
+    // 2. Cerrar inmediatamente todos los modales, backdrops, drawers y vistas emergentes
+    document.querySelectorAll('.modal-backdrop-valetec.active, .modal-valetec.active, .drawer-valetec.active, .side-drawer.active').forEach(m => {
+      m.classList.remove('active');
+    });
+
+    // 3. Limpiar orden/venta en curso del mostrador por seguridad clínica y comercial
+    if (window.counterApp && typeof window.counterApp.clearOrder === 'function') {
+      window.counterApp.clearOrder(false);
+    }
+
+    // 4. Ocultar pantalla principal y regresar obligatoriamente al Login
+    if (this.appScreen) this.appScreen.classList.add('d-none');
+    if (this.loginScreen) this.loginScreen.classList.remove('d-none');
+
+    // 5. Restaurar selector de perfiles si aplica
+    const roleSelect = document.getElementById('appRoleSelector');
+    if (roleSelect) {
+      roleSelect.disabled = false;
+      roleSelect.value = 'admin';
+      const pill = roleSelect.closest('.role-selector-pill');
+      if (pill) {
+        pill.style.opacity = '1';
+      }
+    }
+
+    // 6. Limpiar clave y posicionar foco
+    if (this.passwordInput) this.passwordInput.value = '';
+    const savedEmail = localStorage.getItem('valetec_remember_email');
+    if (savedEmail && this.usernameInput) {
+      this.usernameInput.value = savedEmail;
+      this.passwordInput?.focus();
+    } else {
+      this.usernameInput?.focus();
+    }
+
+    // 7. Mostrar banner explicativo de sesión expirada en la tarjeta de Login
+    if (!this.sessionExpiredAlert) this.sessionExpiredAlert = document.getElementById('loginSessionExpiredAlert');
+    if (this.sessionExpiredAlert) {
+      this.sessionExpiredAlert.style.display = 'block';
+      this.sessionExpiredAlert.classList.remove('d-none');
+      const msgEl = this.sessionExpiredAlert.querySelector('.session-expired-msg');
+      if (msgEl) {
+        msgEl.innerHTML = `<strong>Sesión Expirada:</strong> ${escHtml(reason)}`;
+      }
+    }
+
+    // 8. Notificación Toast sólo si la aplicación estaba en pantalla
+    if (isAppVisible) {
+      showValetecToast(reason, "warning");
     }
   }
 
@@ -1092,6 +1186,13 @@ class AuthManager {
     if (!email || !password) {
       showValetecToast("Por favor, ingresa tu correo y contraseña.", "warning");
       return;
+    }
+
+    // Ocultar banner de sesión expirada al intentar nuevo ingreso
+    if (!this.sessionExpiredAlert) this.sessionExpiredAlert = document.getElementById('loginSessionExpiredAlert');
+    if (this.sessionExpiredAlert) {
+      this.sessionExpiredAlert.style.display = 'none';
+      this.sessionExpiredAlert.classList.add('d-none');
     }
 
     const submitBtn = document.querySelector('.btn-login-submit');
@@ -1147,7 +1248,17 @@ class AuthManager {
 
   async checkActiveSession() {
     const token = localStorage.getItem('valetec_token');
-    if (!token) return; // No hay sesión guardada
+    if (!token) {
+      if (this.appScreen) this.appScreen.classList.add('d-none');
+      if (this.loginScreen) this.loginScreen.classList.remove('d-none');
+      return;
+    }
+
+    // Verificar si el token ya expiró antes de llamar a la red
+    if (window.api && typeof window.api.isTokenExpired === 'function' && window.api.isTokenExpired(token)) {
+      this.handleSessionExpired("Tu sesión anterior ha expirado. Por favor, inicia sesión para continuar.");
+      return;
+    }
 
     try {
       const user = await window.api.getMe();
@@ -1168,10 +1279,12 @@ class AuthManager {
         showValetecToast(`Sesión activa recuperada por JWT: ${user.name}.`, "info");
         // Sincronizar catálogo y datos protegidos
         syncWithBackend();
+      } else {
+        this.handleSessionExpired("Tu sesión previa no es válida o ha caducado.");
       }
     } catch (e) {
       // Sesión expirada o token inválido
-      if (window.api && window.api.logout) window.api.logout();
+      this.handleSessionExpired("Tu sesión anterior ha caducado. Por favor, inicia sesión.");
     }
   }
 
@@ -1179,9 +1292,25 @@ class AuthManager {
     if (confirm("¿Seguro que deseas cerrar la sesión de tu turno actual?")) {
       this.currentUser = null;
       window.currentUser = null;
-      window.api.logout();
+      if (window.api) window.api.logout();
+
+      // Cerrar modales activos
+      document.querySelectorAll('.modal-backdrop-valetec.active, .modal-valetec.active, .drawer-valetec.active, .side-drawer.active').forEach(m => {
+        m.classList.remove('active');
+      });
+
       if (this.appScreen) this.appScreen.classList.add('d-none');
       if (this.loginScreen) this.loginScreen.classList.remove('d-none');
+
+      // Ocultar alerta de sesión expirada porque fue un logout intencional
+      if (!this.sessionExpiredAlert) this.sessionExpiredAlert = document.getElementById('loginSessionExpiredAlert');
+      if (this.sessionExpiredAlert) {
+        this.sessionExpiredAlert.style.display = 'none';
+        this.sessionExpiredAlert.classList.add('d-none');
+      }
+
+      if (this.passwordInput) this.passwordInput.value = '';
+
       const roleSelect = document.getElementById('appRoleSelector');
       if (roleSelect) {
         roleSelect.disabled = false;

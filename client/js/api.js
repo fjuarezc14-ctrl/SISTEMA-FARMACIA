@@ -11,9 +11,64 @@ class ValetecApiClient {
     this.currentUser = JSON.parse(localStorage.getItem('valetec_user') || 'null');
     this.isConnected = false;
     this.lastHealthData = null;
+    this.onSessionExpired = null;
+    this._startTokenExpirationWatcher();
+  }
+
+  isTokenExpired(token = this.token) {
+    if (!token || typeof token !== 'string') return true;
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+    try {
+      const base64Url = parts[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const json = atob(base64);
+      const payload = JSON.parse(json);
+      if (!payload.exp) return false;
+      // Considerar expirado si la fecha actual ya superó el exp (con 5 segundos de margen)
+      return (Date.now() / 1000) >= (payload.exp - 5);
+    } catch (_) {
+      return true;
+    }
+  }
+
+  triggerSessionExpired(reason = 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.') {
+    const hadToken = !!this.token || !!localStorage.getItem('valetec_token');
+    this.logout();
+
+    if (typeof this.onSessionExpired === 'function') {
+      try { this.onSessionExpired(reason); } catch (e) { console.error(e); }
+    } else if (window.authManager && typeof window.authManager.handleSessionExpired === 'function') {
+      try { window.authManager.handleSessionExpired(reason); } catch (e) { console.error(e); }
+    } else {
+      const appScreen = document.getElementById('appScreen');
+      const loginScreen = document.getElementById('loginScreen');
+      if (appScreen) appScreen.classList.add('d-none');
+      if (loginScreen) loginScreen.classList.remove('d-none');
+    }
+
+    try {
+      window.dispatchEvent(new CustomEvent('valetec:session-expired', { detail: { reason, hadToken } }));
+    } catch (_) {}
+  }
+
+  _startTokenExpirationWatcher() {
+    // Chequeo periódico cada 5 segundos para retornar al Login inmediatamente cuando el token expire
+    setInterval(() => {
+      if (this.token && this.isTokenExpired()) {
+        console.warn("🔒 Token JWT expirado por tiempo. Redirigiendo automáticamente a pantalla de Login.");
+        this.triggerSessionExpired('Tu sesión ha expirado por límite de tiempo. Por favor, inicia sesión nuevamente.');
+      }
+    }, 5000);
   }
 
   async request(endpoint, options = {}) {
+    // Si tenemos token guardado pero ya expiró, interceptar de inmediato sin enviar llamada innecesaria
+    if (this.token && endpoint !== '/auth/login' && this.isTokenExpired()) {
+      this.triggerSessionExpired('Tu sesión ha expirado por límite de tiempo. Por favor, inicia sesión nuevamente.');
+      throw new Error('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+    }
+
     const url = `${this.baseUrl}${endpoint}`;
     const defaultHeaders = {
       'Content-Type': 'application/json',
@@ -36,9 +91,9 @@ class ValetecApiClient {
 
       const data = await response.json();
       if (!response.ok) {
-        // Si el token expiró o fue rechazado, limpiar sesión local
+        // Si el token expiró o fue rechazado con 401, forzar retorno inmediato al Login
         if (response.status === 401 && endpoint !== '/auth/login') {
-          this.logout();
+          this.triggerSessionExpired(data.message || 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
         }
         throw new Error(data.message || `Error HTTP ${response.status}`);
       }
@@ -68,6 +123,10 @@ class ValetecApiClient {
 
   async getMe() {
     if (!this.token) return null;
+    if (this.isTokenExpired()) {
+      this.triggerSessionExpired('Tu sesión previa ha caducado. Por favor, inicia sesión nuevamente.');
+      return null;
+    }
     try {
       const data = await this.request('/auth/me');
       if (data && data.user) {
@@ -77,7 +136,7 @@ class ValetecApiClient {
       }
       return null;
     } catch (err) {
-      this.logout();
+      this.triggerSessionExpired('Tu sesión previa no es válida o ha caducado.');
       return null;
     }
   }
