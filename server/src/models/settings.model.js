@@ -81,6 +81,14 @@ class SettingsModel {
       }
     }
 
+    // 8. Tiempo de Cierre de Sesión (Minutos)
+    if (data.sessionTimeoutMinutes !== undefined && data.sessionTimeoutMinutes !== null) {
+      const timeout = parseInt(data.sessionTimeoutMinutes, 10);
+      if (isNaN(timeout) || timeout < 1 || timeout > 10080) {
+        errors.push('El tiempo de cierre de sesión debe ser un valor numérico entre 1 y 10080 minutos.');
+      }
+    }
+
     if (errors.length > 0) {
       const err = new Error(errors.join(' '));
       err.statusCode = 400;
@@ -111,6 +119,7 @@ class SettingsModel {
         sanitary_license AS "sanitaryLicense",
         technical_director AS "technicalDirector",
         invoice_footer_text AS "invoiceFooterText",
+        CAST(COALESCE(session_timeout_minutes, 720) AS INTEGER) AS "sessionTimeoutMinutes",
         updated_at AS "updatedAt"
       FROM configuraciones
       ORDER BY id ASC
@@ -144,6 +153,7 @@ class SettingsModel {
         sanitary_license = COALESCE($10, sanitary_license),
         technical_director = COALESCE($11, technical_director),
         invoice_footer_text = COALESCE($12, invoice_footer_text),
+        session_timeout_minutes = COALESCE($13, session_timeout_minutes),
         updated_at = CURRENT_TIMESTAMP
       WHERE id = 1
       RETURNING 
@@ -160,6 +170,7 @@ class SettingsModel {
         sanitary_license AS "sanitaryLicense",
         technical_director AS "technicalDirector",
         invoice_footer_text AS "invoiceFooterText",
+        CAST(COALESCE(session_timeout_minutes, 720) AS INTEGER) AS "sessionTimeoutMinutes",
         updated_at AS "updatedAt";
     `, [
       data.companyName ? String(data.companyName).trim() : null,
@@ -173,7 +184,8 @@ class SettingsModel {
       data.igvPercent !== undefined && data.igvPercent !== null ? parseFloat(data.igvPercent) : null,
       data.sanitaryLicense !== undefined ? (data.sanitaryLicense ? String(data.sanitaryLicense).trim() : null) : null,
       data.technicalDirector !== undefined ? (data.technicalDirector ? String(data.technicalDirector).trim() : null) : null,
-      data.invoiceFooterText !== undefined ? (data.invoiceFooterText ? String(data.invoiceFooterText).trim() : null) : null
+      data.invoiceFooterText !== undefined ? (data.invoiceFooterText ? String(data.invoiceFooterText).trim() : null) : null,
+      data.sessionTimeoutMinutes !== undefined && data.sessionTimeoutMinutes !== null ? parseInt(data.sessionTimeoutMinutes, 10) : null
     ]);
   }
 

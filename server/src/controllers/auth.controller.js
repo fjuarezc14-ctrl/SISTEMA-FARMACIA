@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config/env');
 const UserModel = require('../models/user.model');
+const SettingsModel = require('../models/settings.model');
 
 /**
  * ============================================================================
@@ -91,8 +92,17 @@ async function login(req, res, next) {
       defaultView
     };
 
+    // 3. Obtener tiempo de caducidad dinámico configurado por el dueño o fallback
+    let tokenExpiresIn = config.jwtExpiresIn || process.env.JWT_EXPIRES_IN || '12h';
+    try {
+      const currentSettings = await SettingsModel.getSettings();
+      if (currentSettings && currentSettings.sessionTimeoutMinutes) {
+        tokenExpiresIn = `${currentSettings.sessionTimeoutMinutes}m`;
+      }
+    } catch (_) {}
+
     const token = jwt.sign(payload, config.jwtSecret, {
-      expiresIn: config.jwtExpiresIn || process.env.JWT_EXPIRES_IN || '12h'
+      expiresIn: tokenExpiresIn
     });
 
     res.status(200).json({

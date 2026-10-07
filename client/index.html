@@ -78,15 +78,15 @@
         </div>
 
         <!-- Formulario Manual de Autenticación Seguro -->
-        <form class="login-form-fields" onsubmit="authManager.login(event)">
+        <form class="login-form-fields" autocomplete="off" onsubmit="authManager.login(event)">
           <div class="login-input-group">
             <label for="loginUsername"><i class="bi bi-person"></i> Correo o Usuario:</label>
-            <input type="text" id="loginUsername" class="login-field" placeholder="ej. usuario@valetec.pe" autocomplete="username" required>
+            <input type="text" id="loginUsername" class="login-field" placeholder="ej. usuario@valetec.pe" autocomplete="off" spellcheck="false" required>
           </div>
           <div class="login-input-group mt-3">
             <label for="loginPassword"><i class="bi bi-key"></i> Clave / PIN de Turno:</label>
             <div class="password-wrapper">
-              <input type="password" id="loginPassword" class="login-field" placeholder="Escribe tu contraseña" autocomplete="current-password" required>
+              <input type="password" id="loginPassword" class="login-field" placeholder="Escribe tu contraseña" autocomplete="new-password" required>
               <button type="button" class="btn-toggle-password" id="btnTogglePassword" onclick="authManager.togglePasswordVisibility()" title="Mostrar u ocultar contraseña" aria-label="Mostrar u ocultar contraseña">
                 <i class="bi bi-eye" id="togglePasswordIcon"></i>
               </button>
@@ -94,7 +94,7 @@
           </div>
 
           <div class="login-options-row mt-3">
-            <label class="remember-check"><input type="checkbox" id="rememberMe"> Recordar en esta computadora</label>
+            <label class="remember-check" title="Solo conserva el correo para mayor comodidad; por seguridad nunca almacena contraseñas en el navegador"><input type="checkbox" id="rememberMe"> Recordar solo correo</label>
             <a href="#" class="forgot-link" onclick="showValetecToast('Pide asistencia al Administrador para restablecer tu contraseña.', 'info')">¿Olvidaste tu clave?</a>
           </div>
 
@@ -2718,6 +2718,27 @@
               <input type="text" id="settingTechnicalDirector" placeholder="Dra. Elena Vega (Q.F. Reg. CQFP 18492)" class="form-control">
             </div>
 
+            <div class="form-group-valetec" style="grid-column: 1 / -1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; margin-top: 4px;">
+              <label style="font-weight: 700; color: var(--valetec-navy); display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                <i class="bi bi-clock-history text-primary"></i> Tiempo de Cierre Automático de Sesión (Seguridad de Turno):
+              </label>
+              <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <select id="settingSessionTimeout" class="form-select-valetec" style="flex: 1; min-width: 220px; font-weight: 600; height: 38px;">
+                  <option value="15">15 Minutos (Máxima Seguridad - Terminales Compartidos)</option>
+                  <option value="30">30 Minutos (Recomendado para Mostrador)</option>
+                  <option value="60">1 Hora (60 Minutos)</option>
+                  <option value="120">2 Horas (120 Minutos)</option>
+                  <option value="240">4 Horas (Medio Turno)</option>
+                  <option value="480">8 Horas (Turno Laboral Estándar)</option>
+                  <option value="720" selected>12 Horas (Jornada Completa de Botica)</option>
+                  <option value="1440">24 Horas (Sin Cierre Durante el Día)</option>
+                </select>
+                <small style="color: #64748b; font-size: 11.5px; flex: 2; min-width: 240px; line-height: 1.4;">
+                  Al cumplirse este período de inactividad o caducidad del token, el sistema regresará al Login para proteger los registros de la botica.
+                </small>
+              </div>
+            </div>
+
             <div class="form-group-valetec" style="grid-column: 1 / -1;">
               <label>Texto al pie de Tickets Térmicos:</label>
               <textarea id="settingInvoiceFooterText" rows="2" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; font-size: 12px; font-family: inherit;" placeholder="¡Gracias por su compra en Valetec Pharma! Conserve este comprobante."></textarea>
@@ -4340,8 +4361,8 @@
   </div>
 
   <!-- Capa de Comunicación API (Frontend ↔ Backend) -->
-  <script src="./js/api.js?v=6.5"></script>
+  <script src="./js/api.js?v=6.6"></script>
   <!-- Script Principal de la Aplicación -->
-  <script src="./js/app.js?v=6.5"></script>
+  <script src="./js/app.js?v=6.6"></script>
 </body>
 </html>

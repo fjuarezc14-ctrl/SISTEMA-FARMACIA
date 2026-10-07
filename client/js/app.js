@@ -1067,8 +1067,8 @@ class AuthManager {
       this.handleSessionExpired(e.detail?.reason);
     });
 
-    // Iniciar vigilante preventivo de inactividad de botica (60 min)
-    this.initInactivityWatcher(60);
+    // Iniciar vigilante preventivo de inactividad de botica (12h / 720 min por defecto o según BD)
+    this.initInactivityWatcher(720);
   }
 
   initInactivityWatcher(timeoutMinutes = 60) {
@@ -11461,6 +11461,7 @@ class SettingsModule {
     this.inSanitaryLicense = document.getElementById('settingSanitaryLicense');
     this.inTechnicalDirector = document.getElementById('settingTechnicalDirector');
     this.inInvoiceFooterText = document.getElementById('settingInvoiceFooterText');
+    this.inSessionTimeout = document.getElementById('settingSessionTimeout');
 
     // Elementos de Facturación SUNAT
     this.inSunatEnv = document.getElementById('settingSunatEnv');
@@ -11539,6 +11540,9 @@ class SettingsModule {
           this.settingsData = res.data;
           this.populateForm(res.data);
           this.syncCompanyBranding();
+          if (res.data.sessionTimeoutMinutes && window.authManager && typeof window.authManager.initInactivityWatcher === 'function') {
+            window.authManager.initInactivityWatcher(res.data.sessionTimeoutMinutes);
+          }
         }
       }
     } catch (err) {
@@ -11569,6 +11573,7 @@ class SettingsModule {
     if (this.inSanitaryLicense) this.inSanitaryLicense.value = data.sanitaryLicense || '';
     if (this.inTechnicalDirector) this.inTechnicalDirector.value = data.technicalDirector || '';
     if (this.inInvoiceFooterText) this.inInvoiceFooterText.value = data.invoiceFooterText || '';
+    if (this.inSessionTimeout && data.sessionTimeoutMinutes) this.inSessionTimeout.value = String(data.sessionTimeoutMinutes);
   }
 
   togglePasswordVisibility(inputId, btn) {
@@ -11731,6 +11736,7 @@ class SettingsModule {
     const sanitaryLicense = this.inSanitaryLicense?.value.trim();
     const technicalDirector = this.inTechnicalDirector?.value.trim();
     const invoiceFooterText = this.inInvoiceFooterText?.value.trim();
+    const sessionTimeoutMinutes = this.inSessionTimeout ? parseInt(this.inSessionTimeout.value, 10) : 720;
 
     // 1. Validaciones frontales estrictas
     if (!companyName || companyName.length < 3) {
@@ -11763,7 +11769,8 @@ class SettingsModule {
       igvPercent,
       sanitaryLicense,
       technicalDirector,
-      invoiceFooterText
+      invoiceFooterText,
+      sessionTimeoutMinutes
     };
 
     if (this.btnSave) {
@@ -11776,7 +11783,10 @@ class SettingsModule {
       if (res && res.data) {
         this.settingsData = res.data;
         this.syncCompanyBranding();
-        showValetecToast("Configuración de empresa y parámetros fiscales guardados con éxito en PostgreSQL 16.", "success");
+        if (window.authManager && typeof window.authManager.initInactivityWatcher === 'function') {
+          window.authManager.initInactivityWatcher(res.data.sessionTimeoutMinutes || sessionTimeoutMinutes);
+        }
+        showValetecToast("Configuración de botica, seguridad y parámetros fiscales guardados con éxito en PostgreSQL 16.", "success");
         this.toggleModal(false);
       }
     } catch (err) {

@@ -258,10 +258,14 @@ ALTER TABLE ventas ADD COLUMN IF NOT EXISTS hash_cpe TEXT;
 ALTER TABLE ventas ADD COLUMN IF NOT EXISTS xml_ubl TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
 
--- Sincronización oficial de Licencia Sanitaria DIGEMID
+-- Sincronización oficial de Licencia Sanitaria DIGEMID y Tiempo de Cierre de Sesión
+ALTER TABLE configuraciones ADD COLUMN IF NOT EXISTS session_timeout_minutes INTEGER DEFAULT 720;
 UPDATE configuraciones 
 SET sanitary_license = 'AUT-DIGEMID-2026-904' 
 WHERE sanitary_license IS NULL OR sanitary_license = 'DIRIS-LC N° 10842-FAR';
+UPDATE configuraciones
+SET session_timeout_minutes = 720
+WHERE session_timeout_minutes IS NULL;
 
 -- Soporte oficial de Pago Mixto (Efectivo + Digital) en ventas
 DO $$ 
