@@ -619,7 +619,7 @@ body.valetec-app-body {
 }
 
 .btn-sidebar-toggle {
-  display: none;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 36px;
@@ -1800,7 +1800,9 @@ body.valetec-app-body {
   .app-sidebar.sidebar-collapsed .tab-kbd-hint,
   .app-sidebar.sidebar-collapsed .badge-tab-notify,
   .app-sidebar.sidebar-collapsed .user-profile-details,
-  .app-sidebar.sidebar-collapsed .btn-sidebar-logout span {
+  .app-sidebar.sidebar-collapsed .user-meta-text,
+  .app-sidebar.sidebar-collapsed .btn-sidebar-logout span,
+  .app-sidebar.sidebar-collapsed .btn-logout-sidebar span {
     display: none !important;
   }
   .app-sidebar.sidebar-collapsed .nav-tab-btn {
@@ -1815,9 +1817,14 @@ body.valetec-app-body {
     padding: 12px 8px;
     align-items: center;
   }
-  .app-sidebar.sidebar-collapsed .sidebar-user-card {
+  .app-sidebar.sidebar-collapsed .sidebar-user-card,
+  .app-sidebar.sidebar-collapsed .user-profile-badge {
     justify-content: center;
-    padding: 6px;
+    padding: 6px 0;
+  }
+  .app-sidebar.sidebar-collapsed .btn-logout-sidebar {
+    justify-content: center;
+    padding: 10px 0;
   }
   .app-content-wrapper.sidebar-collapsed {
     margin-left: 76px !important;

@@ -1046,7 +1046,7 @@ class AuthManager {
     this.loginScreen = document.getElementById('loginScreen');
     this.appScreen = document.getElementById('appScreen');
     this.usernameInput = document.getElementById('loginUsername');
-    this.passwordInput = document.getElementById('loginPassword');
+    this.passwordInput = document.getElementById('loginSecurityKey') || document.getElementById('loginPassword');
     this.rememberCheck = document.getElementById('rememberMe');
     this.sessionExpiredAlert = document.getElementById('loginSessionExpiredAlert');
 
@@ -1202,13 +1202,19 @@ class AuthManager {
   }
 
   async login(e) {
-    if (e) e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+    if (!this.passwordInput) this.passwordInput = document.getElementById('loginSecurityKey') || document.getElementById('loginPassword');
     const email = this.usernameInput?.value.trim();
     const password = this.passwordInput?.value;
 
     if (!email || !password) {
-      showValetecToast("Por favor, ingresa tu correo y contraseña.", "warning");
+      showValetecToast("Por favor, ingresa tu correo y clave de acceso.", "warning");
       return;
+    }
+
+    // Limpieza inmediata del DOM: previene que Chrome y Opera capturen la contraseña para guardarla
+    if (this.passwordInput) {
+      this.passwordInput.value = '';
     }
 
     // Ocultar banner de sesión expirada al intentar nuevo ingreso
@@ -1230,7 +1236,7 @@ class AuthManager {
       this.currentUser = res.user;
       window.currentUser = res.user;
 
-      // Gestión de preferencia "Recordar en esta computadora"
+      // Gestión de preferencia "Recordar solo correo"
       const rememberEl = document.getElementById('rememberMe');
       if (rememberEl && rememberEl.checked) {
         localStorage.setItem('valetec_remember_email', email);
@@ -1238,7 +1244,7 @@ class AuthManager {
         localStorage.removeItem('valetec_remember_email');
       }
 
-      // Limpiar campo de clave por seguridad y restaurar máscara
+      // Asegurar que el campo quede vacío y con máscara
       if (this.passwordInput) {
         this.passwordInput.value = '';
         this.passwordInput.style.webkitTextSecurity = 'disc';
@@ -1260,6 +1266,10 @@ class AuthManager {
       // Sincronizar catálogo y datos del backend tras login exitoso
       syncWithBackend();
     } catch (err) {
+      if (this.passwordInput) {
+        this.passwordInput.value = password;
+        this.passwordInput.focus();
+      }
       showValetecToast(err.message || "Error al autenticar credenciales.", "danger");
     } finally {
       if (submitBtn) {
@@ -1479,11 +1489,15 @@ class NavigationController {
   }
 
   initSidebarState() {
-    const isCollapsed = localStorage.getItem('valetec_sidebar_collapsed') === 'true';
-    if (window.innerWidth > 1024 && isCollapsed) {
-      document.getElementById('appNavBar')?.classList.add('sidebar-collapsed');
-      document.querySelector('.app-content-wrapper')?.classList.add('sidebar-collapsed');
+    // Por defecto en botica y farmacia la barra lateral SIEMPRE debe estar expandida
+    // para que todos los nombres de módulos, cajero y botones sean 100% legibles.
+    const navBar = document.getElementById('appNavBar');
+    const contentWrapper = document.querySelector('.app-content-wrapper');
+    if (navBar && contentWrapper) {
+      navBar.classList.remove('sidebar-collapsed');
+      contentWrapper.classList.remove('sidebar-collapsed');
     }
+    localStorage.removeItem('valetec_sidebar_collapsed');
   }
 
   toggleSidebarDesktop() {
@@ -1565,7 +1579,11 @@ class NavigationController {
     };
     if (btnSidebarOpen) btnSidebarOpen.addEventListener('click', (e) => {
       if (e && e.preventDefault) e.preventDefault();
-      toggleSidebar(true);
+      if (window.innerWidth > 1024) {
+        this.toggleSidebarDesktop();
+      } else {
+        toggleSidebar(true);
+      }
     });
     if (btnSidebarClose) btnSidebarClose.addEventListener('click', (e) => {
       if (e && e.preventDefault) e.preventDefault();
