@@ -52,6 +52,7 @@ services:
       PGPASSWORD: ${PGPASSWORD:-valetec_secure_password_2026}
       PGDATABASE: ${PGDATABASE:-valetec_pharma}
       JWT_SECRET: ${JWT_SECRET:-valetec_pharma_production_secret_key_2026}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-12h}
       POS_WEBHOOK_SECRET: ${POS_WEBHOOK_SECRET:-valetec_pos_webhook_secret_2026}
       CORS_ORIGIN: "${CORS_ORIGIN:-*}"
       SUNAT_ENV: ${SUNAT_ENV:-beta}

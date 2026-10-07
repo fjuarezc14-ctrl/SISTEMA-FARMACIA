@@ -9,6 +9,7 @@ const config = {
   port: parseInt(process.env.PORT, 10) || 4000,
   nodeEnv: process.env.NODE_ENV || 'development',
   jwtSecret: process.env.JWT_SECRET || (isProd ? (() => { throw new Error('JWT_SECRET debe estar configurado estrictamente en las variables de entorno para producción.'); })() : 'valetec_dev_secret_key'),
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '12h',
   corsOrigin: isProd ? (process.env.CORS_ORIGIN && process.env.CORS_ORIGIN !== '*' ? process.env.CORS_ORIGIN : 'http://localhost:3000') : (process.env.CORS_ORIGIN || 'http://localhost:3000'),
 
   // Database Connection (PostgreSQL 16) - Soporte para variables estándar y bilingües
