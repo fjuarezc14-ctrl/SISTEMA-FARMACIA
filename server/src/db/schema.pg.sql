@@ -126,13 +126,13 @@ CREATE TABLE IF NOT EXISTS ventas (
   turno_id INTEGER REFERENCES caja_turnos(id) ON UPDATE CASCADE ON DELETE SET NULL,
   customer_doc VARCHAR(20),
   customer_name VARCHAR(150),
-  payment_method VARCHAR(20) NOT NULL CHECK(payment_method IN ('cash', 'yape', 'card')),
+  payment_method VARCHAR(20) NOT NULL CHECK(payment_method IN ('cash', 'yape', 'card', 'mixed')),
   subtotal NUMERIC(10, 2) NOT NULL CHECK(subtotal >= 0),
   igv NUMERIC(10, 2) NOT NULL CHECK(igv >= 0),
   total NUMERIC(10, 2) NOT NULL CHECK(total >= 0),
   amount_paid NUMERIC(10, 2) NOT NULL CHECK(amount_paid >= 0),
   change_given NUMERIC(10, 2) NOT NULL DEFAULT 0.00 CHECK(change_given >= 0),
-  payment_reference VARCHAR(100),
+  payment_reference VARCHAR(255),
   status VARCHAR(20) NOT NULL DEFAULT 'completed' CHECK(status IN ('completed', 'cancelled')),
   sunat_status VARCHAR(30) NOT NULL DEFAULT 'pending',
   sunat_response TEXT,
@@ -262,5 +262,18 @@ ALTER TABLE clientes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CUR
 UPDATE configuraciones 
 SET sanitary_license = 'AUT-DIGEMID-2026-904' 
 WHERE sanitary_license IS NULL OR sanitary_license = 'DIRIS-LC N° 10842-FAR';
+
+-- Soporte oficial de Pago Mixto (Efectivo + Digital) en ventas
+DO $$ 
+BEGIN 
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'ventas') THEN
+    ALTER TABLE ventas DROP CONSTRAINT IF EXISTS ventas_payment_method_check;
+    ALTER TABLE ventas ADD CONSTRAINT ventas_payment_method_check 
+      CHECK (payment_method IN ('cash', 'yape', 'card', 'mixed'));
+    ALTER TABLE ventas ALTER COLUMN payment_reference TYPE VARCHAR(255);
+  END IF;
+EXCEPTION WHEN OTHERS THEN 
+  NULL;
+END $$;
 
 

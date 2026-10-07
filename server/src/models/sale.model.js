@@ -20,7 +20,7 @@ class SaleModel {
   /**
    * Métodos de pago permitidos en el sistema
    */
-  static PAYMENT_METHODS = ['cash', 'yape', 'card'];
+  static PAYMENT_METHODS = ['cash', 'yape', 'card', 'mixed'];
 
   /**
    * Tipos de comprobante reconocidos
@@ -47,6 +47,23 @@ class SaleModel {
     // 2. Método de pago
     if (!data.paymentMethod || !SaleModel.PAYMENT_METHODS.includes(data.paymentMethod)) {
       errors.push(`El método de pago es inválido. Debe ser uno de: ${SaleModel.PAYMENT_METHODS.join(', ')}.`);
+    } else if (data.paymentMethod === 'mixed') {
+      const details = data.mixedDetails;
+      if (!details || typeof details !== 'object') {
+        errors.push('Para pago mixto es obligatorio enviar el objeto con el desglose de montos (mixedDetails).');
+      } else {
+        const cashCents = Math.round((parseFloat(details.cashAmount) || 0) * 100);
+        const digCents = Math.round((parseFloat(details.digitalAmount) || 0) * 100);
+        if (cashCents <= 0) {
+          errors.push('La porción en efectivo debe ser mayor a S/ 0.00.');
+        }
+        if (digCents <= 0) {
+          errors.push('La porción digital debe ser mayor a S/ 0.00.');
+        }
+        if (details.digitalMethod && !['yape', 'plin', 'card'].includes(String(details.digitalMethod).toLowerCase())) {
+          errors.push('El medio digital complementario debe ser Yape, Plin o Tarjeta.');
+        }
+      }
     }
 
     // 3. Ítems del carrito
@@ -255,18 +272,30 @@ class SaleModel {
   }
 
   /**
-   * Acumular ventas en el turno de caja abierto del cajero.
+   * Acumular ventas en el turno de caja abierto del cajero (ACID).
    * @param {number|string} turnoId - ID del turno de caja.
    * @param {number} totalAmount - Monto total a acumular.
-   * @param {string} paymentMethod - 'cash', 'yape' o 'card'.
+   * @param {string} paymentMethod - 'cash', 'yape', 'card' o 'mixed'.
    * @param {Object} clientTx - Cliente transaccional.
+   * @param {Object} [mixedDetails] - Desglose de { cashAmount, digitalAmount } si es pago mixto.
    */
-  static async updateShiftSales(turnoId, totalAmount, paymentMethod, clientTx) {
+  static async updateShiftSales(turnoId, totalAmount, paymentMethod, clientTx, mixedDetails = null) {
     if (!turnoId) return;
     const runFn = (clientTx && clientTx.run) ? clientTx.run.bind(clientTx) : run;
     const total = parseFloat(totalAmount) || 0;
 
-    if (paymentMethod === 'cash') {
+    if (paymentMethod === 'mixed' && mixedDetails) {
+      const cashAmt = parseFloat(mixedDetails.cashAmount) || 0;
+      const digAmt = parseFloat(mixedDetails.digitalAmount) || 0;
+      await runFn(`
+        UPDATE caja_turnos 
+        SET 
+          cash_sales = cash_sales + $1,
+          expected_balance = expected_balance + $1,
+          digital_sales = digital_sales + $2
+        WHERE id = $3;
+      `, [cashAmt, digAmt, turnoId]);
+    } else if (paymentMethod === 'cash') {
       await runFn(`
         UPDATE caja_turnos 
         SET 
@@ -288,15 +317,27 @@ class SaleModel {
    * Revertir acumulados en turno de caja ante anulación de venta.
    * @param {number|string} turnoId - ID del turno.
    * @param {number} totalAmount - Monto a revertir.
-   * @param {string} paymentMethod - 'cash', 'yape', 'card'.
+   * @param {string} paymentMethod - 'cash', 'yape', 'card', 'mixed'.
    * @param {Object} clientTx - Cliente transaccional.
+   * @param {Object} [mixedDetails] - Desglose si la venta anulada fue mixta.
    */
-  static async revertShiftSales(turnoId, totalAmount, paymentMethod, clientTx) {
+  static async revertShiftSales(turnoId, totalAmount, paymentMethod, clientTx, mixedDetails = null) {
     if (!turnoId) return;
     const runFn = (clientTx && clientTx.run) ? clientTx.run.bind(clientTx) : run;
     const total = parseFloat(totalAmount) || 0;
 
-    if (paymentMethod === 'cash') {
+    if (paymentMethod === 'mixed' && mixedDetails) {
+      const cashAmt = parseFloat(mixedDetails.cashAmount) || 0;
+      const digAmt = parseFloat(mixedDetails.digitalAmount) || 0;
+      await runFn(`
+        UPDATE caja_turnos 
+        SET 
+          cash_sales = GREATEST(0, cash_sales - $1),
+          expected_balance = GREATEST(0, expected_balance - $1),
+          digital_sales = GREATEST(0, digital_sales - $2)
+        WHERE id = $3;
+      `, [cashAmt, digAmt, turnoId]);
+    } else if (paymentMethod === 'cash') {
       await runFn(`
         UPDATE caja_turnos 
         SET 

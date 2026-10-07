@@ -2193,6 +2193,9 @@
           <button type="button" class="pay-method-btn" data-method="card" id="btnPayCard">
             <i class="bi bi-credit-card"></i> <span>Tarjeta POS</span>
           </button>
+          <button type="button" class="pay-method-btn" data-method="mixed" id="btnPayMixed">
+            <i class="bi bi-pie-chart-fill"></i> <span>Pago Mixto</span>
+          </button>
         </div>
       </div>
 
@@ -2236,6 +2239,64 @@
           <div>
             <label for="digitalRefInput" style="font-size: 11.5px; font-weight: 600; color: #334155; margin-bottom: 3px; display: block;">N° Operación / Referencia (Opcional):</label>
             <input type="text" id="digitalRefInput" class="form-control" placeholder="Ej. OP-738291" style="font-size: 12.5px; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; width: 100%;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Sección para Cobro Mixto (Efectivo + Digital) -->
+      <div class="mixed-calc-wrapper d-none" id="mixedPaymentSection" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <strong style="font-size: 12.5px; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+            <i class="bi bi-pie-chart-fill text-teal"></i> Desglose de Pago Dividido
+          </strong>
+          <span class="badge" id="mixedBalanceBadge" style="background: #ecfdf5; color: #065f46; font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 700;">
+            <i class="bi bi-check-circle"></i> Balance Exacto
+          </span>
+        </div>
+
+        <!-- Fila 1: Porción Efectivo -->
+        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; margin-bottom: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 11.5px; font-weight: 700; color: #047857;"><i class="bi bi-cash-stack"></i> 1. PARTE EN EFECTIVO</span>
+            <small style="color: #64748b; font-size: 10.5px;">Monto pactado a recibir</small>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div>
+              <label for="mixedCashAmountInput" style="font-size: 10.5px; color: #475569; display: block; margin-bottom: 2px;">Monto a pagar (S/):</label>
+              <input type="number" id="mixedCashAmountInput" class="form-control" placeholder="0.00" step="0.10" min="0" style="font-weight: 700; font-size: 13px;" oninput="counterApp.onMixedCashInput()">
+            </div>
+            <div>
+              <label for="mixedCashReceivedInput" style="font-size: 10.5px; color: #475569; display: block; margin-bottom: 2px;">Billete entregado (S/):</label>
+              <input type="number" id="mixedCashReceivedInput" class="form-control" placeholder="0.00" step="0.50" min="0" style="font-size: 13px;" oninput="counterApp.onMixedCashReceivedInput()">
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e2e8f0;">
+            <span style="font-size: 11px; color: #64748b;">Vuelto a devolver al cliente:</span>
+            <strong id="mixedCashChangeDisplay" style="color: #0d9488; font-size: 13px;">S/ 0.00</strong>
+          </div>
+        </div>
+
+        <!-- Fila 2: Porción Digital -->
+        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 11.5px; font-weight: 700; color: #1d4ed8;"><i class="bi bi-phone"></i> 2. PARTE DIGITAL / TARJETA</span>
+            <span class="badge" id="mixedDigitalBadge" style="background: #eff6ff; color: #1e40af; font-size: 10.5px; padding: 2px 6px;">Saldo Restante</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px;">
+            <div>
+              <label for="mixedDigitalAmountInput" style="font-size: 10.5px; color: #475569; display: block; margin-bottom: 2px;">Monto digital (S/):</label>
+              <input type="number" id="mixedDigitalAmountInput" class="form-control" placeholder="0.00" step="0.10" min="0" style="font-weight: 700; font-size: 13px;" oninput="counterApp.onMixedDigitalInput()">
+            </div>
+            <div>
+              <label for="mixedDigitalMethodSelect" style="font-size: 10.5px; color: #475569; display: block; margin-bottom: 2px;">Medio electrónico:</label>
+              <select id="mixedDigitalMethodSelect" class="form-select-valetec" style="height: 34px; font-size: 11.5px; width: 100%;">
+                <option value="yape">Yape / Plin</option>
+                <option value="card">Tarjeta POS</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <input type="text" id="mixedDigitalRefInput" class="form-control" placeholder="N° de operación / Ref. opcional (Ej: 981240)" style="font-size: 11px; padding: 4px 8px; border-radius: 4px;">
           </div>
         </div>
       </div>

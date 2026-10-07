@@ -48,7 +48,8 @@ async function createSale(req, res, next) {
       amountPaid,
       paymentReference = null,
       doctorCmp = null,
-      recipeFolio = null
+      recipeFolio = null,
+      mixedDetails = null
     } = req.body;
 
     // 1. Validaciones defensivas iniciales mediante SaleModel
@@ -57,7 +58,8 @@ async function createSale(req, res, next) {
       paymentMethod,
       customerDoc,
       customerName,
-      items
+      items,
+      mixedDetails
     });
 
     const sanitizedRef = paymentReference ? String(paymentReference).trim() : null;
@@ -199,6 +201,7 @@ async function createSale(req, res, next) {
       let changeGiven = 0;
       let cashPayable = calculatedTotal;
       let bcrpRounding = 0;
+      let finalReference = sanitizedRef;
 
       if (paymentMethod === 'cash') {
         const totalCents = Math.round(calculatedTotal * 100);
@@ -215,6 +218,24 @@ async function createSale(req, res, next) {
           throw err;
         }
         changeGiven = Math.max(0, Math.round((paid - cashPayable) * 100) / 100);
+      } else if (paymentMethod === 'mixed') {
+        const mix = mixedDetails || {};
+        const cashPortion = Math.round((parseFloat(mix.cashAmount) || 0) * 100) / 100;
+        const digitalPortion = Math.round((parseFloat(mix.digitalAmount) || 0) * 100) / 100;
+        const cashRec = (mix.cashReceived !== undefined && mix.cashReceived !== null && mix.cashReceived !== '') ? parseFloat(mix.cashReceived) : cashPortion;
+
+        if (cashRec < cashPortion) {
+          const err = new Error(`El dinero recibido en efectivo (S/ ${cashRec.toFixed(2)}) es menor a la porción pactada (S/ ${cashPortion.toFixed(2)}).`);
+          err.statusCode = 400;
+          throw err;
+        }
+        changeGiven = Math.max(0, Math.round((cashRec - cashPortion) * 100) / 100);
+        paid = Math.round((cashRec + digitalPortion) * 100) / 100;
+        cashPayable = cashPortion;
+
+        const digMethodName = (mix.digitalMethod || 'digital').toUpperCase();
+        const digRefText = mix.digitalRef ? ` (Op: ${mix.digitalRef})` : '';
+        finalReference = `Efectivo: S/ ${cashPortion.toFixed(2)} (Recib: ${cashRec.toFixed(2)}, Vuelto: ${changeGiven.toFixed(2)}) | ${digMethodName}: S/ ${digitalPortion.toFixed(2)}${digRefText}`;
       } else {
         paid = calculatedTotal;
         changeGiven = 0;
@@ -277,7 +298,7 @@ async function createSale(req, res, next) {
         total: calculatedTotal,
         amountPaid: paid,
         changeGiven,
-        paymentReference: sanitizedRef,
+        paymentReference: finalReference,
         hashCpe: cpeData ? cpeData.digestValue : null,
         xmlUbl: cpeData ? cpeData.xml : null
       }, tx);
@@ -386,7 +407,7 @@ async function createSale(req, res, next) {
 
       // 2.10 Acumular venta en el turno de caja abierto
       const netCashToShift = paymentMethod === 'cash' ? cashPayable : calculatedTotal;
-      await SaleModel.updateShiftSales(turnoId, netCashToShift, paymentMethod, tx);
+      await SaleModel.updateShiftSales(turnoId, netCashToShift, paymentMethod, tx, mixedDetails);
 
       const totalInWords = cpeData ? cpeData.totalInWords : numberToLetters(calculatedTotal);
 
@@ -410,7 +431,7 @@ async function createSale(req, res, next) {
         totalInWords,
         amountPaid: paid,
         changeGiven,
-        paymentReference: sanitizedRef,
+        paymentReference: finalReference,
         turnoId,
         cpeStatus: cpeData ? 'GENERATED_UBL21' : 'NO_APLICA_TICKET',
         sunatStatus: cpeData ? 'pending' : 'not_applicable',
@@ -608,10 +629,22 @@ async function cancelSale(req, res, next) {
 
       // 4. Revertir saldo en el turno de caja
       if (sale.turnoId) {
+        let mixedRevert = null;
+        if (sale.paymentMethod === 'mixed' && (sale.paymentReference || sale.payment_reference)) {
+          const refStr = sale.paymentReference || sale.payment_reference || '';
+          const matchCash = refStr.match(/Efectivo:\s*S\/\s*([\d.]+)/i);
+          const matchDig = refStr.match(/\|\s*[A-Z]+:\s*S\/\s*([\d.]+)/i);
+          if (matchCash && matchDig) {
+            mixedRevert = {
+              cashAmount: parseFloat(matchCash[1]) || 0,
+              digitalAmount: parseFloat(matchDig[1]) || 0
+            };
+          }
+        }
         const netCashRevert = sale.paymentMethod === 'cash'
           ? Math.max(0, Math.round(((parseFloat(sale.amountPaid) || parseFloat(sale.total)) - (parseFloat(sale.changeGiven) || 0)) * 100) / 100)
           : parseFloat(sale.total);
-        await SaleModel.revertShiftSales(sale.turnoId, netCashRevert > 0 ? netCashRevert : sale.total, sale.paymentMethod, tx);
+        await SaleModel.revertShiftSales(sale.turnoId, netCashRevert > 0 ? netCashRevert : sale.total, sale.paymentMethod, tx, mixedRevert);
       }
 
       // 5. Revocar puntos acumulados por la venta cancelada

@@ -1932,8 +1932,18 @@ class CounterModule {
     this.btnPayCash = document.getElementById('btnPayCash');
     this.btnPayYape = document.getElementById('btnPayYape');
     this.btnPayCard = document.getElementById('btnPayCard');
+    this.btnPayMixed = document.getElementById('btnPayMixed');
     this.cashPaymentSection = document.getElementById('cashPaymentSection');
     this.digitalPaymentSection = document.getElementById('digitalPaymentSection');
+    this.mixedPaymentSection = document.getElementById('mixedPaymentSection');
+    this.mixedBalanceBadge = document.getElementById('mixedBalanceBadge');
+    this.mixedCashAmountInput = document.getElementById('mixedCashAmountInput');
+    this.mixedCashReceivedInput = document.getElementById('mixedCashReceivedInput');
+    this.mixedCashChangeDisplay = document.getElementById('mixedCashChangeDisplay');
+    this.mixedDigitalAmountInput = document.getElementById('mixedDigitalAmountInput');
+    this.mixedDigitalMethodSelect = document.getElementById('mixedDigitalMethodSelect');
+    this.mixedDigitalRefInput = document.getElementById('mixedDigitalRefInput');
+    this.mixedDigitalBadge = document.getElementById('mixedDigitalBadge');
     this.digitalIconTag = document.getElementById('digitalIconTag');
     this.digitalTitleTag = document.getElementById('digitalTitleTag');
     this.digitalHintTag = document.getElementById('digitalHintTag');
@@ -2036,6 +2046,21 @@ class CounterModule {
     if (this.btnPayCash) this.btnPayCash.addEventListener('click', () => this.setPaymentMethod('cash'));
     if (this.btnPayYape) this.btnPayYape.addEventListener('click', () => this.setPaymentMethod('yape'));
     if (this.btnPayCard) this.btnPayCard.addEventListener('click', () => this.setPaymentMethod('card'));
+    if (this.btnPayMixed) this.btnPayMixed.addEventListener('click', () => this.setPaymentMethod('mixed'));
+
+    // Listeners reactivos de Pago Mixto
+    if (this.mixedCashAmountInput) {
+      this.mixedCashAmountInput.addEventListener('input', () => this.onMixedCashInput());
+    }
+    if (this.mixedDigitalAmountInput) {
+      this.mixedDigitalAmountInput.addEventListener('input', () => this.onMixedDigitalInput());
+    }
+    if (this.mixedCashReceivedInput) {
+      this.mixedCashReceivedInput.addEventListener('input', () => this.onMixedCashReceivedInput());
+    }
+    if (this.mixedDigitalBadge) {
+      this.mixedDigitalBadge.addEventListener('click', () => this.autoBalanceMixedDigital());
+    }
 
     // Botones de billetes para cálculo rápido de vuelto
     document.querySelectorAll('.btn-cash-bill').forEach(b => {
@@ -2734,10 +2759,12 @@ class CounterModule {
       this.btnPayCash?.classList.add('active');
       this.cashPaymentSection?.classList.remove('d-none');
       this.digitalPaymentSection?.classList.add('d-none');
+      this.mixedPaymentSection?.classList.add('d-none');
     } else if (method === 'yape') {
       this.btnPayYape?.classList.add('active');
       this.cashPaymentSection?.classList.add('d-none');
       this.digitalPaymentSection?.classList.remove('d-none');
+      this.mixedPaymentSection?.classList.add('d-none');
       if (this.digitalIconTag) this.digitalIconTag.innerHTML = '<i class="bi bi-qr-code"></i>';
       if (this.digitalTitleTag) this.digitalTitleTag.innerText = 'Pago con Yape / Plin';
       if (this.digitalHintTag) this.digitalHintTag.innerText = 'Pide al cliente escanear el QR o transferir el monto exacto.';
@@ -2746,12 +2773,131 @@ class CounterModule {
       this.btnPayCard?.classList.add('active');
       this.cashPaymentSection?.classList.add('d-none');
       this.digitalPaymentSection?.classList.remove('d-none');
+      this.mixedPaymentSection?.classList.add('d-none');
       if (this.digitalIconTag) this.digitalIconTag.innerHTML = '<i class="bi bi-credit-card"></i>';
       if (this.digitalTitleTag) this.digitalTitleTag.innerText = 'Pago con Tarjeta POS';
       if (this.digitalHintTag) this.digitalHintTag.innerText = 'Pasa la tarjeta por el POS (Visa, Mastercard, Débito).';
       if (this.digitalRefInput) this.digitalRefInput.placeholder = 'Últimos 4 dígitos o Código de Auth';
+    } else if (method === 'mixed') {
+      this.btnPayMixed?.classList.add('active');
+      this.cashPaymentSection?.classList.add('d-none');
+      this.digitalPaymentSection?.classList.add('d-none');
+      this.mixedPaymentSection?.classList.remove('d-none');
+      this.initMixedPaymentValues();
     }
     this.recalcChange();
+  }
+
+  initMixedPaymentValues() {
+    const total = this.calcTotal();
+    const defaultCash = total > 0 ? Math.floor(total / 2) : 0;
+    const defaultDigital = Math.max(0, Math.round((total - defaultCash) * 100) / 100);
+
+    if (this.mixedCashAmountInput) {
+      this.mixedCashAmountInput.value = defaultCash > 0 ? defaultCash.toFixed(2) : '';
+    }
+    if (this.mixedDigitalAmountInput) {
+      this.mixedDigitalAmountInput.value = defaultDigital.toFixed(2);
+    }
+    if (this.mixedCashReceivedInput) {
+      this.mixedCashReceivedInput.value = defaultCash > 0 ? defaultCash.toFixed(2) : '';
+    }
+    this.recalcMixedPayment();
+  }
+
+  onMixedCashInput() {
+    const total = this.calcTotal();
+    const totalCents = Math.round(total * 100);
+    let cashVal = parseFloat(this.mixedCashAmountInput?.value || 0);
+    if (isNaN(cashVal) || cashVal < 0) cashVal = 0;
+
+    let cashCents = Math.round(cashVal * 100);
+    if (cashCents > totalCents) {
+      cashCents = totalCents;
+      if (this.mixedCashAmountInput) this.mixedCashAmountInput.value = (cashCents / 100).toFixed(2);
+    }
+
+    const digitalCents = Math.max(0, totalCents - cashCents);
+    if (this.mixedDigitalAmountInput) {
+      this.mixedDigitalAmountInput.value = (digitalCents / 100).toFixed(2);
+    }
+
+    const recVal = parseFloat(this.mixedCashReceivedInput?.value || 0);
+    if (recVal < (cashCents / 100) && cashCents > 0) {
+      if (this.mixedCashReceivedInput) this.mixedCashReceivedInput.value = (cashCents / 100).toFixed(2);
+    }
+
+    this.recalcMixedPayment();
+  }
+
+  onMixedDigitalInput() {
+    this.recalcMixedPayment();
+  }
+
+  autoBalanceMixedDigital() {
+    const total = this.calcTotal();
+    const totalCents = Math.round(total * 100);
+    const cashVal = parseFloat(this.mixedCashAmountInput?.value || 0) || 0;
+    const cashCents = Math.round(cashVal * 100);
+    const digitalCents = Math.max(0, totalCents - cashCents);
+    if (this.mixedDigitalAmountInput) {
+      this.mixedDigitalAmountInput.value = (digitalCents / 100).toFixed(2);
+    }
+    this.recalcMixedPayment();
+  }
+
+  onMixedCashReceivedInput() {
+    const cashAmount = parseFloat(this.mixedCashAmountInput?.value || 0) || 0;
+    const received = parseFloat(this.mixedCashReceivedInput?.value || 0) || 0;
+
+    const cashCents = Math.round(cashAmount * 100);
+    const recCents = Math.round(received * 100);
+
+    const changeCents = Math.max(0, recCents - cashCents);
+    if (this.mixedCashChangeDisplay) {
+      if (recCents < cashCents && received > 0) {
+        this.mixedCashChangeDisplay.style.color = '#dc2626';
+        this.mixedCashChangeDisplay.innerText = `Falta S/ ${((cashCents - recCents) / 100).toFixed(2)}`;
+      } else {
+        this.mixedCashChangeDisplay.style.color = '#0d9488';
+        this.mixedCashChangeDisplay.innerText = `S/ ${(changeCents / 100).toFixed(2)}`;
+      }
+    }
+  }
+
+  recalcMixedPayment() {
+    const total = this.calcTotal();
+    const totalCents = Math.round(total * 100);
+
+    const cashAmount = parseFloat(this.mixedCashAmountInput?.value || 0) || 0;
+    const digitalAmount = parseFloat(this.mixedDigitalAmountInput?.value || 0) || 0;
+
+    const cashCents = Math.round(cashAmount * 100);
+    const digitalCents = Math.round(digitalAmount * 100);
+    const sumCents = cashCents + digitalCents;
+    const diffCents = totalCents - sumCents;
+
+    const badge = this.mixedBalanceBadge || document.getElementById('mixedBalanceBadge');
+    const confirmBtn = this.btnConfirmCheckout;
+
+    if (badge) {
+      if (diffCents === 0 && totalCents > 0) {
+        badge.style.background = '#ecfdf5';
+        badge.style.color = '#065f46';
+        badge.innerHTML = '<i class="bi bi-check-circle-fill"></i> Balance Exacto';
+        if (confirmBtn) confirmBtn.disabled = false;
+      } else if (diffCents > 0) {
+        badge.style.background = '#fffbeb';
+        badge.style.color = '#b45309';
+        badge.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i> Faltan S/ ${(diffCents / 100).toFixed(2)}`;
+      } else {
+        badge.style.background = '#fef2f2';
+        badge.style.color = '#b91c1c';
+        badge.innerHTML = `<i class="bi bi-exclamation-circle-fill"></i> Sobran S/ ${(Math.abs(diffCents) / 100).toFixed(2)}`;
+      }
+    }
+
+    this.onMixedCashReceivedInput();
   }
 
   recalcChange() {
@@ -2915,7 +3061,8 @@ class CounterModule {
     let payLabel = 'EFECTIVO';
     if (sale.paymentMethod === 'yape') payLabel = 'YAPE / PLIN';
     else if (sale.paymentMethod === 'card') payLabel = 'TARJETA POS';
-    if (sale.paymentReference) {
+    else if (sale.paymentMethod === 'mixed') payLabel = 'PAGO MIXTO';
+    if (sale.paymentReference && sale.paymentMethod !== 'mixed') {
       payLabel += ` (Ref: ${sale.paymentReference})`;
     }
 
@@ -3046,6 +3193,12 @@ class CounterModule {
               <span>S/ ${parseFloat(sale.cashPayable !== undefined ? sale.cashPayable : (parseFloat(sale.total || 0) - ((Math.round(parseFloat(sale.total || 0) * 100) % 10) / 100))).toFixed(2)}</span>
             </div>
           ` : ''}
+          ${sale.paymentMethod === 'mixed' && sale.paymentReference ? `
+            <div class="receipt-total-row" style="padding: 4px 0; border-top: 1px dashed #cbd5e1; border-bottom: 1px dashed #cbd5e1; margin: 4px 0; display: block; text-align: left;">
+              <span style="font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">DESGLOSE PAGO MIXTO:</span>
+              <span style="font-size: 10px; color: #334155; line-height: 1.3; display: block;">${escHtml(sale.paymentReference)}</span>
+            </div>
+          ` : ''}
           <div class="receipt-total-row">
             <span>IMPORTE RECIBIDO:</span>
             <span>S/ ${parseFloat(sale.amountPaid || 0).toFixed(2)}</span>
@@ -3149,6 +3302,9 @@ class CounterModule {
 
     // Recalcular vuelto y redondeo BCRP
     this.recalcChange();
+    if (this.currentPaymentMethod === 'mixed') {
+      this.initMixedPaymentValues();
+    }
 
     if (this.posCheckoutModal) this.posCheckoutModal.classList.add('active');
     if (this.posCheckoutModalBackdrop) this.posCheckoutModalBackdrop.classList.add('active');
@@ -3158,6 +3314,11 @@ class CounterModule {
         if (this.cashInput) {
           this.cashInput.focus();
           this.cashInput.select();
+        }
+      } else if (this.currentPaymentMethod === 'mixed') {
+        if (this.mixedCashAmountInput) {
+          this.mixedCashAmountInput.focus();
+          this.mixedCashAmountInput.select();
         }
       } else {
         if (this.digitalRefInput) {
@@ -3246,6 +3407,7 @@ class CounterModule {
     let amountPaid = total;
     let cashPayable = total;
     let bcrpRounding = 0;
+    let mixedDetailsPayload = null;
 
     if (paymentMethod === 'cash') {
       const totalCents = Math.round(total * 100);
@@ -3261,6 +3423,50 @@ class CounterModule {
         return;
       }
       amountPaid = rec > 0 ? rec : cashPayable;
+    } else if (paymentMethod === 'mixed') {
+      const totalCents = Math.round(total * 100);
+      const cashVal = parseFloat(this.mixedCashAmountInput?.value || 0) || 0;
+      const digitalVal = parseFloat(this.mixedDigitalAmountInput?.value || 0) || 0;
+      const receivedVal = parseFloat(this.mixedCashReceivedInput?.value || 0);
+      const digitalMethod = this.mixedDigitalMethodSelect?.value || 'yape';
+      const digitalRef = this.mixedDigitalRefInput?.value.trim() || '';
+
+      const cashCents = Math.round(cashVal * 100);
+      const digitalCents = Math.round(digitalVal * 100);
+
+      if (cashCents < 0 || digitalCents <= 0) {
+        this._checkoutInProgress = false;
+        showValetecToast("En Pago Mixto debe ingresar una porción en efectivo y un monto digital mayor a 0.", "warning");
+        return;
+      }
+
+      if (cashCents + digitalCents !== totalCents) {
+        this._checkoutInProgress = false;
+        const diff = (totalCents - (cashCents + digitalCents)) / 100;
+        const diffMsg = diff > 0 ? `Faltan S/ ${diff.toFixed(2)}` : `Sobran S/ ${Math.abs(diff).toFixed(2)}`;
+        showValetecToast(`El desglose de pago mixto no cuadra con el total (S/ ${total.toFixed(2)}). ${diffMsg}.`, "warning");
+        return;
+      }
+
+      const recCents = Math.round((!isNaN(receivedVal) && receivedVal > 0 ? receivedVal : cashVal) * 100);
+      if (recCents < cashCents) {
+        this._checkoutInProgress = false;
+        showValetecToast(`Dinero entregado insuficiente. Efectivo a pagar: S/ ${cashVal.toFixed(2)}, Recibido: S/ ${(recCents / 100).toFixed(2)}.`, "warning");
+        return;
+      }
+
+      mixedDetailsPayload = {
+        cashAmount: cashVal,
+        digitalAmount: digitalVal,
+        digitalMethod,
+        digitalRef: digitalRef || null,
+        cashReceived: (recCents / 100)
+      };
+
+      amountPaid = (recCents + digitalCents) / 100;
+      cashPayable = cashVal;
+      const changeVal = (recCents - cashCents) / 100;
+      paymentReference = `Efectivo: S/ ${cashVal.toFixed(2)} (Recib: ${(recCents / 100).toFixed(2)}, Vuelto: ${changeVal.toFixed(2)}) | ${digitalMethod.toUpperCase()}: S/ ${digitalVal.toFixed(2)}${digitalRef ? ` (Ref: ${digitalRef})` : ''}`;
     } else {
       paymentReference = this.digitalRefInput ? this.digitalRefInput.value.trim() : null;
       amountPaid = total;
@@ -3303,7 +3509,8 @@ class CounterModule {
           paymentReference,
           amountPaid,
           doctorCmp: this.docCmpInput?.value.trim() || undefined,
-          recipeFolio: this.docFolioInput?.value.trim() || undefined
+          recipeFolio: this.docFolioInput?.value.trim() || undefined,
+          mixedDetails: mixedDetailsPayload
         });
 
         if (!res || !res.success) {
@@ -3316,7 +3523,14 @@ class CounterModule {
         const num = Math.floor(1000 + Math.random() * 9000);
         const subtotal = Math.round((total / 1.18) * 100) / 100;
         const igv = Math.round((total - subtotal) * 100) / 100;
-        const changeGiven = paymentMethod === 'cash' ? Math.max(0, Math.round((amountPaid - total) * 100) / 100) : 0;
+        let changeGiven = 0;
+        if (paymentMethod === 'cash') {
+          changeGiven = Math.max(0, Math.round((amountPaid - total) * 100) / 100);
+        } else if (paymentMethod === 'mixed') {
+          const cAmt = mixedDetailsPayload?.cashAmount || 0;
+          const cRec = mixedDetailsPayload?.cashReceived || cAmt;
+          changeGiven = Math.max(0, Math.round((cRec - cAmt) * 100) / 100);
+        }
 
         saleData = {
           saleId: Date.now(),
@@ -3380,6 +3594,11 @@ class CounterModule {
       if (window.cashApp) {
         if (paymentMethod === 'cash') {
           cashApp.cashSales = (cashApp.cashSales || 0) + cashPayable;
+        } else if (paymentMethod === 'mixed') {
+          const cAmt = mixedDetailsPayload?.cashAmount || 0;
+          const dAmt = mixedDetailsPayload?.digitalAmount || 0;
+          cashApp.cashSales = (cashApp.cashSales || 0) + cAmt;
+          cashApp.digitalSales = (cashApp.digitalSales || 0) + dAmt;
         } else {
           cashApp.digitalSales = (cashApp.digitalSales || 0) + total;
         }
@@ -3428,6 +3647,10 @@ class CounterModule {
       this.updatePointsRedeemBox();
       if (this.cashInput) this.cashInput.value = '';
       if (this.digitalRefInput) this.digitalRefInput.value = '';
+      if (this.mixedCashAmountInput) this.mixedCashAmountInput.value = '';
+      if (this.mixedDigitalAmountInput) this.mixedDigitalAmountInput.value = '';
+      if (this.mixedCashReceivedInput) this.mixedCashReceivedInput.value = '';
+      if (this.mixedDigitalRefInput) this.mixedDigitalRefInput.value = '';
       if (this.docCmpInput) this.docCmpInput.value = '';
       if (this.docFolioInput) this.docFolioInput.value = '';
       if (this.rxAlert) {
@@ -3723,6 +3946,9 @@ class CounterModule {
       } else if (s.paymentMethod === 'card') {
         payIcon = '<i class="bi bi-credit-card text-blue"></i>';
         payLabel = s.paymentReference ? `Tarjeta (${escHtml(s.paymentReference)})` : 'Tarjeta POS';
+      } else if (s.paymentMethod === 'mixed') {
+        payIcon = '<i class="bi bi-pie-chart-fill text-teal"></i>';
+        payLabel = 'Pago Mixto';
       }
 
       let sunatBadge = '<span class="badge" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; font-size: 11px; font-weight: 700;"><i class="bi bi-check-circle"></i> Aceptado</span>';
@@ -3855,6 +4081,9 @@ class CounterModule {
       } else if (s.paymentMethod === 'card') {
         payIcon = '<i class="bi bi-credit-card"></i>';
         payLabel = s.paymentReference ? `Tarjeta (${s.paymentReference})` : 'Tarjeta POS';
+      } else if (s.paymentMethod === 'mixed') {
+        payIcon = '<i class="bi bi-pie-chart-fill" style="color: #0d9488;"></i>';
+        payLabel = 'Pago Mixto';
       }
 
       const totalNum = parseFloat(s.total || 0).toFixed(2);

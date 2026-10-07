@@ -3206,7 +3206,7 @@ body.valetec-app-body {
 
 .payment-methods-selector {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 6px;
   margin-bottom: 10px;
 }
@@ -5164,7 +5164,7 @@ body.uw-highlight-links input[type="submit"] {
 
 .payment-methods-selector {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
   gap: 6px;
   margin-bottom: 10px;
 }
