@@ -1069,6 +1069,24 @@ class AuthManager {
 
     // Iniciar vigilante preventivo de inactividad de botica (12h / 720 min por defecto o según BD)
     this.initInactivityWatcher(720);
+
+    // Atajos de teclado fluidos: Enter en usuario -> pasa a contraseña; Enter en contraseña -> inicia sesión
+    if (this.usernameInput) {
+      this.usernameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          this.passwordInput?.focus();
+        }
+      });
+    }
+    if (this.passwordInput) {
+      this.passwordInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          this.login(e);
+        }
+      });
+    }
   }
 
   initInactivityWatcher(timeoutMinutes = 60) {
@@ -1158,14 +1176,19 @@ class AuthManager {
     const icon = document.getElementById('togglePasswordIcon');
     if (!this.passwordInput) return;
 
-    if (this.passwordInput.type === 'password') {
+    // Soporte tanto para -webkit-text-security como type="password"
+    const isMasked = this.passwordInput.type === 'password' || (this.passwordInput.style.webkitTextSecurity !== 'none');
+    if (isMasked) {
       this.passwordInput.type = 'text';
+      this.passwordInput.style.webkitTextSecurity = 'none';
+      this.passwordInput.style.textSecurity = 'none';
       if (icon) {
         icon.classList.remove('bi-eye');
         icon.classList.add('bi-eye-slash');
       }
     } else {
-      this.passwordInput.type = 'password';
+      this.passwordInput.style.webkitTextSecurity = 'disc';
+      this.passwordInput.style.textSecurity = 'disc';
       if (icon) {
         icon.classList.remove('bi-eye-slash');
         icon.classList.add('bi-eye');
@@ -1215,8 +1238,12 @@ class AuthManager {
         localStorage.removeItem('valetec_remember_email');
       }
 
-      // Limpiar campo de clave por seguridad
-      if (this.passwordInput) this.passwordInput.value = '';
+      // Limpiar campo de clave por seguridad y restaurar máscara
+      if (this.passwordInput) {
+        this.passwordInput.value = '';
+        this.passwordInput.style.webkitTextSecurity = 'disc';
+        this.passwordInput.style.textSecurity = 'disc';
+      }
 
       if (this.loginScreen) this.loginScreen.classList.add('d-none');
       if (this.appScreen) this.appScreen.classList.remove('d-none');
@@ -1289,40 +1316,57 @@ class AuthManager {
   }
 
   logout() {
-    if (confirm("¿Seguro que deseas cerrar la sesión de tu turno actual?")) {
-      this.currentUser = null;
-      window.currentUser = null;
-      if (window.api) window.api.logout();
-
-      // Cerrar modales activos
-      document.querySelectorAll('.modal-backdrop-valetec.active, .modal-valetec.active, .drawer-valetec.active, .side-drawer.active').forEach(m => {
-        m.classList.remove('active');
-      });
-
-      if (this.appScreen) this.appScreen.classList.add('d-none');
-      if (this.loginScreen) this.loginScreen.classList.remove('d-none');
-
-      // Ocultar alerta de sesión expirada porque fue un logout intencional
-      if (!this.sessionExpiredAlert) this.sessionExpiredAlert = document.getElementById('loginSessionExpiredAlert');
-      if (this.sessionExpiredAlert) {
-        this.sessionExpiredAlert.style.display = 'none';
-        this.sessionExpiredAlert.classList.add('d-none');
-      }
-
-      if (this.passwordInput) this.passwordInput.value = '';
-
-      const roleSelect = document.getElementById('appRoleSelector');
-      if (roleSelect) {
-        roleSelect.disabled = false;
-        roleSelect.value = 'admin';
-        const pill = roleSelect.closest('.role-selector-pill');
-        if (pill) {
-          pill.style.opacity = '1';
-          pill.title = 'Toca aquí para cambiar de perfil y ver cómo trabaja cada colaborador';
-        }
-      }
-      showValetecToast("Sesión cerrada y token JWT invalidado.", "info");
+    const modal = document.getElementById('logoutConfirmModal');
+    if (modal) {
+      modal.classList.add('active');
+    } else {
+      this.executeLogout();
     }
+  }
+
+  closeLogoutModal() {
+    const modal = document.getElementById('logoutConfirmModal');
+    if (modal) modal.classList.remove('active');
+  }
+
+  executeLogout() {
+    this.closeLogoutModal();
+    this.currentUser = null;
+    window.currentUser = null;
+    if (window.api) window.api.logout();
+
+    // Cerrar todos los modales y backdrops activos
+    document.querySelectorAll('.modal-backdrop-valetec.active, .modal-valetec.active, .drawer-valetec.active, .side-drawer.active').forEach(m => {
+      m.classList.remove('active');
+    });
+
+    if (this.appScreen) this.appScreen.classList.add('d-none');
+    if (this.loginScreen) this.loginScreen.classList.remove('d-none');
+
+    // Ocultar alerta de sesión expirada porque fue un logout intencional
+    if (!this.sessionExpiredAlert) this.sessionExpiredAlert = document.getElementById('loginSessionExpiredAlert');
+    if (this.sessionExpiredAlert) {
+      this.sessionExpiredAlert.style.display = 'none';
+      this.sessionExpiredAlert.classList.add('d-none');
+    }
+
+    if (this.passwordInput) {
+      this.passwordInput.value = '';
+      this.passwordInput.style.webkitTextSecurity = 'disc';
+      this.passwordInput.style.textSecurity = 'disc';
+    }
+
+    const roleSelect = document.getElementById('appRoleSelector');
+    if (roleSelect) {
+      roleSelect.disabled = false;
+      roleSelect.value = 'admin';
+      const pill = roleSelect.closest('.role-selector-pill');
+      if (pill) {
+        pill.style.opacity = '1';
+        pill.title = 'Toca aquí para cambiar de perfil y ver cómo trabaja cada colaborador';
+      }
+    }
+    showValetecToast("Sesión de turno cerrada con éxito. Que tengas un buen descanso.", "info");
   }
 }
 

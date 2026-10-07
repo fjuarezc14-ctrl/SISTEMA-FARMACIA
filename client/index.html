@@ -77,16 +77,16 @@
           <span class="session-expired-msg" style="vertical-align: middle;"><strong>Sesión Expirada:</strong> Tu sesión ha caducado por seguridad. Ingresa tus credenciales para continuar.</span>
         </div>
 
-        <!-- Formulario Manual de Autenticación Seguro -->
-        <form class="login-form-fields" autocomplete="off" onsubmit="authManager.login(event)">
+        <!-- Contenedor Manual de Autenticación Seguro (Protección Anti-Autoguardado de Contraseñas POS) -->
+        <div class="login-form-fields" id="loginFormContainer" role="form" aria-label="Ingreso al Sistema">
           <div class="login-input-group">
             <label for="loginUsername"><i class="bi bi-person"></i> Correo o Usuario:</label>
-            <input type="text" id="loginUsername" class="login-field" placeholder="ej. usuario@valetec.pe" autocomplete="off" spellcheck="false" required>
+            <input type="text" id="loginUsername" name="valetec_auth_uid" class="login-field" placeholder="ej. usuario@valetec.pe" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required>
           </div>
           <div class="login-input-group mt-3">
             <label for="loginPassword"><i class="bi bi-key"></i> Clave / PIN de Turno:</label>
             <div class="password-wrapper">
-              <input type="password" id="loginPassword" class="login-field" placeholder="Escribe tu contraseña" autocomplete="new-password" required>
+              <input type="text" id="loginPassword" name="valetec_auth_pin" class="login-field" placeholder="Escribe tu contraseña" style="-webkit-text-security: disc; text-security: disc;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required>
               <button type="button" class="btn-toggle-password" id="btnTogglePassword" onclick="authManager.togglePasswordVisibility()" title="Mostrar u ocultar contraseña" aria-label="Mostrar u ocultar contraseña">
                 <i class="bi bi-eye" id="togglePasswordIcon"></i>
               </button>
@@ -98,10 +98,10 @@
             <a href="#" class="forgot-link" onclick="showValetecToast('Pide asistencia al Administrador para restablecer tu contraseña.', 'info')">¿Olvidaste tu clave?</a>
           </div>
 
-          <button type="submit" class="btn-login-submit" style="margin-top: 18px;">
+          <button type="button" class="btn-login-submit" onclick="authManager.login(event)" style="margin-top: 18px;">
             <i class="bi bi-box-arrow-in-right"></i> Ingresar al Sistema
           </button>
-        </form>
+        </div>
 
         <div class="login-security-notice" style="margin-top: 20px;">
           <i class="bi bi-shield-check text-teal"></i> Sistema protegido y seguro para farmacias
@@ -4353,6 +4353,33 @@
     </div>
   </div>
 
+  <!-- Modal: Confirmación de Cierre de Sesión Valetec (Sustituye confirm nativo del navegador) -->
+  <div class="modal-backdrop-valetec" id="logoutConfirmModal">
+    <div class="modal-dialog-valetec" style="max-width: 440px; width: 92%; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25);">
+      <div class="modal-header-valetec" style="background: #fef2f2; border-bottom: 1px solid #fee2e2; padding: 14px 18px;">
+        <h3 style="color: #991b1b; display: flex; align-items: center; gap: 8px; font-size: 15px; margin: 0;">
+          <i class="bi bi-box-arrow-right text-danger"></i> ¿Cerrar Sesión del Turno?
+        </h3>
+        <button type="button" class="btn-close-modal" onclick="authManager.closeLogoutModal()" title="Cerrar"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body-valetec" style="padding: 18px 20px; font-size: 13px; color: #334155; line-height: 1.5;">
+        <p style="margin: 0 0 10px 0; font-weight: 500;">
+          ¿Estás seguro de que deseas cerrar la sesión de tu turno actual en esta computadora?
+        </p>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 12px; font-size: 12px; color: #64748b;">
+          <i class="bi bi-info-circle text-primary"></i> <strong>Aviso del Turno:</strong> Si tu jornada laboral ha terminado, recuerda registrar tu arqueo o corte en <em>Caja Chica / Cierre Z</em> antes de retirarte.
+        </div>
+      </div>
+      <div class="modal-footer-valetec" style="display: flex; justify-content: flex-end; gap: 10px; padding: 12px 20px; background: #fff; border-top: 1px solid #f1f5f9;">
+        <button type="button" class="btn-action-outline" onclick="authManager.closeLogoutModal()">
+          Continuar Trabajando
+        </button>
+        <button type="button" class="btn-action-solid" onclick="authManager.executeLogout()" style="background: #dc2626; border-color: #dc2626; color: white;">
+          <i class="bi bi-box-arrow-right"></i> <span>Sí, Cerrar Sesión</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Toast Flotante de Notificaciones del Sistema -->
   <div class="valetec-toast" id="valetecToast">
@@ -4361,8 +4388,8 @@
   </div>
 
   <!-- Capa de Comunicación API (Frontend ↔ Backend) -->
-  <script src="./js/api.js?v=6.6"></script>
+  <script src="./js/api.js?v=6.7"></script>
   <!-- Script Principal de la Aplicación -->
-  <script src="./js/app.js?v=6.6"></script>
+  <script src="./js/app.js?v=6.7"></script>
 </body>
 </html>
