@@ -4059,10 +4059,16 @@
           <strong>Política Sanitaria DIGEMID / BPA:</strong> Esta solicitud formal ampara el canje por rotación ante droguerías y laboratorios para lotes con vigencia menor a 90 días.
         </div>
         <form id="exchangeForm" onsubmit="warehouseApp.submitExchange(event)">
+          <div class="form-group-valetec" style="margin-bottom: 14px;" id="exchangeSelectContainer">
+            <label style="font-weight: 700; color: #0f766e;"><i class="bi bi-box-seam"></i> Seleccionar Lote FEFO Próximo a Vencer (&lt; 90 días):</label>
+            <select id="exchangeLotSelect" class="form-select-valetec" style="font-weight: 600;" onchange="warehouseApp.onExchangeLotSelectChange(this.value)">
+              <!-- Opciones dinámicas de lotes con vigencia menor a 90 días -->
+            </select>
+          </div>
           <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
             <div class="form-group-valetec">
               <label>Medicamento:</label>
-              <input type="text" id="exchangeProductName" value="Bio-Amoxil 500mg Cápsulas" required class="form-control" readonly>
+              <input type="text" id="exchangeProductName" value="Bio-Amoxil 500mg Cápsulas" required class="form-control">
             </div>
             <div class="form-group-valetec">
               <label>Droguería / Proveedor:</label>
@@ -4072,11 +4078,11 @@
           <div class="form-grid-valetec" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px;">
             <div class="form-group-valetec">
               <label>N° Lote:</label>
-              <input type="text" id="exchangeLotCode" value="L-24115" required class="form-control" readonly>
+              <input type="text" id="exchangeLotCode" value="L-24115" required class="form-control" style="font-family: monospace; font-weight: 700;">
             </div>
             <div class="form-group-valetec">
               <label>Vencimiento:</label>
-              <input type="text" id="exchangeExpireDate" value="15/11/2026 (< 60 días)" required class="form-control" readonly>
+              <input type="text" id="exchangeExpireDate" value="15/11/2026" required class="form-control">
             </div>
             <div class="form-group-valetec">
               <label>Cajas a Canjear:</label>
@@ -4334,8 +4340,8 @@
   </div>
 
   <!-- Capa de Comunicación API (Frontend ↔ Backend) -->
-  <script src="./js/api.js?v=6.4"></script>
+  <script src="./js/api.js?v=6.5"></script>
   <!-- Script Principal de la Aplicación -->
-  <script src="./js/app.js?v=6.4"></script>
+  <script src="./js/app.js?v=6.5"></script>
 </body>
 </html>

@@ -6396,22 +6396,119 @@ class WarehouseModule {
     this.openAdjustmentModal(lot.productId);
   }
 
-  openExchangeModal(e, medName, lot, supplier, qty) {
+  populateExchangeLotOptions(selectedLotCode = null) {
+    const select = document.getElementById('exchangeLotSelect');
+    if (!select) return;
+
+    // Obtener lista consolidada de lotes próximos a vencer (< 90 días)
+    let items = [];
+    if (window.purchasesApp && Array.isArray(window.purchasesApp.exchanges) && window.purchasesApp.exchanges.length > 0) {
+      items = window.purchasesApp.exchanges.map(x => ({
+        prodName: x.prodName,
+        lot: x.lot,
+        exp: x.exp,
+        boxes: x.boxes,
+        supplierName: x.supplierName
+      }));
+    } else {
+      items = [
+        { prodName: 'Bio-Amoxil 500mg Cápsulas', lot: 'L-24115', exp: '15/11/2026', boxes: 15, supplierName: 'Droguería Andina S.A.C.' },
+        { prodName: 'Sedafarma 2mg Ranuradas', lot: 'L-23890', exp: '28/11/2026', boxes: 8, supplierName: 'Química Suiza S.A.C.' },
+        { prodName: 'Farma-Naprox 550mg Tabletas', lot: 'L-24012', exp: '10/12/2026', boxes: 20, supplierName: 'MedPharma Labs' }
+      ];
+    }
+
+    // Agregar también lotes con alerta FEFO activa de inventario si no están en la lista
+    if (Array.isArray(this.fefoFilteredLots)) {
+      this.fefoFilteredLots.forEach(l => {
+        if (!items.some(i => i.lot === l.lotNumber)) {
+          items.push({
+            prodName: l.productName,
+            lot: l.lotNumber,
+            exp: l.expireDate,
+            boxes: l.stockBoxes || 1,
+            supplierName: l.laboratory || 'Droguería Distribuidora'
+          });
+        }
+      });
+    }
+
+    let html = `<option value="">-- Selecciona un medicamento / lote próximo a vencer (&lt; 90 días) --</option>`;
+    items.forEach((item, idx) => {
+      const isSelected = selectedLotCode ? (item.lot === selectedLotCode) : (idx === 0);
+      html += `<option value="${escHtml(item.lot)}" ${isSelected ? 'selected' : ''}>
+        ${escHtml(item.prodName)} • Lote: ${escHtml(item.lot)} (Vence: ${escHtml(item.exp)}) • ${item.boxes} Cajas • ${escHtml(item.supplierName)}
+      </option>`;
+    });
+    html += `<option value="__custom__">➕ [ Ingresar medicamento / lote manualmente ]</option>`;
+    select.innerHTML = html;
+
+    // Si no se pasó un lote específico, aplicar los datos del primer elemento seleccionado
+    if (!selectedLotCode && items.length > 0) {
+      this.onExchangeLotSelectChange(items[0].lot);
+    }
+  }
+
+  onExchangeLotSelectChange(val) {
+    const inName = document.getElementById('exchangeProductName');
+    const inLot = document.getElementById('exchangeLotCode');
+    const inSupp = document.getElementById('exchangeSupplier');
+    const inQty = document.getElementById('exchangeQuantity');
+    const inExp = document.getElementById('exchangeExpireDate');
+
+    if (val === '__custom__') {
+      if (inName) { inName.value = ''; inName.focus(); }
+      if (inLot) inLot.value = '';
+      if (inSupp) inSupp.value = '';
+      if (inQty) inQty.value = '1';
+      if (inExp) inExp.value = '';
+      return;
+    }
+
+    let items = (window.purchasesApp && Array.isArray(window.purchasesApp.exchanges)) ? window.purchasesApp.exchanges : [];
+    if (items.length === 0) {
+      items = [
+        { prodName: 'Bio-Amoxil 500mg Cápsulas', lot: 'L-24115', exp: '15/11/2026', boxes: 15, supplierName: 'Droguería Andina S.A.C.' },
+        { prodName: 'Sedafarma 2mg Ranuradas', lot: 'L-23890', exp: '28/11/2026', boxes: 8, supplierName: 'Química Suiza S.A.C.' },
+        { prodName: 'Farma-Naprox 550mg Tabletas', lot: 'L-24012', exp: '10/12/2026', boxes: 20, supplierName: 'MedPharma Labs' }
+      ];
+    }
+    if (Array.isArray(this.fefoFilteredLots)) {
+      this.fefoFilteredLots.forEach(l => {
+        if (!items.some(i => i.lot === l.lotNumber)) {
+          items.push({
+            prodName: l.productName,
+            lot: l.lotNumber,
+            exp: l.expireDate,
+            boxes: l.stockBoxes || 1,
+            supplierName: l.laboratory || 'Droguería Distribuidora'
+          });
+        }
+      });
+    }
+
+    const found = items.find(i => i.lot === val);
+    if (found) {
+      if (inName) inName.value = found.prodName;
+      if (inLot) inLot.value = found.lot;
+      if (inSupp) inSupp.value = found.supplierName;
+      if (inQty) inQty.value = found.boxes;
+      if (inExp) inExp.value = found.exp;
+    }
+  }
+
+  openExchangeModal(e, medName, lot, supplier, qty, exp) {
     if (e && typeof e.preventDefault === 'function') {
       e.preventDefault();
       e.stopPropagation();
     }
     if (typeof e === 'string') {
+      exp = qty;
       qty = supplier;
       supplier = lot;
       lot = medName;
       medName = e;
     }
-
-    const finalName = (typeof medName === 'string' && medName.trim()) ? medName : 'Bio-Amoxil 500mg Cápsulas';
-    const finalLot = (typeof lot === 'string' && lot.trim()) ? lot : 'L-24115';
-    const finalSupp = (typeof supplier === 'string' && supplier.trim()) ? supplier : 'Droguería Andina S.A.C. / MedPharma';
-    const finalQty = (typeof qty === 'number' || (typeof qty === 'string' && !isNaN(qty))) ? qty : 15;
 
     // Cerrar cualquier modal activo previo para evitar cruce de vistas
     document.querySelectorAll('.modal-backdrop-valetec.active').forEach(m => m.classList.remove('active'));
@@ -6421,10 +6518,19 @@ class WarehouseModule {
     const inLot = document.getElementById('exchangeLotCode');
     const inSupp = document.getElementById('exchangeSupplier');
     const inQty = document.getElementById('exchangeQuantity');
-    if (inName) inName.value = finalName;
-    if (inLot) inLot.value = finalLot;
-    if (inSupp) inSupp.value = finalSupp;
-    if (inQty) inQty.value = finalQty;
+    const inExp = document.getElementById('exchangeExpireDate');
+
+    // Inicializar opciones en el selector desplegable
+    this.populateExchangeLotOptions(lot);
+
+    if (lot) {
+      if (inName && medName) inName.value = medName;
+      if (inLot) inLot.value = lot;
+      if (inSupp && supplier) inSupp.value = supplier;
+      if (inQty && qty) inQty.value = qty;
+      if (inExp && exp) inExp.value = exp;
+    }
+
     if (modal) modal.classList.add('active');
   }
 
