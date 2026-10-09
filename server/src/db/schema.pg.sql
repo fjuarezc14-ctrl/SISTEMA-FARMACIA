@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   password_hash VARCHAR(255) NOT NULL,
   permissions TEXT,
   target VARCHAR(100),
+  dni VARCHAR(20),
   status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'inactive', 'pending')),
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -130,6 +131,9 @@ CREATE TABLE IF NOT EXISTS ventas (
   total NUMERIC(10, 2) NOT NULL CHECK(total >= 0),
   amount_paid NUMERIC(10, 2) NOT NULL CHECK(amount_paid >= 0),
   change_given NUMERIC(10, 2) NOT NULL DEFAULT 0.00 CHECK(change_given >= 0),
+  discount NUMERIC(10, 2) NOT NULL DEFAULT 0.00 CHECK(discount >= 0),
+  points_used INTEGER NOT NULL DEFAULT 0 CHECK(points_used >= 0),
+  client_id INTEGER REFERENCES clientes(id) ON UPDATE CASCADE ON DELETE SET NULL,
   payment_reference VARCHAR(255),
   status VARCHAR(20) NOT NULL DEFAULT 'completed' CHECK(status IN ('completed', 'cancelled')),
   sunat_status VARCHAR(30) NOT NULL DEFAULT 'pending',

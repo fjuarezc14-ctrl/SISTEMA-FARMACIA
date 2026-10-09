@@ -280,12 +280,13 @@ function printA4Document(elementOrHtml, docTitle = 'Carta_Canje_Valetec') {
 
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
+  iframe.style.left = '-9999px';
+  iframe.style.top = '-9999px';
+  iframe.style.width = '1024px';
+  iframe.style.height = '768px';
   iframe.style.border = '0';
-  iframe.style.visibility = 'hidden';
+  iframe.style.opacity = '0.01';
+  iframe.style.visibility = 'visible';
   document.body.appendChild(iframe);
 
   const doc = iframe.contentWindow.document;
@@ -512,9 +513,9 @@ function printA4Document(elementOrHtml, docTitle = 'Carta_Canje_Valetec') {
       } finally {
         setTimeout(() => {
           if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-        }, 3000);
+        }, 4000);
       }
-    }, 250);
+    }, 350);
   };
 
   const images = doc.images;
@@ -2218,9 +2219,14 @@ class CounterModule {
         }
       });
 
-      // Auto-selección inteligente de Boleta / Factura según longitud de documento
+      // Auto-selección inteligente de Boleta / Factura y sanitización ágil de caracteres no numéricos
       this.patientInput.addEventListener('input', (e) => {
-        const val = e.target.value.trim();
+        const raw = e.target.value;
+        const cleaned = raw.replace(/[^\d]/g, '');
+        if (cleaned !== raw) {
+          e.target.value = cleaned;
+        }
+        const val = cleaned;
         if (val.length === 11) {
           const facturaRadio = document.querySelector('input[name="orderVoucherType"][value="factura"]');
           if (facturaRadio) facturaRadio.checked = true;
@@ -2439,17 +2445,24 @@ class CounterModule {
   }
 
   async lookupPatient() {
-    const doc = this.patientInput?.value.trim();
+    let doc = (this.patientInput?.value || '').trim();
     if (!doc) {
       showValetecToast("Digita un DNI o RUC para consultar.", "warning");
       return;
+    }
+
+    // Sanitización ágil: remover guiones y espacios accidentales (ej. 20-60123456-7 o 45 89 21 47)
+    const cleanDigits = doc.replace(/[^\d]/g, '');
+    if (cleanDigits.length >= 8 && this.patientInput) {
+      this.patientInput.value = cleanDigits;
+      doc = cleanDigits;
     }
 
     try {
       // Consulta estricta y directa al endpoint GET /api/clients/search?query=...
       const res = await window.api.searchClients(doc);
       if (res && res.data && Array.isArray(res.data) && res.data.length > 0) {
-        const client = res.data.find(c => c.documentNumber === doc) || res.data[0];
+        const client = res.data.find(c => c.documentNumber === doc || c.documentNumber === cleanDigits) || res.data[0];
         if (client) {
           this.activeClient = client;
           this.patientInput.value = client.documentNumber;
@@ -2503,7 +2516,8 @@ class CounterModule {
     }
 
     this.grid.innerHTML = filtered.map(p => {
-      const isOut = (p.stockUnits <= 0);
+      const isExpired = (p.fefoStatus === 'expired') || (p.expireDate && p.expireDate !== 'N/A' && new Date(p.expireDate) < new Date());
+      const isOut = (p.stockUnits <= 0) || isExpired;
       let rxPill = `<span class="rx-badge free">Libre</span>`;
       if (p.prescriptionType === 'required') rxPill = `<span class="rx-badge required">Receta CMP</span>`;
       if (p.prescriptionType === 'retained') rxPill = `<span class="rx-badge retained">Controlado</span>`;
@@ -2518,9 +2532,9 @@ class CounterModule {
       const isUnitOnly = (p.unitsPerBox <= 1) || (!hasBox && !hasBlister);
       const unitBtnLabel = isUnitOnly ? 'Unid' : 'Past';
 
-      const canBox = hasBox && (p.stockUnits >= (p.unitsPerBox || 100));
-      const canBlister = hasBlister && (p.stockUnits >= (p.unitsPerBlister || 10));
-      const canUnit = hasUnit && (p.stockUnits >= 1);
+      const canBox = !isExpired && hasBox && (p.stockUnits >= (p.unitsPerBox || 100));
+      const canBlister = !isExpired && hasBlister && (p.stockUnits >= (p.unitsPerBlister || 10));
+      const canUnit = !isExpired && hasUnit && (p.stockUnits >= 1);
 
       let defaultFrac = 'unit';
       if (canBox) defaultFrac = 'box';
@@ -2558,9 +2572,9 @@ class CounterModule {
           </div>
 
           <div class="stock-pill-row">
-            <div class="stock-pill-tag" title="${stockInfo.summaryText}">
-              <span><i class="bi bi-box-seam"></i> Stock: ${stockInfo.boxes > 0 ? `${stockInfo.boxes} cj` : ''}${stockInfo.boxes > 0 && (stockInfo.blisters > 0 || stockInfo.looseUnits > 0) ? ' • ' : ''}${stockInfo.blisters > 0 ? `${stockInfo.blisters} bl` : ''}${stockInfo.looseUnits > 0 ? ` +${stockInfo.looseUnits}u` : ''}${stockInfo.boxes === 0 && stockInfo.blisters === 0 && stockInfo.looseUnits === 0 ? 'Agotado' : ''}</span>
-              <small>(${p.stockUnits} un.)</small>
+            <div class="stock-pill-tag ${isExpired ? 'bg-danger-subtle text-danger' : ''}" title="${isExpired ? 'Lote Vencido - No dispensable por regulación DIGEMID' : stockInfo.summaryText}">
+              <span><i class="bi ${isExpired ? 'bi-calendar-x text-danger' : 'bi-box-seam'}"></i> Stock: ${isExpired ? '<strong style="color: #dc2626;">Lote Vencido</strong>' : (stockInfo.boxes > 0 ? `${stockInfo.boxes} cj` : '') + (stockInfo.boxes > 0 && (stockInfo.blisters > 0 || stockInfo.looseUnits > 0) ? ' • ' : '') + (stockInfo.blisters > 0 ? `${stockInfo.blisters} bl` : '') + (stockInfo.looseUnits > 0 ? ` +${stockInfo.looseUnits}u` : '') + (stockInfo.boxes === 0 && stockInfo.blisters === 0 && stockInfo.looseUnits === 0 ? 'Agotado' : '')}</span>
+              <small>(${isExpired ? 0 : p.stockUnits} un.)</small>
             </div>
           </div>
 
@@ -2573,13 +2587,13 @@ class CounterModule {
           <div class="card-action-footer">
             <button 
               type="button" 
-              class="btn-dispense" 
+              class="btn-dispense ${isExpired ? 'btn-expired' : ''}" 
               onclick="counterApp.dispenseCard(${p.id})"
               ${isOut ? 'disabled' : ''}
-              title="${isOut ? 'Sin existencias' : 'Agregar al carrito'}"
+              title="${isOut ? (isExpired ? 'Lote vencido - Bloqueado por DIGEMID' : 'Sin existencias') : 'Agregar al carrito'}"
             >
               <span class="price-val" id="prodPriceDisplay_${p.id}">S/ ${defaultPrice.toFixed(2)}</span>
-              <span class="btn-dispense-lbl"><i class="bi ${isOut ? 'bi-x-circle' : 'bi-plus-circle-fill'}"></i> ${isOut ? 'Agotado' : 'Agregar'}</span>
+              <span class="btn-dispense-lbl"><i class="bi ${isOut ? 'bi-x-circle' : 'bi-plus-circle-fill'}"></i> ${isOut ? (isExpired ? 'Vencido' : 'Agotado') : 'Agregar'}</span>
             </button>
           </div>
         </article>
@@ -2679,7 +2693,13 @@ class CounterModule {
   addItem(prodId, frac = 'box') {
     const prod = testPharmacyCatalog.find(p => p.id === prodId);
     if (!prod || prod.stockUnits <= 0) {
-      showValetecToast("Medicamento sin stock.", "danger");
+      showValetecToast("Medicamento sin stock disponible.", "danger");
+      return;
+    }
+
+    const isExpired = (prod.fefoStatus === 'expired') || (prod.expireDate && prod.expireDate !== 'N/A' && new Date(prod.expireDate) < new Date());
+    if (isExpired) {
+      showValetecToast(`El lote de "${prod.name}" se encuentra vencido. Por regulación sanitaria DIGEMID no puede dispensarse.`, "danger");
       return;
     }
 
@@ -3689,6 +3709,13 @@ class CounterModule {
     try {
       let saleData;
 
+      const discountVal = Math.round((this.redeemedDiscount || 0) * 100) / 100;
+      const loyalty = window.clientsApp?.loyaltySettings || { pointsNeeded: 10, discountSolValue: 1.00 };
+      const ratePerPoint = (loyalty.discountSolValue || 1.00) / (loyalty.pointsNeeded || 10);
+      const ptsUsed = (discountVal > 0 && ratePerPoint > 0)
+        ? Math.min(parseInt(this.activeClient?.pointsBalance, 10) || 0, Math.round(discountVal / ratePerPoint))
+        : 0;
+
       if (window.api && window.api.isConnected) {
         // Ejecución real contra el backend Node.js + PostgreSQL 16
         const res = await window.api.createSale({
@@ -3701,7 +3728,10 @@ class CounterModule {
           amountPaid,
           doctorCmp: this.docCmpInput?.value.trim() || undefined,
           recipeFolio: this.docFolioInput?.value.trim() || undefined,
-          mixedDetails: mixedDetailsPayload
+          mixedDetails: mixedDetailsPayload,
+          pointsDiscount: discountVal,
+          pointsUsed: ptsUsed,
+          clientId: this.activeClient?.id || undefined
         });
 
         if (!res || !res.success) {
@@ -3812,22 +3842,29 @@ class CounterModule {
         this.loadVouchersView().catch(() => {});
       }
 
-      // 1.1 Si hay un paciente identificado, acumular puntos según reglas activas y puntos promocionales
-      if (this.activeClient && window.clientsApp) {
-        const loyalty = window.clientsApp.loyaltySettings || { spendAmount: 10, pointsEarned: 1 };
-        const basePoints = Math.floor((total / (loyalty.spendAmount || 10)) * (loyalty.pointsEarned || 1));
-        const promoBonus = this.order.reduce((acc, it) => acc + (parseInt(it.product?.bonusPoints, 10) || 0) * (it.qty || 1), 0);
-        const totalPointsEarned = basePoints + promoBonus;
-
-        if (totalPointsEarned > 0) {
+      // 1.1 Si hay un paciente identificado, procesar débito de puntos canjeados y acumulación
+      if (this.activeClient) {
+        if (ptsUsed > 0) {
           const currentPts = parseInt(this.activeClient.pointsBalance, 10) || 0;
-          this.activeClient.pointsBalance = currentPts + totalPointsEarned;
+          this.activeClient.pointsBalance = Math.max(0, currentPts - ptsUsed);
+        }
+        if (window.clientsApp) {
+          const loyalty = window.clientsApp.loyaltySettings || { spendAmount: 10, pointsEarned: 1 };
+          const basePoints = Math.floor((total / (loyalty.spendAmount || 10)) * (loyalty.pointsEarned || 1));
+          const promoBonus = this.order.reduce((acc, it) => acc + (parseInt(it.product?.bonusPoints, 10) || 0) * (it.qty || 1), 0);
+          const totalPointsEarned = basePoints + promoBonus;
+
+          if (totalPointsEarned > 0) {
+            this.activeClient.pointsBalance = (this.activeClient.pointsBalance || 0) + totalPointsEarned;
+          }
           // Actualizar en padrón de clientes
           const clientInList = window.clientsApp.clientsList.find(c => c.id === this.activeClient.id);
           if (clientInList) clientInList.pointsBalance = this.activeClient.pointsBalance;
           window.clientsApp.updateKpis();
           window.clientsApp.applyFilterAndRender();
-          showValetecToast(`¡El paciente acumuló +${totalPointsEarned} Puntos! (Nuevo saldo: ${this.activeClient.pointsBalance} Pts)`, "info");
+          if (totalPointsEarned > 0) {
+            showValetecToast(`¡El paciente acumuló +${totalPointsEarned} Puntos! (Nuevo saldo: ${this.activeClient.pointsBalance} Pts)`, "info");
+          }
         }
       }
 
@@ -8089,13 +8126,13 @@ class StaffManagementModule {
     }
   }
 
-  saveNewStaff(e) {
+  async saveNewStaff(e) {
     if (e && typeof e.preventDefault === 'function') {
       e.preventDefault();
       e.stopPropagation();
     }
     const name = document.getElementById('staffNewName')?.value?.trim();
-    const dni = document.getElementById('staffNewDni')?.value?.trim();
+    const dni = document.getElementById('staffNewDni')?.value?.trim().replace(/\D/g, '');
     const roleKey = document.getElementById('staffNewRole')?.value || 'tech';
     const target = document.getElementById('staffNewTarget')?.value || 'S/ 1,500.00';
     const status = document.getElementById('staffNewStatus')?.value || 'active';
@@ -8104,7 +8141,7 @@ class StaffManagementModule {
       showValetecToast("Por favor ingresa el nombre y apellidos completos.", "warning");
       return;
     }
-    if (!dni || dni.length !== 8 || isNaN(dni)) {
+    if (!dni || dni.length !== 8) {
       showValetecToast("El DNI debe tener exactamente 8 dígitos numéricos.", "warning");
       return;
     }
@@ -8131,13 +8168,31 @@ class StaffManagementModule {
       target: target
     };
 
-    staffMembersList.push(newWorker);
-    this.render();
-    this.closeNewStaffModal();
-    showValetecToast(`Colaborador ${name} registrado con éxito en el sistema.`, 'success');
+    try {
+      if (window.api && window.api.isConnected) {
+        const res = await window.api.createUser({
+          name,
+          dni,
+          roleKey,
+          target,
+          status
+        });
+        if (!res || !res.success) {
+          throw new Error(res?.message || "No se pudo registrar en la base de datos.");
+        }
+        await syncWithBackend();
+      } else {
+        staffMembersList.push(newWorker);
+        this.render();
+      }
 
-    // Limpiar formulario
-    document.getElementById('newStaffForm')?.reset();
+      this.closeNewStaffModal();
+      showValetecToast(`Colaborador ${name} registrado permanentemente en PostgreSQL.`, 'success');
+      document.getElementById('newStaffForm')?.reset();
+    } catch (err) {
+      console.error("Error al registrar colaborador:", err);
+      showValetecToast(`Error al guardar colaborador: ${err.message}`, "danger");
+    }
   }
 
   openPermissionsModal(index, e) {

@@ -2,6 +2,7 @@ const { transaction } = require('../db');
 const { generateUBL21, numberToLetters } = require('../services/sunat.service');
 const SaleModel = require('../models/sale.model');
 const ProductModel = require('../models/product.model');
+const ClientModel = require('../models/client.model');
 const SettingsModel = require('../models/settings.model');
 const CashModel = require('../models/cash.model');
 const SunatWorker = require('../services/sunat.worker');
@@ -49,7 +50,10 @@ async function createSale(req, res, next) {
       paymentReference = null,
       doctorCmp = null,
       recipeFolio = null,
-      mixedDetails = null
+      mixedDetails = null,
+      pointsDiscount = 0,
+      pointsUsed = 0,
+      clientId = null
     } = req.body;
 
     // 1. Validaciones defensivas iniciales mediante SaleModel
@@ -59,7 +63,8 @@ async function createSale(req, res, next) {
       customerDoc,
       customerName,
       items,
-      mixedDetails
+      mixedDetails,
+      pointsDiscount
     });
 
     const sanitizedRef = paymentReference ? String(paymentReference).trim() : null;
@@ -193,8 +198,22 @@ async function createSale(req, res, next) {
       }
 
       calculatedTotal = Math.round(calculatedTotal * 100) / 100;
+      const discountAmount = Math.min(calculatedTotal, Math.max(0, Math.round((parseFloat(pointsDiscount) || 0) * 100) / 100));
+      calculatedTotal = Math.round((calculatedTotal - discountAmount) * 100) / 100;
+
       const subtotalBase = Math.round((calculatedTotal / 1.18) * 100) / 100;
       const igvAmount = Math.round((calculatedTotal - subtotalBase) * 100) / 100;
+
+      // Deducir puntos de fidelización de forma atómica si aplica
+      let effectiveClientId = clientId ? parseInt(clientId, 10) : null;
+      const numPointsUsed = parseInt(pointsUsed, 10) || 0;
+      if (!effectiveClientId && customerDoc && customerDoc !== '00000000') {
+        const foundClient = await ClientModel.findByDoc(customerDoc, tx);
+        if (foundClient) effectiveClientId = foundClient.id;
+      }
+      if (effectiveClientId && numPointsUsed > 0) {
+        await ClientModel.deductPoints(effectiveClientId, numPointsUsed, tx);
+      }
 
       // Cálculo de dinero recibido y vuelto con Redondeo BCRP Ley N° 29571 Art. 44 (en efectivo)
       let paid = calculatedTotal;
@@ -298,6 +317,9 @@ async function createSale(req, res, next) {
         total: calculatedTotal,
         amountPaid: paid,
         changeGiven,
+        discount: discountAmount,
+        pointsUsed: numPointsUsed,
+        clientId: effectiveClientId || null,
         paymentReference: finalReference,
         hashCpe: cpeData ? cpeData.digestValue : null,
         xmlUbl: cpeData ? cpeData.xml : null

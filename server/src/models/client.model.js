@@ -208,6 +208,7 @@ class ClientModel {
       return [];
     }
     const cleanTerm = term.trim();
+    const cleanDigits = cleanTerm.replace(/\D/g, '');
     const queryFn = (dbClient && dbClient.query) ? dbClient.query.bind(dbClient) : query;
 
     return await queryFn(`
@@ -221,12 +222,18 @@ class ClientModel {
         COALESCE(email, '') AS "email",
         points_balance AS "pointsBalance"
       FROM clientes
-      WHERE document_number ILIKE $1 OR full_name ILIKE $1
+      WHERE document_number ILIKE $1 
+         OR full_name ILIKE $1
+         OR (length($4) >= 3 AND document_number ILIKE $5)
       ORDER BY 
-        CASE WHEN document_number = $2 THEN 0 ELSE 1 END,
+        CASE 
+          WHEN document_number = $2 THEN 0 
+          WHEN length($4) >= 4 AND document_number = $4 THEN 1
+          ELSE 2 
+        END,
         full_name ASC
       LIMIT $3;
-    `, [`%${cleanTerm}%`, cleanTerm, limit]);
+    `, [`%${cleanTerm}%`, cleanTerm, limit, cleanDigits, `%${cleanDigits}%`]);
   }
 
   /**
@@ -256,7 +263,7 @@ class ClientModel {
   }
 
   /**
-   * Buscar cliente por número de documento exacto (DNI o RUC).
+   * Buscar cliente por número de documento exacto (DNI o RUC) sanitizando guiones/espacios.
    * @param {string} documentNumber - Número de documento.
    * @param {Object} [dbClient] - Cliente transaccional opcional.
    * @returns {Promise<Object|null>}
@@ -264,6 +271,7 @@ class ClientModel {
   static async findByDoc(documentNumber, dbClient) {
     if (!documentNumber) return null;
     const cleanDoc = String(documentNumber).trim();
+    const cleanDigits = cleanDoc.replace(/\D/g, '');
     const getFn = (dbClient && dbClient.get) ? dbClient.get.bind(dbClient) : get;
 
     return await getFn(`
@@ -278,9 +286,9 @@ class ClientModel {
         points_balance AS "pointsBalance",
         TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') AS "createdAt"
       FROM clientes
-      WHERE document_number = $1
+      WHERE document_number = $1 OR (length($2) >= 8 AND document_number = $2)
       LIMIT 1;
-    `, [cleanDoc]);
+    `, [cleanDoc, cleanDigits]);
   }
 
   /**
@@ -424,6 +432,29 @@ class ClientModel {
       ORDER BY v.id DESC
       LIMIT 20;
     `, [cleanDoc]);
+  }
+
+  /**
+   * Descontar puntos canjeados de fidelización de forma atómica dentro de una transacción.
+   * @param {number|string} clientId - ID del cliente.
+   * @param {number} pointsToDeduct - Cantidad de puntos a restar.
+   * @param {Object} clientTx - Cliente transaccional.
+   * @returns {Promise<Object>} Resultado de la actualización.
+   */
+  static async deductPoints(clientId, pointsToDeduct, clientTx) {
+    if (!clientId) return null;
+    const validId = ClientModel.validateId(clientId);
+    const pts = parseInt(pointsToDeduct, 10) || 0;
+    if (pts <= 0) return null;
+
+    const runFn = (clientTx && clientTx.run) ? clientTx.run.bind(clientTx) : run;
+    return await runFn(`
+      UPDATE clientes
+      SET 
+        points_balance = GREATEST(0, points_balance - $1),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2;
+    `, [pts, validId]);
   }
 }
 

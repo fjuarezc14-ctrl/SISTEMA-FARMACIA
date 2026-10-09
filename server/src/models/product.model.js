@@ -267,7 +267,7 @@ class ProductModel {
         COALESCE(tot.total_boxes, 0)::int AS "stockBoxes",
         COALESCE(tot.total_blisters, 0)::int AS "stockBlisters",
         COALESCE(tot.total_units, 0)::int AS "stockUnits",
-        COALESCE(fefo.fefo_status, 'good') AS "fefoStatus",
+        COALESCE(fefo.fefo_status, CASE WHEN COALESCE(tot.expired_units, 0) > 0 THEN 'expired' ELSE 'good' END) AS "fefoStatus",
         COALESCE(tot.lots_json, '[]'::json) AS "lots",
         COUNT(*) OVER() AS full_count
       FROM productos p
@@ -275,9 +275,10 @@ class ProductModel {
       LEFT JOIN productos alt ON p.generic_alt_id = alt.id
       LEFT JOIN LATERAL (
         SELECT 
-          SUM(stock_boxes) AS total_boxes,
-          SUM(stock_blisters) AS total_blisters,
-          SUM(stock_units) AS total_units,
+          COALESCE(SUM(CASE WHEN l.expire_date >= CURRENT_DATE THEN stock_boxes ELSE 0 END), 0) AS total_boxes,
+          COALESCE(SUM(CASE WHEN l.expire_date >= CURRENT_DATE THEN stock_blisters ELSE 0 END), 0) AS total_blisters,
+          COALESCE(SUM(CASE WHEN l.expire_date >= CURRENT_DATE THEN stock_units ELSE 0 END), 0) AS total_units,
+          COALESCE(SUM(CASE WHEN l.expire_date < CURRENT_DATE THEN stock_units ELSE 0 END), 0) AS expired_units,
           JSON_AGG(
             JSON_BUILD_OBJECT(
               'id', l.id,
@@ -287,7 +288,8 @@ class ProductModel {
               'stockBlisters', FLOOR((l.stock_units % GREATEST(1, p.units_per_box)) / GREATEST(1, p.units_per_blister)),
               'stockUnits', l.stock_units,
               'looseUnits', (l.stock_units % GREATEST(1, p.units_per_box)) % GREATEST(1, p.units_per_blister),
-              'fefoStatus', l.fefo_status
+              'fefoStatus', l.fefo_status,
+              'isExpired', (l.expire_date < CURRENT_DATE)
             ) ORDER BY l.expire_date ASC
           ) AS lots_json
         FROM lotes_fefo l

@@ -324,6 +324,13 @@ class ValetecApiClient {
     return await this.request('/users');
   }
 
+  async createUser(userData) {
+    return await this.request('/users', {
+      method: 'POST',
+      body: JSON.stringify(userData)
+    });
+  }
+
   // 6. Libro DIGEMID & Recetas Médicas
   async getRecipes(params = '') {
     return await this.request(`/recipes${params ? '?' + params : ''}`);

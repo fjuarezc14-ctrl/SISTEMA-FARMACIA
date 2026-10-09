@@ -65,6 +65,70 @@ async function getAllUsers(req, res, next) {
   }
 }
 
+const ROLE_MAP = {
+  admin: 1,
+  qf: 2,
+  tech: 3,
+  cashier: 4
+};
+
+const PERM_LABELS = {
+  admin: "Control Total, Finanzas, Compras",
+  qf: "Auditoría, DIGEMID, Lotes",
+  tech: "Dispensación, Consulta Stock",
+  cashier: "Cobro POS, Arqueo, Egresos"
+};
+
+/**
+ * POST /api/users
+ * Crear y registrar un nuevo colaborador en la base de datos PostgreSQL
+ */
+async function createUser(req, res, next) {
+  try {
+    const { name, dni, roleKey, roleId, target, status = 'active', email, password } = req.body;
+
+    const resolvedRoleId = roleId ? parseInt(roleId, 10) : (ROLE_MAP[roleKey] || 3);
+    const cleanDni = dni ? String(dni).trim().replace(/\D/g, '') : '';
+    const cleanName = name ? String(name).trim() : '';
+
+    if (!cleanName || cleanName.length < 3) {
+      const err = new Error('El nombre completo es obligatorio y debe tener al menos 3 caracteres.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (!cleanDni || cleanDni.length !== 8) {
+      const err = new Error('El DNI debe contener exactamente 8 dígitos numéricos.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const finalEmail = email ? String(email).trim().toLowerCase() : `${cleanDni}@valetec.pe`;
+    const finalPassword = password ? String(password) : `${cleanDni}`;
+    const permissions = PERM_LABELS[roleKey] || 'Atención y Consulta';
+
+    const newUser = await UserModel.create({
+      roleId: resolvedRoleId,
+      name: cleanName,
+      email: finalEmail,
+      dni: cleanDni,
+      password: finalPassword,
+      permissions,
+      target: target ? String(target).trim() : 'S/ 1,500.00',
+      status
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Colaborador ${cleanName} registrado permanentemente en PostgreSQL.`,
+      data: newUser
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
-  getAllUsers
+  getAllUsers,
+  createUser
 };

@@ -66,7 +66,15 @@ class SaleModel {
       }
     }
 
-    // 3. Ítems del carrito
+    // 3. Validación opcional de descuento por fidelización
+    if (data.pointsDiscount !== undefined && data.pointsDiscount !== null) {
+      const disc = parseFloat(data.pointsDiscount);
+      if (isNaN(disc) || disc < 0) {
+        errors.push('El descuento por puntos debe ser un valor numérico mayor o igual a cero.');
+      }
+    }
+
+    // 4. Ítems del carrito
     if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
       errors.push('La venta debe contener al menos un producto en la lista de ítems.');
     } else {
@@ -164,9 +172,10 @@ class SaleModel {
         invoice_series, invoice_number, invoice_type, user_id, turno_id,
         customer_doc, customer_name, payment_method,
         subtotal, igv, total, amount_paid, change_given,
+        discount, points_used, client_id,
         payment_reference, status, sunat_status, hash_cpe, xml_ubl
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
       RETURNING *;
     `, [
       saleData.invoiceSeries,
@@ -182,6 +191,9 @@ class SaleModel {
       saleData.total,
       saleData.amountPaid,
       saleData.changeGiven || 0.00,
+      saleData.discount || 0.00,
+      saleData.pointsUsed || 0,
+      saleData.clientId || null,
       saleData.paymentReference || null,
       'completed',
       initialSunatStatus,

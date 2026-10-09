@@ -174,6 +174,7 @@ class UserModel {
         u.id,
         u.name,
         u.email,
+        u.dni,
         r.name AS "roleKey",
         r.label AS "roleLabel",
         u.permissions,
@@ -219,9 +220,9 @@ class UserModel {
     // 3. Insertar registro
     return await getFn(`
       INSERT INTO usuarios (
-        role_id, name, email, password_hash, permissions, target, status
+        role_id, name, email, password_hash, permissions, target, dni, status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING 
         id,
         role_id AS "roleId",
@@ -229,6 +230,7 @@ class UserModel {
         email,
         permissions,
         target,
+        dni,
         status,
         created_at AS "createdAt";
     `, [
@@ -238,6 +240,7 @@ class UserModel {
       hash,
       data.permissions ? data.permissions.trim() : null,
       data.target ? data.target.trim() : null,
+      data.dni ? String(data.dni).trim() : null,
       data.status || 'active'
     ]);
   }
